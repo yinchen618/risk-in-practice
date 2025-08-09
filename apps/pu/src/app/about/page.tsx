@@ -35,7 +35,7 @@ export default function AboutPage() {
 		}, []);
 		return (
 			<div className="space-y-4">
-				{items.map((p) => {
+                {items.map((p) => {
 					const verified =
 						typeof p.citations === "number" &&
 						p.citations_last_verified;
@@ -45,8 +45,19 @@ export default function AboutPage() {
 							className="border-l-4 border-slate-600 pl-4"
 						>
 							<p className="text-slate-700 leading-relaxed mb-1">
-								<strong>{p.title}</strong>. <em>{p.venue}</em>,{" "}
-								{p.year}.
+                                <strong>{p.title}</strong>. {" "}
+                                <em>{p.venue}</em>, {p.year}{" "}
+                                {p.type === "journal" && (
+                                    <span className="ml-1 inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs align-middle">
+                                        Journal
+                                    </span>
+                                )}
+                                {p.type === "conference" && (
+                                    <span className="ml-1 inline-block px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs align-middle">
+                                        Conference
+                                    </span>
+                                )}
+                                .
 							</p>
 							<div className="flex flex-wrap items-center gap-2 text-xs">
 								<span
