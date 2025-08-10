@@ -1,5 +1,15 @@
 "use client";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import {
 	ArrowRight,
 	Eye,
@@ -10,21 +20,6 @@ import {
 	Zap,
 } from "lucide-react";
 import { useState } from "react";
-import { Alert, AlertDescription } from "../../../components/ui/alert";
-import { Button } from "../../../components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "../../../components/ui/card";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "../../../components/ui/select";
 import { useStage1Logic } from "../utils/useStage1Logic";
 import { useStage2Logic } from "../utils/useStage2Logic";
 import { AnomalyLabelingSystem } from "./AnomalyLabelingSystem";

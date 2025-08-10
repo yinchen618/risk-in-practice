@@ -1,4 +1,5 @@
 import { LaTeX } from "@/components/LaTeX";
+import { Label } from "@/components/ui/label";
 // DataGenerationControls.tsx
 import {
 	Select,
@@ -8,7 +9,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import Label from "./Label";
 import type { DataParams } from "./types";
 
 interface DataGenerationControlsProps {

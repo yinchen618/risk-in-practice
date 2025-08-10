@@ -1,6 +1,5 @@
-import Label from "./Label";
-import RadioGroup from "./RadioGroup";
-import RadioGroupItem from "./RadioGroupItem";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface AlgorithmSelectorProps {
 	algorithm: "uPU" | "nnPU";

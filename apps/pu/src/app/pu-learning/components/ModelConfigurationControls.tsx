@@ -1,3 +1,4 @@
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import AlgorithmSelector from "./AlgorithmSelector";
-import Label from "./Label";
 import PriorEstimationSelector from "./PriorEstimationSelector";
 
 interface ModelConfigurationControlsProps {

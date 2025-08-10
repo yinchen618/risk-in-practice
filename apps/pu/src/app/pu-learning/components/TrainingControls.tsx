@@ -1,7 +1,7 @@
 // TrainingControls.tsx
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Play, RefreshCw } from "lucide-react";
-import Label from "./Label";
 
 interface TrainingControlsProps {
 	isTraining: boolean;

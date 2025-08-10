@@ -1,5 +1,6 @@
 import { LaTeX } from "@/components/LaTeX";
 
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -8,7 +9,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import Label from "./Label";
 import type { DataParams } from "./types";
 
 interface ExperimentSetupControlsProps {
