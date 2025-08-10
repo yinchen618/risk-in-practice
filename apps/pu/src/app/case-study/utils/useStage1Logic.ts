@@ -6,7 +6,6 @@ import {
 	createNewExperimentRun,
 	extractHHMMFromISO,
 	formatTaipeiISO,
-	loadAmmeterMap,
 	loadExperimentRuns,
 } from "./shared-utils";
 
@@ -27,9 +26,7 @@ export function useStage1Logic() {
 	const [labeledPositive, setLabeledPositive] = useState(0);
 	const [labeledNormal, setLabeledNormal] = useState(0);
 	const [savedParams, setSavedParams] = useState<FilterParams | null>(null);
-	const [meterLabelMap, setMeterLabelMap] = useState<Record<string, string>>(
-		{},
-	);
+
 
 	// Filter parameters state
 	const [filterParams, setFilterParams] = useState<FilterParams>({
@@ -59,14 +56,7 @@ export function useStage1Logic() {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 
-	// Load ammeter map on mount
-	useEffect(() => {
-		async function loadMap() {
-			const map = await loadAmmeterMap();
-			setMeterLabelMap(map);
-		}
-		loadMap();
-	}, []);
+
 
 	// Initialize and load experiment runs
 	useEffect(() => {
@@ -413,7 +403,6 @@ export function useStage1Logic() {
 		labeledPositive,
 		labeledNormal,
 		savedParams,
-		meterLabelMap,
 		filterParams,
 
 		// Handlers

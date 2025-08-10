@@ -906,35 +906,15 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 																estimated
 																anomalies
 															</div>
-															<ul className="list-disc list-inside">
-																{stage1Logic.candidateStats.top_devices_by_estimated_anomalies.map(
-																	(
-																		d: any,
-																	) => (
-																		<li
-																			key={
-																				d.deviceNumber
-																			}
-																		>
-																			Device{" "}
-																			{
-																				d.deviceNumber
-																			}
-																			{stage1Logic
-																				.meterLabelMap[
-																				d
-																					.deviceNumber
-																			]
-																				? ` (${stage1Logic.meterLabelMap[d.deviceNumber]})`
-																				: ""}
-																			:{" "}
-																			{
-																				d.estimated_anomalies
-																			}
-																		</li>
-																	),
-																)}
-															</ul>
+                                                        <ul className="list-disc list-inside">
+                                                            {stage1Logic.candidateStats.top_devices_by_estimated_anomalies.map(
+                                                                (d: any) => (
+                                                                    <li key={d.deviceNumber}>
+                                                                        Device {d.deviceNumber}: {d.estimated_anomalies}
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
 														</div>
 													)}
 											</div>
