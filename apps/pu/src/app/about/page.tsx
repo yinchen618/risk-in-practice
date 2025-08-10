@@ -35,7 +35,7 @@ export default function AboutPage() {
 		}, []);
 		return (
 			<div className="space-y-4">
-                {items.map((p) => {
+				{items.map((p) => {
 					const verified =
 						typeof p.citations === "number" &&
 						p.citations_last_verified;
@@ -45,19 +45,19 @@ export default function AboutPage() {
 							className="border-l-4 border-slate-600 pl-4"
 						>
 							<p className="text-slate-700 leading-relaxed mb-1">
-                                <strong>{p.title}</strong>. {" "}
-                                <em>{p.venue}</em>, {p.year}{" "}
-                                {p.type === "journal" && (
-                                    <span className="ml-1 inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs align-middle">
-                                        Journal
-                                    </span>
-                                )}
-                                {p.type === "conference" && (
-                                    <span className="ml-1 inline-block px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs align-middle">
-                                        Conference
-                                    </span>
-                                )}
-                                .
+								<strong>{p.title}</strong>. <em>{p.venue}</em>,{" "}
+								{p.year}{" "}
+								{p.type === "journal" && (
+									<span className="ml-1 inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs align-middle">
+										Journal
+									</span>
+								)}
+								{p.type === "conference" && (
+									<span className="ml-1 inline-block px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs align-middle">
+										Conference
+									</span>
+								)}
+								.
 							</p>
 							<div className="flex flex-wrap items-center gap-2 text-xs">
 								<span
@@ -70,10 +70,10 @@ export default function AboutPage() {
 											: "Reference"}
 								</span>
 								<span
-									className={`px-2 py-0.5 rounded ${verified ? "bg-slate-100 text-slate-800" : "bg-slate-200 text-slate-600"}`}
+									className={`px-2 py-0.5 rounded ${verified ? "bg-[#E6F0FA] text-[#1A73E8]" : "bg-[#F5F5F5] text-[#757575]"}`}
 								>
 									Citations:{" "}
-									{verified ? p.citations : "updating…"}
+									{verified ? p.citations : "Updating…"}
 									{verified && (
 										<span className="ml-1 text-slate-500">
 											(verified{" "}
@@ -123,16 +123,22 @@ export default function AboutPage() {
 					<div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-r from-slate-700 to-slate-800 text-white mb-8">
 						<GraduationCap className="h-12 w-12" />
 					</div>
-					<h1 className="text-4xl md:text-5xl font-bold mb-4 text-slate-800">
-						Yin‑Chen Chen — PhD Candidate in Machine Learning & IoT
-						Systems
+					<h1 className="text-4xl md:text-5xl font-bold text-slate-800">
+						Yin‑Chen Chen
 					</h1>
-					<div className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mb-6 space-y-2">
-						<ul className="space-y-2">
-							<li>
-								Built and operate a 95‑unit smart residential
-								testbed to study Positive‑Unlabeled (PU)
-								learning at scale
+					<p className="mt-2 text-xl md:text-2xl font-semibold text-slate-600">
+						PhD Candidate in Machine Learning & IoT Systems
+					</p>
+					<div className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mb-6 mt-4">
+						<ul className="space-y-[0.4em] list-none">
+							<li className="xl:whitespace-nowrap">
+								• Built and operate a{" "}
+								<strong>
+									95‑unit smart residential testbed
+								</strong>{" "}
+								to study Positive‑Unlabeled (PU) learning at
+								scale
+								<br className="xl:hidden" />
 								<a
 									className="ml-2 text-blue-700 hover:underline"
 									href="/testbed?tab=overview#top"
@@ -140,9 +146,11 @@ export default function AboutPage() {
 									↗ Testbed Overview
 								</a>
 							</li>
-							<li>
-								Reproduced uPU/nnPU and validated debugging
-								insights on real, non‑stationary data
+							<li className="xl:whitespace-nowrap">
+								• Reproduced <strong>uPU/nnPU</strong> and
+								validated debugging insights on real,
+								non‑stationary data
+								<br className="xl:hidden" />
 								<a
 									className="ml-2 text-blue-700 hover:underline"
 									href="/pu-learning?tab=demo#top"
@@ -156,10 +164,13 @@ export default function AboutPage() {
 									↗ Case Study – Stage‑3
 								</a>
 							</li>
-							<li>
-								Seeking to extend class‑prior estimation and
-								non‑negative risk training for dynamic,
-								label‑shifted environments
+							<li className="xl:whitespace-nowrap">
+								• Seeking to extend{" "}
+								<strong>class‑prior estimation</strong> and
+								<strong> non‑negative risk training</strong> for
+								dynamic,
+								<strong> label‑shifted environments</strong>
+								<br className="xl:hidden" />
 								<a
 									className="ml-2 text-blue-700 hover:underline"
 									href="/pu-learning?tab=theory#top"
@@ -504,9 +515,20 @@ export default function AboutPage() {
 								<p className="text-slate-600">
 									Grounded in weakly-supervised learning
 									literature (e.g., PU Learning), with
-									experience in formulating and applying
-									theoretical concepts to noisy, real-world
-									data.
+									experience translating concepts to noisy,
+									real-world data.
+								</p>
+								<p className="mt-2 text-[0.9em]">
+									<a
+										className="text-[#1A73E8] hover:underline"
+										href="/case-study#stage-3"
+									>
+										→{" "}
+										<span className="italic">
+											Applied uPU to anomaly detection in
+											smart meters
+										</span>
+									</a>
 								</p>
 							</CardContent>
 						</Card>
@@ -524,9 +546,20 @@ export default function AboutPage() {
 								<p className="text-slate-600">
 									Proven ability to architect and deploy
 									end-to-end hardware/software systems, from
-									sensor integration and on-premise AI servers
-									to data pipelines and user-facing
+									sensor pipelines to user-facing
 									applications.
+								</p>
+								<p className="mt-2 text-[0.9em]">
+									<a
+										className="text-[#1A73E8] hover:underline"
+										href="/testbed"
+									>
+										→{" "}
+										<span className="italic">
+											Designed full IoT pipeline for
+											95‑unit Testbed
+										</span>
+									</a>
 								</p>
 							</CardContent>
 						</Card>
@@ -543,9 +576,20 @@ export default function AboutPage() {
 							<CardContent>
 								<p className="text-slate-600">
 									A decade of experience in translating
-									ambiguous real-world challenges—in smart
-									buildings, education, and finance—into
-									robust, data-driven technical solutions.
+									ambiguous real-world challenges into robust,
+									data-driven technical solutions.
+								</p>
+								<p className="mt-2 text-[0.9em]">
+									<a
+										className="text-[#1A73E8] hover:underline"
+										href="/pu-principle"
+									>
+										→{" "}
+										<span className="italic">
+											Mitigated seasonal label shift in
+											electricity usage prediction
+										</span>
+									</a>
 								</p>
 							</CardContent>
 						</Card>
@@ -565,7 +609,7 @@ export default function AboutPage() {
 									<div className="space-y-6">
 										{/* Deep Learning & Models */}
 										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+											<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
 												<Brain className="h-4 w-4" />
 												Deep Learning & Models
 											</h4>
@@ -580,35 +624,26 @@ export default function AboutPage() {
 													variant="secondary"
 													className="text-xs"
 												>
-													Reinforcement Learning
-													(Q-Learning)
+													Class-Prior Estimation
 												</Badge>
 												<Badge
 													variant="secondary"
 													className="text-xs"
 												>
-													Generative Models (Stable
-													Diffusion)
+													PyTorch
 												</Badge>
 												<Badge
 													variant="secondary"
 													className="text-xs"
 												>
-													LLM Deployment (DeepSeek)
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Computer Vision (Facial
-													Recognition)
+													Scikit-learn
 												</Badge>
 											</div>
 										</div>
 
 										{/* IoT & Embedded Systems */}
 										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+											<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
 												<Cpu className="h-4 w-4" />
 												IoT & Embedded Systems
 											</h4>
@@ -631,52 +666,12 @@ export default function AboutPage() {
 												>
 													MCU Development
 												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													UEFI Firmware
-												</Badge>
 											</div>
 										</div>
 									</div>
 
 									{/* Column 2 */}
 									<div className="space-y-6">
-										{/* Frameworks & Libraries */}
-										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-												<Wrench className="h-4 w-4" />
-												Frameworks & Libraries
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													PyTorch
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Scikit-learn
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Pandas
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													OpenCV
-												</Badge>
-											</div>
-										</div>
-
 										{/* Programming & Data */}
 										<div>
 											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
@@ -723,6 +718,40 @@ export default function AboutPage() {
 											</div>
 										</div>
 
+										{/* Frameworks & Libraries */}
+										<div>
+											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+												<Wrench className="h-4 w-4" />
+												Frameworks & Libraries
+											</h4>
+											<div className="flex flex-wrap gap-2">
+												<Badge
+													variant="secondary"
+													className="text-xs"
+												>
+													Next.js
+												</Badge>
+												<Badge
+													variant="secondary"
+													className="text-xs"
+												>
+													FastAPI
+												</Badge>
+												<Badge
+													variant="secondary"
+													className="text-xs"
+												>
+													OpenCV
+												</Badge>
+												<Badge
+													variant="secondary"
+													className="text-xs"
+												>
+													Pandas
+												</Badge>
+											</div>
+										</div>
+
 										{/* Infrastructure & Tools */}
 										<div>
 											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
@@ -730,12 +759,6 @@ export default function AboutPage() {
 												Infrastructure & Tools
 											</h4>
 											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													AWS
-												</Badge>
 												<Badge
 													variant="secondary"
 													className="text-xs"
@@ -752,7 +775,7 @@ export default function AboutPage() {
 													variant="secondary"
 													className="text-xs"
 												>
-													Linux
+													AWS
 												</Badge>
 												<Badge
 													variant="secondary"
