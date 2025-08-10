@@ -1,3 +1,8 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
 generator client {
     provider = "prisma-client-js"
 }
@@ -5,18 +10,13 @@ generator client {
 generator zod {
     provider         = "zod-prisma-types"
     output           = "./zod"
-    addIncludeType   = "false"
-    addSelectType    = "false"
-    createInputTypes = "true"
+    createInputTypes = true
+    addIncludeType   = false
+    addSelectType    = false
 }
 
 generator json {
     provider = "prisma-json-types-generator"
-}
-
-datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
 }
 
 model User {
@@ -25,7 +25,7 @@ model User {
     email              String       @unique
     emailVerified      Boolean
     image              String?
-    createdAt          DateTime
+    createdAt          DateTime     @default(now())
     updatedAt          DateTime
     username           String?      @unique
     role               String?
@@ -131,26 +131,26 @@ model Organization {
     paymentsCustomerId   String?
     aiChats              AiChat[]
     bankAccounts         BankAccount[]
-    borrow_god           borrow_god[]
-    buddhist             buddhist[]
+    borrow_god           BorrowGod[]
+    buddhist             Buddhist[]
     customers            Customer[]
     expenses             Expense[]
-    family               family[]
-    family_member        family_member[]
-    god_name             god_name[]
+    family               Family[]
+    family_member        FamilyMember[]
+    god_name             GodName[]
     invitations          Invitation[]
     members              Member[]
-    member_class         member_class[]
-    mgyear               mgyear[]
+    member_class         MemberClass[]
+    mgyear               MgYear[]
     products             Product[]
     ProfitSharing        ProfitSharing[]
     purchases            Purchase[]
     relationshipManagers RelationshipManager[]
-    service1             service1[]
-    service2             service2[]
-    servicing1           servicing1[]
-    servicing2           servicing2[]
-    temple               temple[]
+    service1             Service1[]
+    service2             Service2[]
+    servicing1           Servicing1[]
+    servicing2           Servicing2[]
+    temple               Temple[]
 
     @@map("organization")
 }
@@ -408,7 +408,7 @@ model AssetTransaction {
     @@map("asset_transaction")
 }
 
-model ammeter {
+model Ammeter {
     id                  String    @id @db.VarChar
     electricMeterNumber String    @db.VarChar
     electricMeterName   String    @db.VarChar
@@ -425,9 +425,11 @@ model ammeter {
     organizationId      String?   @db.VarChar
     createdAt           DateTime? @db.Timestamp(6)
     updatedAt           DateTime? @db.Timestamp(6)
+
+    @@map("ammeter")
 }
 
-model ammeter_log {
+model AmmeterLog {
     id             String    @id @db.VarChar
     deviceNumber   String    @db.VarChar
     action         String    @db.VarChar
@@ -451,6 +453,8 @@ model ammeter_log {
     userId         String?   @db.VarChar
     organizationId String?   @db.VarChar
     createdAt      DateTime? @db.Timestamp(6)
+
+    @@map("ammeter_log")
 }
 
 model ExperimentRun {
@@ -470,7 +474,7 @@ model ExperimentRun {
     negativeLabelCount Int?
 
     // 一個實驗批次會產生多個異常事件候選
-    anomalyEvents anomaly_event[]
+    anomalyEvents AnomalyEvent[]
 
     // 一個實驗批次最終會訓練出一個模型
     trainedModel TrainedModel?
@@ -481,7 +485,7 @@ model ExperimentRun {
     @@map("experiment_run")
 }
 
-model anomaly_event {
+model AnomalyEvent {
     id                 String             @id
     eventId            String             @unique
     meterId            String
@@ -497,21 +501,24 @@ model anomaly_event {
     createdAt          DateTime           @default(now())
     updatedAt          DateTime
     experimentRun      ExperimentRun?     @relation(fields: [experimentRunId], references: [id], onDelete: SetNull)
-    event_label_link   event_label_link[]
+    eventLabelLinks    EventLabelLink[]
+
+    @@map("anomaly_event")
 }
 
-model anomaly_label {
-    id               String             @id
-    name             String
-    description      String?
-    createdAt        DateTime           @default(now())
-    updatedAt        DateTime
-    event_label_link event_label_link[]
+model AnomalyLabel {
+    id              String           @id
+    name            String
+    description     String?
+    createdAt       DateTime         @default(now())
+    updatedAt       DateTime
+    eventLabelLinks EventLabelLink[]
 
     @@unique([name])
+    @@map("anomaly_label")
 }
 
-model borrow_god {
+model BorrowGod {
     id             String       @id
     godNameId      String
     applyName      String?
@@ -521,11 +528,13 @@ model borrow_god {
     organizationId String
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
-    god_name       god_name     @relation(fields: [godNameId], references: [id], onDelete: Cascade)
+    godName        GodName      @relation(fields: [godNameId], references: [id], onDelete: Cascade)
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("borrow_god")
 }
 
-model buddhist {
+model Buddhist {
     id             String       @id
     name           String
     cellphone      String?
@@ -535,21 +544,24 @@ model buddhist {
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("buddhist")
 }
 
-model event_label_link {
-    id            String        @id
-    eventId       String
-    labelId       String
-    createdAt     DateTime      @default(now())
-    anomaly_event anomaly_event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-    anomaly_label anomaly_label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+model EventLabelLink {
+    id           String       @id
+    eventId      String
+    labelId      String
+    createdAt    DateTime     @default(now())
+    anomalyEvent AnomalyEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    anomalyLabel AnomalyLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
     @@unique([eventId, labelId])
+    @@map("event_label_link")
 }
 
-model family {
-    id             String          @id
+model Family {
+    id             String         @id
     name           String
     address        String?
     phone          String?
@@ -558,15 +570,17 @@ model family {
     note           String?
     postalCode     String?
     organizationId String
-    createdAt      DateTime        @default(now())
+    createdAt      DateTime       @default(now())
     updatedAt      DateTime
-    organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    family_member  family_member[]
-    servicing1     servicing1[]
-    servicing2     servicing2[]
+    organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    familyMembers  FamilyMember[]
+    servicing1     Servicing1[]
+    servicing2     Servicing2[]
+
+    @@map("family")
 }
 
-model family_member {
+model FamilyMember {
     id             String       @id
     name           String
     relation       String?
@@ -583,11 +597,13 @@ model family_member {
     organizationId String
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
-    family         family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+    family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("family_member")
 }
 
-model god_name {
+model GodName {
     id             String       @id
     value          String
     price          Decimal      @default(0) @db.Decimal(15, 2)
@@ -595,11 +611,13 @@ model god_name {
     organizationId String
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
-    borrow_god     borrow_god[]
+    borrowGod      BorrowGod[]
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("god_name")
 }
 
-model member_class {
+model MemberClass {
     id             String       @id
     name           String
     type           String
@@ -608,9 +626,11 @@ model member_class {
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("member_class")
 }
 
-model mgyear {
+model MgYear {
     id             String       @id
     order          Int          @default(0)
     mgyear         String
@@ -623,9 +643,10 @@ model mgyear {
 
     @@unique([organizationId, mgyear])
     @@unique([organizationId, year])
+    @@map("mgyear")
 }
 
-model service1 {
+model Service1 {
     id             String       @id
     name           String
     type           String
@@ -635,12 +656,14 @@ model service1 {
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    service2       service2[]
-    servicing1     servicing1[]
-    servicing2     servicing2[]
+    service2       Service2[]
+    servicing1     Servicing1[]
+    servicing2     Servicing2[]
+
+    @@map("service1")
 }
 
-model service2 {
+model Service2 {
     id             String       @id
     name           String
     level          Int          @default(0)
@@ -650,12 +673,14 @@ model service2 {
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    service1       service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
-    servicing1     servicing1[]
-    servicing2     servicing2[]
+    service1       Service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
+    servicing1     Servicing1[]
+    servicing2     Servicing2[]
+
+    @@map("service2")
 }
 
-model servicing1 {
+model Servicing1 {
     id             String       @id
     familyId       String
     organizationId String
@@ -682,16 +707,17 @@ model servicing1 {
     ps             String?
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
-    family         family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+    family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    service1       service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
-    service2       service2?    @relation(fields: [service2Id], references: [id])
-    servicing2     servicing2[]
+    service1       Service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
+    service2       Service2?    @relation(fields: [service2Id], references: [id])
+    servicing2     Servicing2[]
 
     @@unique([organizationId, ordernum, year])
+    @@map("servicing1")
 }
 
-model servicing2 {
+model Servicing2 {
     id             String       @id
     familyId       String
     organizationId String
@@ -726,14 +752,16 @@ model servicing2 {
     ps             String?
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
-    family         family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+    family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    service1       service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
-    service2       service2?    @relation(fields: [service2Id], references: [id])
-    servicing1     servicing1   @relation(fields: [servicing1Id], references: [id], onDelete: Cascade)
+    service1       Service1     @relation(fields: [service1Id], references: [id], onDelete: Cascade)
+    service2       Service2?    @relation(fields: [service2Id], references: [id])
+    servicing1     Servicing1   @relation(fields: [servicing1Id], references: [id], onDelete: Cascade)
+
+    @@map("servicing2")
 }
 
-model temple {
+model Temple {
     id             String       @id
     name           String
     address        String?
@@ -744,6 +772,8 @@ model temple {
     createdAt      DateTime     @default(now())
     updatedAt      DateTime
     organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@map("temple")
 }
 
 enum PurchaseType {

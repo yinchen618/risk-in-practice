@@ -2,7 +2,7 @@
 import type { MeterData } from "@/hooks/use-testbed-data";
 import { fetchMeterData } from "@/hooks/use-testbed-data";
 import Link from "next/link";
-import { useQueryState } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { DataStatistics } from "./data-statistics";
 import { ExplorerControls } from "./explorer-controls";
@@ -22,30 +22,34 @@ export function ExplorerTab() {
 	}, []);
 
 	// 與網址列同步的狀態（nuqs）
-	const [selectedBuilding, setSelectedBuilding] = useQueryState("building", {
-		defaultValue: "a",
-		shallow: false,
-	});
-	const [selectedUnit, setSelectedUnit] = useQueryState("unit", {
-		defaultValue: "",
-		shallow: false,
-	});
-	const [selectedMeter, setSelectedMeter] = useQueryState("meter", {
-		defaultValue: "main",
-		shallow: false,
-	});
-	const [startDateTime, setStartDateTime] = useQueryState("start", {
-		defaultValue: defaultStartIso,
-		shallow: false,
-	});
+	const [selectedBuilding, setSelectedBuilding] = useQueryState(
+		"building",
+		parseAsString.withDefault("a").withOptions({ shallow: false }),
+	);
+	const [selectedUnit, setSelectedUnit] = useQueryState(
+		"unit",
+		parseAsString.withDefault("").withOptions({ shallow: false }),
+	);
+	const [selectedMeter, setSelectedMeter] = useQueryState(
+		"meter",
+		parseAsString.withDefault("main").withOptions({ shallow: false }),
+	);
+	const [startDateTime, setStartDateTime] = useQueryState(
+		"start",
+		parseAsString
+			.withDefault(defaultStartIso)
+			.withOptions({ shallow: false }),
+	);
 	// end 允許為空（非 custom 模式不寫入 URL）
-	const [endDateTime, setEndDateTime] = useQueryState<string | null>("end", {
-		shallow: false,
-	});
+	const [endDateTime, setEndDateTime] = useQueryState(
+		"end",
+		parseAsString.withOptions({ shallow: false }),
+	);
 	// 快速區間：用 URL range 參數保存；custom 時不寫入 URL
-	const [rangeParam, setRangeParam] = useQueryState<string | null>("range", {
-		shallow: false,
-	});
+	const [rangeParam, setRangeParam] = useQueryState(
+		"range",
+		parseAsString.withOptions({ shallow: false }),
+	);
 	type RangeMode = "6h" | "12h" | "1d" | "3d" | "1w" | "custom";
 	const rangeMode: RangeMode = (rangeParam as RangeMode) || "custom";
 	const setRangeMode = (mode: RangeMode) =>
