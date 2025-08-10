@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import CaseStudyPageContent from "./components/CaseStudyPageContent";
+import CaseStudyPageContent from "./nav/CaseStudyPageContent";
 
 export default function CaseStudyPage() {
 	return (

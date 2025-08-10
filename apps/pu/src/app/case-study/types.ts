@@ -56,3 +56,28 @@ export interface EventFilters {
 	page?: number;
 	limit?: number;
 }
+
+// 資料探索階段篩選參數
+export interface FilterParams {
+	// Top-level filter
+	startDate: Date;
+	endDate: Date;
+	// Time (Taiwan timezone, default 00:00)
+	startTime: string; // HH:MM
+	endTime: string; // HH:MM
+
+	// Value-based rules
+	zScoreThreshold: number;
+	spikePercentage: number;
+
+	// Time-based rules
+	minEventDuration: number;
+	weekendHolidayDetection: boolean;
+
+	// Data integrity rules
+	maxTimeGap: number;
+
+	// Peer comparison rules
+	peerAggWindow: number;
+	peerExceedPercentage: number;
+}

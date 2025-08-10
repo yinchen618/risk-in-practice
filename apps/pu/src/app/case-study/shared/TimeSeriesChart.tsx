@@ -30,6 +30,8 @@ export function TimeSeriesChart({
 	const [dynamicWindow, setDynamicWindow] = useState<{
 		timestamps: string[];
 		values: number[];
+		minutes: number;
+		eventId: string;
 	} | null>(null);
 	const [loadingWindow, setLoadingWindow] = useState(false);
 	// keep hooks order consistent; defer conditional rendering to end
@@ -86,6 +88,8 @@ export function TimeSeriesChart({
 						setDynamicWindow({
 							timestamps: dw.timestamps,
 							values: dw.values,
+							minutes,
+							eventId: selectedEvent.id,
 						});
 					} else {
 						setDynamicWindow(null);
@@ -106,7 +110,16 @@ export function TimeSeriesChart({
 	}, [selectedEvent?.id]);
 
 	useEffect(() => {
-		if (!selectedEvent) return;
+		if (!selectedEvent || loadingWindow) return;
+		// If we already have a dynamic window for this event and minutes, skip refetch
+		if (
+			dynamicWindow &&
+			dynamicWindow.eventId === selectedEvent.id &&
+			dynamicWindow.minutes === windowMinutes
+		) {
+			return;
+		}
+
 		// decide based on whether base fullWindow covers requested ±windowMinutes
 		const ts = fullWindow.timestamps;
 		let needRemote = false;
@@ -129,16 +142,23 @@ export function TimeSeriesChart({
 		if (needRemote) {
 			void fetchRemoteWindow(windowMinutes);
 		} else {
-			setDynamicWindow(null);
+			// base window is sufficient for current minutes
+			if (dynamicWindow) {
+				setDynamicWindow(null);
+			}
 		}
 	}, [
 		windowMinutes,
 		selectedEvent?.id,
+		selectedEvent?.eventTimestamp,
 		fetchRemoteWindow,
-		fullWindow.timestamps,
+		dynamicWindow,
+		loadingWindow,
 	]);
 
-	const finalWindow = dynamicWindow ?? localWindow;
+	const finalWindow = dynamicWindow
+		? { timestamps: dynamicWindow.timestamps, values: dynamicWindow.values }
+		: localWindow;
 	const { timestamps, values } = finalWindow;
 
 	const plotData = [

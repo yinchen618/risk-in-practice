@@ -127,7 +127,7 @@ export default function AboutPage() {
 						Yin‑Chen Chen
 					</h1>
 					<p className="mt-2 text-xl md:text-2xl font-semibold text-slate-600">
-						PhD Candidate in Machine Learning & IoT Systems
+						Prospective PhD Student – Machine Learning & IoT Systems
 					</p>
 					<div className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mb-6 mt-4">
 						<ul className="space-y-[0.4em] list-none">

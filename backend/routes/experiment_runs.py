@@ -400,6 +400,136 @@ async def save_experiment_parameters(run_id: str, request: CandidateGenerationRe
         logger.error(f"Failed to save experiment parameters: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to save experiment parameters: {str(e)}")
 
+@router.post("/{run_id}/complete", response_model=ExperimentRunResponse)
+async def complete_experiment_run(run_id: str):
+    """
+    將實驗批次標記為 COMPLETED。
+    條件：
+    - 實驗批次存在
+    - 狀態為 LABELING（或已 COMPLETED）
+    - 該批次下無 UNREVIEWED 事件
+    """
+    try:
+        async with db_manager.get_async_session() as session:
+            # 1) 讀取當前實驗批次狀態
+            q_status = text("SELECT status FROM experiment_run WHERE id = :run_id")
+            res_status = await session.execute(q_status, {"run_id": run_id})
+            row_status = res_status.fetchone()
+            if not row_status:
+                raise HTTPException(status_code=404, detail="Experiment run not found")
+
+            current_status = row_status.status
+            if current_status == "COMPLETED":
+                # 已完成則直接返回當前資料
+                q_get = text(
+                    """
+                    SELECT id, name, description, status, "filteringParameters",
+                           "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                           "createdAt", "updatedAt"
+                    FROM experiment_run WHERE id = :run_id
+                    """
+                )
+                row = (await session.execute(q_get, {"run_id": run_id})).fetchone()
+                # 動態統計
+                counts_query = text(
+                    """
+                    SELECT 
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 END) as positive,
+                        COUNT(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 END) as negative
+                    FROM anomaly_event
+                    WHERE "experimentRunId" = :run_id
+                    """
+                )
+                counts_res = await session.execute(counts_query, {"run_id": run_id})
+                counts_row = counts_res.fetchone()
+                positive_cnt = counts_row.positive if counts_row and counts_row.positive is not None else 0
+                negative_cnt = counts_row.negative if counts_row and counts_row.negative is not None else 0
+
+                experiment_run = {
+                    "id": row.id,
+                    "name": row.name,
+                    "description": row.description,
+                    "status": row.status,
+                    "filteringParameters": row.filteringParameters,
+                    "candidateCount": row.candidateCount,
+                    "positiveLabelCount": positive_cnt,
+                    "negativeLabelCount": negative_cnt,
+                    "createdAt": row.createdAt.isoformat() if row.createdAt else None,
+                    "updatedAt": row.updatedAt.isoformat() if row.updatedAt else None,
+                }
+                return ExperimentRunResponse(success=True, data=experiment_run, message="Experiment run already completed")
+
+            if current_status not in ("LABELING", "CONFIGURING"):
+                raise HTTPException(status_code=400, detail=f"Experiment run cannot be completed in status: {current_status}")
+
+            # 2) 驗證是否仍有未標註事件
+            q_unreviewed = text(
+                """
+                SELECT COUNT(*) AS cnt
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id AND status = 'UNREVIEWED'
+                """
+            )
+            r_unrev = await session.execute(q_unreviewed, {"run_id": run_id})
+            c_unrev = r_unrev.fetchone()
+            unreviewed_count = int(c_unrev.cnt if c_unrev and c_unrev.cnt is not None else 0)
+            if unreviewed_count > 0:
+                raise HTTPException(status_code=400, detail=f"There are {unreviewed_count} UNREVIEWED events in this experiment run")
+
+            # 3) 標記為 COMPLETED
+            q_update = text(
+                """
+                UPDATE experiment_run
+                SET status = 'COMPLETED', "updatedAt" = NOW()
+                WHERE id = :run_id
+                RETURNING id, name, description, status, "filteringParameters",
+                          "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                          "createdAt", "updatedAt"
+                """
+            )
+            row = (await session.execute(q_update, {"run_id": run_id})).fetchone()
+            await session.commit()
+
+            if not row:
+                raise HTTPException(status_code=404, detail="Experiment run not found after update")
+
+            # 動態統計（完成時通常與先前一致，但仍以實際事件表為準）
+            counts_query = text(
+                """
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 END) as positive,
+                    COUNT(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 END) as negative
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id
+                """
+            )
+            counts_res = await session.execute(counts_query, {"run_id": run_id})
+            counts_row = counts_res.fetchone()
+            positive_cnt = counts_row.positive if counts_row and counts_row.positive is not None else 0
+            negative_cnt = counts_row.negative if counts_row and counts_row.negative is not None else 0
+
+            experiment_run = {
+                "id": row.id,
+                "name": row.name,
+                "description": row.description,
+                "status": row.status,
+                "filteringParameters": row.filteringParameters,
+                "candidateCount": row.candidateCount,
+                "positiveLabelCount": positive_cnt,
+                "negativeLabelCount": negative_cnt,
+                "createdAt": row.createdAt.isoformat() if row.createdAt else None,
+                "updatedAt": row.updatedAt.isoformat() if row.updatedAt else None,
+            }
+
+        return ExperimentRunResponse(success=True, data=experiment_run, message="Experiment run marked as COMPLETED")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to complete experiment run: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete experiment run: {str(e)}")
+
 @router.post("/{run_id}/candidates/calculate")
 async def calculate_candidates_for_experiment(
     run_id: str,

@@ -321,8 +321,9 @@ export default function HomePage() {
 					<p className="text-slate-600 mb-4">
 						An interactive research prototype by{" "}
 						<strong>Yin-Chen Chen</strong> — Lecturer, Software
-						Engineer, and Smart Space Platform Developer — developed
-						in support of a PhD application to{" "}
+						Engineer, and Smart Space Platform Developer — created
+						to demonstrate research capabilities and align with the
+						focus of{" "}
 						<strong>
 							Professor Masashi Sugiyama's lab (University of
 							Tokyo)

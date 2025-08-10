@@ -6,6 +6,7 @@ import {
 	Activity,
 	AlertTriangle,
 	Brain,
+	Clock,
 	Database,
 	FlaskConical,
 } from "lucide-react";
@@ -33,7 +34,7 @@ export function ImplementationPhase() {
 											Machine Learning
 										</span>
 										<Badge className="bg-orange-100 text-orange-800">
-											PyTorch (for model training &
+											PyTorch (nnPU/uPU training &
 											inference)
 										</Badge>
 									</div>
@@ -42,26 +43,33 @@ export function ImplementationPhase() {
 											Data Processing
 										</span>
 										<Badge className="bg-orange-100 text-orange-800">
-											Pandas, NumPy (for feature
-											engineering & analysis)
+											Pandas, NumPy (feature engineering &
+											analysis)
 										</Badge>
 									</div>
 									<div className="flex items-center justify-between">
 										<span className="text-sm text-orange-700">
-											Real-time Pipeline
+											Serving & Scheduling
 										</span>
 										<Badge className="bg-orange-100 text-orange-800">
-											Apache Kafka (for real-time data
-											streaming)
+											FastAPI + Uvicorn (REST, background
+											tasks)
 										</Badge>
 									</div>
 									<div className="flex items-center justify-between">
 										<span className="text-sm text-orange-700">
-											Model Serving
+											Model Evaluation
 										</span>
 										<Badge className="bg-orange-100 text-orange-800">
-											FastAPI (for RESTful API model
-											deployment)
+											scikit-learn (metrics & calibration)
+										</Badge>
+									</div>
+									<div className="flex items-center justify-between">
+										<span className="text-sm text-orange-700">
+											Data Store
+										</span>
+										<Badge className="bg-orange-100 text-orange-800">
+											PostgreSQL + SQLAlchemy + Alembic
 										</Badge>
 									</div>
 								</div>
@@ -77,8 +85,8 @@ export function ImplementationPhase() {
 										Network (3 hidden layers)
 									</p>
 									<p>
-										<strong>Input Dimension:</strong> 24
-										features (temporal + statistical)
+										<strong>Input Features:</strong>{" "}
+										Temporal + statistical (normalized)
 									</p>
 									<p>
 										<strong>Hidden Layers:</strong> [128,
@@ -89,9 +97,8 @@ export function ImplementationPhase() {
 										classification (anomaly probability)
 									</p>
 									<p>
-										<strong>Loss Function:</strong>{" "}
-										Non-negative PU loss with sigmoid
-										activation
+										<strong>Loss Function:</strong> nnPU
+										loss with sigmoid activation
 									</p>
 								</div>
 							</div>
@@ -148,33 +155,41 @@ export function ImplementationPhase() {
 								</h4>
 								<div className="space-y-2 text-sm text-yellow-700">
 									<div className="flex items-center space-x-2">
+										<Clock className="h-4 w-4" />
+										<span>
+											Data ingestion scheduled every
+											minute via cron; supports manual
+											fetch and a 60s loop
+										</span>
+									</div>
+									<div className="flex items-center space-x-2">
 										<Database className="h-4 w-4" />
 										<span>
-											Capable of real-time data ingestion
-											from 1,695 sensors
+											PostgreSQL-backed time-series &
+											anomaly tables with optimized
+											indexes
 										</span>
 									</div>
 									<div className="flex items-center space-x-2">
 										<Activity className="h-4 w-4" />
 										<span>
-											Features are computed and updated in
-											5-minute rolling windows
+											Features computed via background
+											tasks in 5-minute rolling windows
 										</span>
 									</div>
 									<div className="flex items-center space-x-2">
 										<Brain className="h-4 w-4" />
 										<span>
-											Real-time inference with a tunable
-											confidence threshold to balance
-											precision and recall
+											Real-time inference via FastAPI
+											endpoints; tunable confidence
+											threshold
 										</span>
 									</div>
 									<div className="flex items-center space-x-2">
 										<AlertTriangle className="h-4 w-4" />
 										<span>
-											Provides an automated alert system
-											for immediate facility management
-											response
+											Automated alerting for timely
+											facility management response
 										</span>
 									</div>
 								</div>

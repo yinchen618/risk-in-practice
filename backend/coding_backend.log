@@ -1289,3 +1289,74 @@ Traceback (most recent call last):
 RuntimeError: unable to perform operation on <TCPTransport closed=True reading=False 0x71d46004c640>; the handler is closed
 2025-08-09 23:40:02,363 - ERROR - Failed to load real data from database: Task <Task pending name='Task-504' coro=<DataLoaderService._load_real_data_async() running at /home/infowin/Git-projects/pu-in-practice/backend/services/data_loader.py:69> cb=[run_until_complete.<locals>.done_cb()]> got Future <Future pending cb=[Protocol._on_waiter_completed()]> attached to a different loop
 2025-08-09 23:40:02,364 - WARNING - No real data found in database
+2025-08-10 09:16:30,330 - INFO - Loading real smart meter data from database...
+2025-08-10 09:16:56,053 - INFO - Loaded 18236 real smart meter records from 86 devices
+2025-08-10 09:16:56,053 - INFO - Date range: 2025-08-09 19:41:27.227626 to 2025-08-10 01:15:40.585894
+2025-08-10 09:16:56,098 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:56,404 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:56,413 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:56,715 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:56,983 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:57,254 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:57,884 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:58,158 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:58,443 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:58,716 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:58,987 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:59,260 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:59,536 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:16:59,804 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:00,077 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:00,361 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:00,642 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:00,915 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:01,188 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:01,471 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:01,753 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:02,024 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:02,300 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:02,581 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:02,867 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:03,140 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:03,411 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:03,693 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:03,980 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:04,261 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:04,527 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:04,804 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:05,093 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:05,365 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:05,640 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:05,919 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:06,197 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:06,465 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:06,732 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:07,005 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:07,281 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:07,547 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:07,815 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:08,098 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:08,378 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:08,648 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:08,922 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:09,204 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:09,484 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:09,759 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:10,034 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:10,313 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:10,590 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:10,857 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:17:11,126 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:28:08,052 - INFO - Loading real smart meter data from database...
+2025-08-10 09:28:37,853 - INFO - Loaded 18143 real smart meter records from 85 devices
+2025-08-10 09:28:37,853 - INFO - Date range: 2025-08-09 19:52:58.542662 to 2025-08-10 01:27:11.898205
+2025-08-10 09:28:37,897 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:03,738 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:12,866 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:13,979 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:18,325 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:20,195 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:53:22,675 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:55:55,578 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:55:58,347 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-10 09:56:01,577 - INFO - Applied date filter: None to None, filtered to 0 records
