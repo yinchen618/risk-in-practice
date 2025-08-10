@@ -1,4 +1,5 @@
-import { LaTeX } from "@/app/weak-supervision/challenge/components/LaTeX";
+import { LaTeX } from "@/components/LaTeX";
+
 import {
 	Select,
 	SelectContent,

@@ -1,10 +1,10 @@
 "use client";
 
+import { LaTeX } from "@/components/LaTeX";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Database, Target } from "lucide-react";
 import Link from "next/link";
-import { LaTeX } from "../../weak-supervision/challenge/components/LaTeX";
 
 export function ProblemApproachPhase() {
 	return (

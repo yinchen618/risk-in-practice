@@ -21,19 +21,19 @@ const tabs: {
 		key: "problem-approach",
 		label: "Problem & Approach",
 		icon: Target,
-		href: "/case-study?tab=problem-approach",
+		href: "/case-study?tab=problem-approach#top",
 	},
 	{
 		key: "implementation",
 		label: "Implementation",
 		icon: FlaskConical,
-		href: "/case-study?tab=implementation",
+		href: "/case-study?tab=implementation#top",
 	},
 	{
 		key: "data-results",
 		label: "Data & Results",
 		icon: TrendingUp,
-		href: "/case-study?tab=data-results",
+		href: "/case-study?tab=data-results#top",
 	},
 ];
 
@@ -53,13 +53,15 @@ export default function TabNavigation({
 					<div className="flex space-x-6">
 						{tabs.map((tab) => {
 							const Icon = tab.icon;
+							const isActive = activeTab === tab.key;
 							return (
 								<Link
 									key={tab.key}
 									href={tab.href}
+									prefetch={false}
 									onClick={() => onTabChange(tab.key)}
 									className={`px-3 py-2 text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
-										activeTab === tab.key
+										isActive
 											? "text-blue-600 border-b-2 border-blue-600"
 											: "text-slate-600 hover:text-slate-800"
 									}`}

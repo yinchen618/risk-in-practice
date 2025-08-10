@@ -1,6 +1,7 @@
 "use client";
 
-import { LaTeX } from "@/app/weak-supervision/challenge/components/LaTeX";
+import { LaTeX } from "@/components/LaTeX";
+
 import {} from "@/components/ui/card";
 
 export default function TheoryTab() {
