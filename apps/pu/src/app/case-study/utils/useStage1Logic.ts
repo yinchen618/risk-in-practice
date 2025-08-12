@@ -27,7 +27,6 @@ export function useStage1Logic() {
 	const [labeledNormal, setLabeledNormal] = useState(0);
 	const [savedParams, setSavedParams] = useState<FilterParams | null>(null);
 
-
 	// Filter parameters state
 	const [filterParams, setFilterParams] = useState<FilterParams>({
 		// Default date range: last 3 days for better performance with real data
@@ -55,8 +54,6 @@ export function useStage1Logic() {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
-
-
 
 	// Initialize and load experiment runs
 	useEffect(() => {

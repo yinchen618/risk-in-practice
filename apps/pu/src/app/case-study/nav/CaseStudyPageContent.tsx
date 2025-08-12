@@ -27,10 +27,7 @@ export default function CaseStudyPageContent() {
 	}, [searchParams]);
 
 	return (
-		<div
-			className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100"
-			id="top"
-		>
+		<div className="min-h-screen bg-blue-50/40" id="top">
 			{/* Top Navigation */}
 			<TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 

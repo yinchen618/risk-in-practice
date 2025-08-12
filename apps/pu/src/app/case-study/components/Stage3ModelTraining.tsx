@@ -47,6 +47,7 @@ export function Stage3ModelTraining({
 	const [predictionStart, setPredictionStart] = useState<string>("");
 	const [predictionEnd, setPredictionEnd] = useState<string>("");
 
+	const [isLoadingRuns, setIsLoadingRuns] = useState(false);
 	const [modelType, setModelType] = useState<"uPU" | "nnPU">("nnPU");
 	const [priorMethod, setPriorMethod] = useState<"mean" | "median">("median");
 	const [classPrior, setClassPrior] = useState<string>("");
@@ -79,6 +80,7 @@ export function Stage3ModelTraining({
 	useEffect(() => {
 		let cancelled = false;
 		async function loadRuns() {
+			setIsLoadingRuns(true);
 			try {
 				const resp = await fetch(
 					`${API_BASE}/api/v1/experiment-runs?status=COMPLETED`,
@@ -108,6 +110,8 @@ export function Stage3ModelTraining({
 				}
 			} catch {
 				// no-op
+			} finally {
+				setIsLoadingRuns(false);
 			}
 		}
 		loadRuns();
@@ -115,6 +119,10 @@ export function Stage3ModelTraining({
 			cancelled = true;
 		};
 	}, [searchParams]);
+
+	const selectedRunName = useMemo(() => {
+		return experimentRuns.find((r) => r.id === selectedRunId)?.name || "";
+	}, [experimentRuns, selectedRunId]);
 
 	// keep URL in sync with selected run
 	useEffect(() => {
@@ -301,13 +309,43 @@ export function Stage3ModelTraining({
 	};
 
 	return (
-		<Card className="border-blue-200">
+		<Card className="border border-blue-200">
 			<CardHeader>
-				<CardTitle className="flex items-center text-xl text-blue-800">
-					<Zap className="h-5 w-5 mr-2" />
-					Stage 3: PU Learning Model Training & Prediction
+				<CardTitle className="flex items-center justify-between gap-3 text-xl text-slate-900">
+					<div className="flex items-center">
+						<Zap className="h-5 w-5 mr-2" />
+						Stage 3: PU Learning Model Training & Prediction
+					</div>
+					<div className="w-72">
+						<Select
+							value={selectedRunId}
+							onValueChange={(val) =>
+								setSelectedRunId(val === "__clear" ? "" : val)
+							}
+						>
+							<SelectTrigger>
+								<SelectValue
+									placeholder={
+										isLoadingRuns
+											? "Loading datasets..."
+											: "-- Select dataset --"
+									}
+								/>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="__clear">
+									-- Select dataset --
+								</SelectItem>
+								{experimentRuns.map((run) => (
+									<SelectItem key={run.id} value={run.id}>
+										{run.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
 				</CardTitle>
-				<div className="text-blue-700 text-sm space-y-1">
+				<div className="text-slate-600 text-sm space-y-1">
 					<p className="flex items-center gap-2">
 						<ListChecks className="h-4 w-4" /> Training set =
 						ExperimentRun labeled events (P/U, optional RN).
@@ -330,24 +368,15 @@ export function Stage3ModelTraining({
 				{/* Console */}
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 					<div className="space-y-4">
-						<h4 className="font-semibold text-blue-800">Dataset</h4>
+						<h4 className="font-semibold text-slate-800">
+							Dataset
+						</h4>
 						<div className="space-y-2">
 							<Label>ExperimentRun</Label>
-							<Select
-								value={selectedRunId}
-								onValueChange={setSelectedRunId}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select completed run" />
-								</SelectTrigger>
-								<SelectContent>
-									{experimentRuns.map((run) => (
-										<SelectItem key={run.id} value={run.id}>
-											{run.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<div className="text-sm text-slate-700 px-3 py-2 border rounded-md bg-slate-50">
+								{selectedRunName ||
+									"Select dataset from header"}
+							</div>
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
@@ -373,7 +402,7 @@ export function Stage3ModelTraining({
 						</div>
 					</div>
 					<div className="space-y-4">
-						<h4 className="font-semibold text-blue-800">
+						<h4 className="font-semibold text-slate-800">
 							Model Config
 						</h4>
 						<div className="grid grid-cols-2 gap-4">
@@ -556,7 +585,11 @@ export function Stage3ModelTraining({
 				</div>
 
 				<div className="flex items-center gap-3">
-					<Button onClick={applyGoldenConfig} variant="secondary">
+					<Button
+						onClick={applyGoldenConfig}
+						variant="outline"
+						className="inline-flex items-center rounded-md border border-blue-200 text-slate-700 px-3 py-2 hover:border-blue-300"
+					>
 						Apply Golden Configuration
 					</Button>
 					<Button
@@ -564,27 +597,38 @@ export function Stage3ModelTraining({
 						disabled={
 							!isConfigValid || trainingStage === "training"
 						}
-						className="bg-blue-600 hover:bg-blue-700 text-white"
+						className="inline-flex items-center rounded-md bg-blue-600 text-white px-3 py-2 hover:bg-blue-700"
 					>
 						<Play className="h-5 w-5 mr-2" />
 						Start Training & Prediction
 					</Button>
-					<Button onClick={handleResetTraining} variant="outline">
+					<Button
+						onClick={handleResetTraining}
+						variant="outline"
+						className="inline-flex items-center rounded-md border border-blue-200 text-slate-700 px-3 py-2 hover:border-blue-300"
+					>
 						<RotateCcw className="h-5 w-5 mr-2" />
 						Reset
 					</Button>
 				</div>
 
 				{/* Training Status */}
-				{trainingStage === "ready" && (
-					<Card className="bg-green-50 border-green-200">
+				{!selectedRunId ? (
+					<Alert>
+						<AlertDescription>
+							Please select a completed experiment run to
+							configure and start training.
+						</AlertDescription>
+					</Alert>
+				) : trainingStage === "ready" ? (
+					<Card className="bg-emerald-50 border-emerald-100">
 						<CardContent className="p-6">
 							<div className="text-center space-y-4">
-								<CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
-								<h4 className="text-lg font-bold text-green-800">
+								<CheckCircle className="h-12 w-12 text-emerald-600 mx-auto" />
+								<h4 className="text-lg font-bold text-emerald-800">
 									Ready to Train Model
 								</h4>
-								<p className="text-green-700">
+								<p className="text-slate-600">
 									Select dataset and date range, then run
 									training & prediction.
 								</p>
@@ -600,14 +644,14 @@ export function Stage3ModelTraining({
 							</div>
 						</CardContent>
 					</Card>
-				)}
+				) : null}
 
 				{trainingStage === "training" && (
-					<Card className="bg-blue-50 border-blue-200">
+					<Card className="bg-blue-50 border-blue-100">
 						<CardContent className="p-6">
 							<div className="space-y-4">
 								<div className="flex items-center justify-between">
-									<h4 className="text-lg font-bold text-blue-800">
+									<h4 className="text-lg font-bold text-slate-800">
 										Training in Progress...
 									</h4>
 									<Badge
@@ -663,14 +707,14 @@ export function Stage3ModelTraining({
 				)}
 
 				{trainingStage === "completed" && (
-					<Card className="bg-green-50 border-green-200">
+					<Card className="bg-emerald-50 border-emerald-100">
 						<CardContent className="p-6">
 							<div className="text-center space-y-4">
-								<CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
-								<h4 className="text-lg font-bold text-green-800">
+								<CheckCircle className="h-12 w-12 text-emerald-600 mx-auto" />
+								<h4 className="text-lg font-bold text-emerald-800">
 									Training & Prediction Completed!
 								</h4>
-								<p className="text-green-700">
+								<p className="text-slate-600">
 									Model and top-K predictions are ready.
 									Explore results and insights in Stage 4.
 								</p>
@@ -682,7 +726,7 @@ export function Stage3ModelTraining({
 											}
 										}}
 										size="lg"
-										className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3"
+										className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
 									>
 										<TrendingUp className="h-5 w-5 mr-2" />
 										View Results & Insights

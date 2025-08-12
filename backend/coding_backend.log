@@ -1360,3 +1360,19 @@ RuntimeError: unable to perform operation on <TCPTransport closed=True reading=F
 2025-08-10 09:55:55,578 - INFO - Applied date filter: None to None, filtered to 0 records
 2025-08-10 09:55:58,347 - INFO - Applied date filter: None to None, filtered to 0 records
 2025-08-10 09:56:01,577 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-11 03:32:54,405 - INFO - Loading real smart meter data from database...
+2025-08-11 03:33:22,774 - INFO - Loaded 19996 real smart meter records from 89 devices
+2025-08-11 03:33:22,775 - INFO - Date range: 2025-08-10 13:51:12.123853 to 2025-08-10 19:32:34.784283
+2025-08-11 03:33:22,818 - INFO - Applied date filter: None to None, filtered to 0 records
+2025-08-11 11:21:22,206 - INFO - Loading real smart meter data from database...
+2025-08-11 11:21:22,207 - ERROR - Fatal error on SSL protocol
+protocol: <uvloop.loop.SSLProtocol object at 0x7d96d3523320>
+transport: <TCPTransport closed=True reading=False 0x7d96c004c370>
+Traceback (most recent call last):
+  File "uvloop/sslproto.pyx", line 669, in uvloop.loop.SSLProtocol._write_appdata
+  File "uvloop/sslproto.pyx", line 699, in uvloop.loop.SSLProtocol._process_outgoing
+  File "uvloop/handles/stream.pyx", line 678, in uvloop.loop.UVStream.write
+  File "uvloop/handles/handle.pyx", line 159, in uvloop.loop.UVHandle._ensure_alive
+RuntimeError: unable to perform operation on <TCPTransport closed=True reading=False 0x7d96c004c370>; the handler is closed
+2025-08-11 11:21:22,207 - ERROR - Failed to load real data from database: Task <Task pending name='Task-531' coro=<DataLoaderService._load_real_data_async() running at /home/infowin/Git-projects/pu-in-practice/backend/services/data_loader.py:69> cb=[run_until_complete.<locals>.done_cb()]> got Future <Future pending cb=[Protocol._on_waiter_completed()]> attached to a different loop
+2025-08-11 11:21:22,208 - WARNING - No real data found in database

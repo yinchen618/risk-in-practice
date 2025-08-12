@@ -196,6 +196,38 @@ async def get_model_results(model_id: str):
         }
 
 
+@router.get("/{model_id}/predictions")
+async def get_model_predictions(model_id: str, limit: int = 1000):
+    """回傳儲存在 model_prediction 的逐點結果，供前端繪圖。"""
+    try:
+        from core.database import db_manager
+        from sqlalchemy import text
+        async with db_manager.get_session() as session:
+            q = text(
+                """
+                SELECT timestamp, "predictionScore", "groundTruth"
+                FROM model_prediction
+                WHERE "trainedModelId" = :mid
+                ORDER BY timestamp ASC
+                LIMIT :lim
+                """
+            )
+            res = await session.execute(q, {"mid": model_id, "lim": limit})
+            rows = res.fetchall()
+            data = [
+                {
+                    "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+                    "predictionScore": float(r.predictionScore),
+                    "groundTruth": int(r.groundTruth) if r.groundTruth is not None else None,
+                }
+                for r in rows
+            ]
+        return {"success": True, "data": data}
+    except Exception as e:
+        logger.error(f"Failed to get predictions for model {model_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch model predictions")
+
+
 @router.post("/{model_id}/predict")
 async def predict_only(model_id: str, request: PredictOnlyRequest, background_tasks: BackgroundTasks):
     try:
@@ -260,7 +292,8 @@ async def _train_and_predict_bg(job_id: str, payload: Dict[str, Any]):
             model_path=model_path,
             metrics=metrics,
             data_summary=summary,
-            organization_id=params.get('organization_id', 'default-org')
+            organization_id=params.get('organization_id', 'default-org'),
+            experiment_run_id=run_id
         )
 
         job_tasks[job_id]['progress'] = 0.6
@@ -287,6 +320,31 @@ async def _train_and_predict_bg(job_id: str, payload: Dict[str, Any]):
         job_tasks[job_id]['status'] = 'SUCCEEDED'
         job_tasks[job_id]['progress'] = 1.0
         job_tasks[job_id]['message'] = 'Completed'
+        # 將逐點預測寫入 model_prediction 供 Stage 4 圖表查詢
+        try:
+            from core.database import db_manager
+            from sqlalchemy import text
+            rows = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "trainedModelId": model_id,
+                    "timestamp": p.get('window_start_ts') or p.get('timestamp') or datetime.utcnow(),
+                    "predictionScore": float(p.get('score')) if p.get('score') is not None else float(p.get('predictionScore', 0.0)),
+                    "groundTruth": p.get('y_true') if p.get('y_true') is not None else None,
+                }
+                for p in pred.get('predictions', [])
+            ]
+            if rows:
+                async with db_manager.get_session() as session:
+                    insert_sql = text(
+                        'INSERT INTO model_prediction (id, "trainedModelId", timestamp, "predictionScore", "groundTruth")\n'
+                        'VALUES (:id, :trainedModelId, :timestamp, :predictionScore, :groundTruth)'
+                    )
+                    await session.execute(insert_sql, rows)
+                    await session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to persist model predictions for model {model_id}: {e}")
+
         job_tasks[job_id]['result'] = {
             'model_id': model_id,
             'predictions_topk': pred['predictions']

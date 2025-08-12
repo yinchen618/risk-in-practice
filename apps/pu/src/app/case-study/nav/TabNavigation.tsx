@@ -21,19 +21,19 @@ const tabs: {
 		key: "problem-approach",
 		label: "Problem & Approach",
 		icon: Target,
-		href: "/case-study?tab=problem-approach#top",
+		href: "/case-study?tab=problem-approach",
 	},
 	{
 		key: "implementation",
 		label: "Implementation",
 		icon: FlaskConical,
-		href: "/case-study?tab=implementation#top",
+		href: "/case-study?tab=implementation",
 	},
 	{
 		key: "data-results",
 		label: "Data & Results",
 		icon: TrendingUp,
-		href: "/case-study?tab=data-results#top",
+		href: "/case-study?tab=data-results",
 	},
 ];
 
@@ -46,7 +46,7 @@ export default function TabNavigation({
 			<div className="container mx-auto px-4 py-4">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-xl font-bold text-slate-800">
+						<h1 className="text-xl font-bold text-slate-900">
 							Case Study: Weakly-Supervised Anomaly Detection
 						</h1>
 					</div>
@@ -60,10 +60,10 @@ export default function TabNavigation({
 									href={tab.href}
 									prefetch={false}
 									onClick={() => onTabChange(tab.key)}
-									className={`px-3 py-2 text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+									className={`h-10 flex items-center px-3 text-sm transition-colors gap-2 cursor-pointer border-b-2 ${
 										isActive
-											? "text-blue-600 border-b-2 border-blue-600"
-											: "text-slate-600 hover:text-slate-800"
+											? "text-blue-600 font-semibold border-blue-600"
+											: "text-neutral-600 border-transparent hover:text-blue-500 hover:border-blue-300"
 									}`}
 								>
 									<Icon className="h-4 w-4" />

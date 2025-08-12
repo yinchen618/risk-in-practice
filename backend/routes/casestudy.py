@@ -54,6 +54,19 @@ async def get_anomaly_events(
 ):
     """Get anomaly events list with filters and pagination"""
     try:
+        # 若指定了 experiment_run_id，且該 run 仍為 CONFIGURING，按規格切換為 LABELING
+        if experiment_run_id:
+            async with db_manager.get_session() as session:
+                q = text("SELECT status FROM experiment_run WHERE id = :rid")
+                res = await session.execute(q, {"rid": experiment_run_id})
+                row = res.first()
+                if row and row.status == 'CONFIGURING':
+                    await session.execute(
+                        text('UPDATE experiment_run SET status = \"LABELING\", \"updatedAt\" = NOW() WHERE id = :rid'),
+                        {"rid": experiment_run_id}
+                    )
+                    await session.commit()
+
         # 使用真實的異常服務從資料庫獲取資料，案例研究不使用組織ID
         result = await anomaly_service.get_anomaly_events(
             organization_id=None,  # 案例研究不使用組織ID
@@ -223,10 +236,12 @@ async def label_anomaly_event(
         
         async with db_manager.get_session() as session:
             # 首先檢查事件是否存在
-            check_query = "SELECT id FROM anomaly_event WHERE id = :event_id"
+            check_query = "SELECT id, \"experimentRunId\" as run_id FROM anomaly_event WHERE id = :event_id"
             result = await session.execute(text(check_query), {"event_id": event_id})
-            if not result.first():
+            row_event = result.first()
+            if not row_event:
                 raise HTTPException(status_code=404, detail="異常事件不存在")
+            parent_run_id = row_event.run_id
             
             # 更新事件狀態
             if status:
@@ -243,6 +258,27 @@ async def label_anomaly_event(
                     "reviewer_id": reviewer_id,
                     "notes": justification_notes
                 })
+                # 同步更新父 ExperimentRun 的標記統計（若有隸屬）
+                if parent_run_id:
+                    counts_sql = text(
+                        """
+                        SELECT 
+                          COUNT(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 END) AS pos,
+                          COUNT(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 END) AS neg
+                        FROM anomaly_event
+                        WHERE "experimentRunId" = :rid
+                        """
+                    )
+                    res_counts = await session.execute(counts_sql, {"rid": parent_run_id})
+                    c = res_counts.first()
+                    pos_cnt = int(c.pos or 0)
+                    neg_cnt = int(c.neg or 0)
+                    await session.execute(
+                        text(
+                            'UPDATE experiment_run SET "positiveLabelCount" = :p, "negativeLabelCount" = :n, "updatedAt" = NOW() WHERE id = :rid'
+                        ),
+                        {"p": pos_cnt, "n": neg_cnt, "rid": parent_run_id}
+                    )
             
             # 如果提供了標籤名稱，添加標籤關聯
             if label_name:

@@ -16,13 +16,20 @@ export function useStage2Logic() {
 			>,
 		) => {
 			if (!selectedRunId) {
+				alert("Please select a dataset to mark as complete.");
 				return;
 			}
 			// 僅在所有候選已標記時允許
-			if (
-				candidateCount === 0 ||
-				labeledPositive + labeledNormal < candidateCount
-			) {
+			if (candidateCount === 0) {
+				alert(
+					"No candidates found. Please generate and label candidates before marking as complete.",
+				);
+				return;
+			}
+			if (labeledPositive + labeledNormal < candidateCount) {
+				alert(
+					"Labeling not complete. Please label all candidate events before marking as complete.",
+				);
 				return;
 			}
 			setIsCompleting(true);

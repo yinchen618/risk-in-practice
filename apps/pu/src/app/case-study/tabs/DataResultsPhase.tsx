@@ -22,28 +22,28 @@ export function DataResultsPhase() {
 			key: "overview" as const,
 			title: "1 Candidate Generation",
 			subtitle: "Automated anomaly detection heuristics",
-			activeColor: "border-blue-500 text-blue-600",
+			activeColor: "text-blue-600 font-semibold border-blue-600",
 		},
 		{
 			id: "stage-2",
 			key: "labeling" as const,
 			title: "2 Expert Labeling",
 			subtitle: "Domain expert verification of positives",
-			activeColor: "border-purple-500 text-purple-600",
+			activeColor: "text-blue-600 font-semibold border-blue-600",
 		},
 		{
 			id: "stage-3",
 			key: "training" as const,
 			title: "3 Model Training",
 			subtitle: "uPU / nnPU learning with class prior",
-			activeColor: "border-green-500 text-green-600",
+			activeColor: "text-blue-600 font-semibold border-blue-600",
 		},
 		{
 			id: "stage-4",
 			key: "evaluation" as const,
 			title: "4 Evaluation & Insights",
 			subtitle: "Model performance and research findings",
-			activeColor: "border-orange-500 text-orange-600",
+			activeColor: "text-blue-600 font-semibold border-blue-600",
 		},
 	];
 
@@ -56,15 +56,17 @@ export function DataResultsPhase() {
 						key={tab.key}
 						type="button"
 						onClick={() => setViewMode(tab.key)}
-						className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+						className={`h-10 px-4 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
 							viewMode === tab.key
 								? tab.activeColor
-								: "border-transparent text-gray-500 hover:text-gray-700"
+								: "border-transparent text-slate-600 hover:text-blue-600 hover:border-blue-300"
 						}`}
 					>
 						<div className="text-left">
 							<div className="font-semibold">{tab.title}</div>
-							<div className="text-xs text-gray-500">
+							<div
+								className={`text-xs ${viewMode === tab.key ? "text-blue-600" : "text-slate-500"}`}
+							>
 								{tab.subtitle}
 							</div>
 						</div>

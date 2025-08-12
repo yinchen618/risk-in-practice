@@ -23,7 +23,6 @@ import { Slider } from "@/components/ui/slider";
 import {
 	ArrowRight,
 	Calendar,
-	Database,
 	Filter,
 	Info,
 	Loader2,
@@ -78,46 +77,21 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 
 	return (
 		<>
-			{/* Page Header */}
-			<Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-				<CardHeader>
-					<CardTitle className="flex items-center text-2xl text-blue-900">
-						<Database className="h-6 w-6 mr-3" />
-						Data Exploration & Labeling
-					</CardTitle>
-					<p className="text-blue-700 mt-2">
-						Execute the two-stage funnel labeling approach to
-						generate high-quality positive samples for model
-						training
-					</p>
-				</CardHeader>
-			</Card>
-
 			{/* Stage 1: Automated Candidate Generation */}
-			<Card className="border-orange-200">
+			<Card className="border border-blue-200 rounded-xl">
 				<CardHeader>
-					<CardTitle className="flex items-center text-xl text-orange-800">
-						<Filter className="h-5 w-5 mr-2" />
-						Stage 1: Automated Candidate Generation
-					</CardTitle>
-					<p className="text-orange-600 text-sm">
-						Apply multi-dimensional filtering rules to extract
-						candidate anomaly events from massive raw data
-					</p>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					{/* Dataset (Experiment Run) Selection */}
-					<div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-400">
-						<h4 className="font-semibold text-indigo-800 mb-3">
-							Dataset (Experiment Run)
-						</h4>
-						<div className="flex flex-col md:flex-row gap-3 md:items-center">
-							<div className="w-full md:w-80">
+					<CardTitle className="flex items-center justify-between gap-3 text-xl text-slate-900">
+						<div className="flex items-center">
+							<Filter className="h-5 w-5 mr-2" />
+							Stage 1: Automated Candidate Generation
+						</div>
+						<div className="flex items-center gap-3">
+							<div className="w-80">
 								<Select
 									value={stage1Logic.selectedRunId ?? ""}
 									onValueChange={(val) =>
 										stage1Logic.setSelectedRunId(
-											val || null,
+											val === "__clear" ? null : val,
 										)
 									}
 								>
@@ -126,14 +100,17 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 											placeholder={
 												stage1Logic.isLoadingRuns
 													? "Loading datasets..."
-													: "Select dataset"
+													: "-- Select dataset --"
 											}
 										/>
 									</SelectTrigger>
 									<SelectContent>
+										<SelectItem value="__clear">
+											-- Select dataset --
+										</SelectItem>
 										{stage1Logic.experimentRuns.map((r) => (
 											<SelectItem key={r.id} value={r.id}>
-												{r.name} ({r.status})
+												{`${r.name} (${r.status})`}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -188,6 +165,19 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</div>
+					</CardTitle>
+					<p className="text-slate-600 text-sm">
+						Apply multi-dimensional filtering rules to extract
+						candidate anomaly events from massive raw data
+					</p>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Dataset (Experiment Run) Summary */}
+					<div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+						<h4 className="font-semibold text-indigo-800 mb-3">
+							Dataset (Experiment Run)
+						</h4>
+						{/* selection moved to header */}
 						{stage1Logic.selectedRunId && (
 							<div className="mt-3 text-sm text-indigo-900 grid md:grid-cols-2 gap-3">
 								<div className="space-y-1">
@@ -195,7 +185,7 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 										Current Dataset Parameters
 									</div>
 									<div>
-										日期:{" "}
+										Date:{" "}
 										{stage1Logic.filterParams.startDate.toLocaleDateString()}{" "}
 										-{" "}
 										{stage1Logic.filterParams.endDate.toLocaleDateString()}
@@ -268,18 +258,18 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 					</div>
 
 					{/* Top-Level Date/Time Range Filter */}
-					<div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+					<div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
 						<h4 className="font-semibold text-blue-800 mb-3 flex items-center">
 							<Calendar className="h-4 w-4 mr-2" />
 							Primary Time Range Filter
 						</h4>
-						<p className="text-blue-700 text-sm mb-4">
+						<p className="text-slate-600 text-sm mb-4">
 							Set the analysis time window to limit computational
 							scope and enable focused analysis
 						</p>
 						<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 							<div className="space-y-2">
-								<Label className="text-sm font-medium text-blue-800">
+								<Label className="text-sm font-medium text-slate-800">
 									Start Date
 								</Label>
 								<input
@@ -295,11 +285,11 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 											new Date(e.target.value),
 										)
 									}
-									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label className="text-sm font-medium text-blue-800">
+								<Label className="text-sm font-medium text-slate-800">
 									Start Time (TW)
 								</Label>
 								<input
@@ -311,11 +301,11 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 											e.target.value,
 										)
 									}
-									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label className="text-sm font-medium text-blue-800">
+								<Label className="text-sm font-medium text-slate-800">
 									End Date
 								</Label>
 								<input
@@ -331,11 +321,11 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 											new Date(e.target.value),
 										)
 									}
-									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label className="text-sm font-medium text-blue-800">
+								<Label className="text-sm font-medium text-slate-800">
 									End Time (TW)
 								</Label>
 								<input
@@ -347,14 +337,14 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 											e.target.value,
 										)
 									}
-									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+									className="w-full px-3 py-2 border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
 								/>
 							</div>
 						</div>
 					</div>
 
 					{/* Filtering Rules Configuration */}
-					<div className="bg-orange-50 p-4 rounded-lg">
+					<div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
 						<h4 className="font-semibold text-orange-800 mb-4 flex items-center">
 							<Settings className="h-4 w-4 mr-2" />
 							Multi-Dimensional Filtering Rules
@@ -610,19 +600,19 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 					</div>
 
 					{/* Results Summary */}
-					<Card className="bg-green-50 border-green-200">
+					<Card className="bg-emerald-50 border-emerald-100">
 						<CardContent className="p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<h4 className="text-lg font-bold text-green-800 mb-2">
+									<h4 className="text-lg font-bold text-emerald-800 mb-2">
 										Stage 1 Results
 									</h4>
-									<p className="text-green-700">
+									<p className="text-slate-600">
 										Based on the above rules and date range,
 										the system will filter{" "}
 										<Badge
 											variant="secondary"
-											className="mx-1 bg-green-100 text-green-800"
+											className="mx-1 bg-emerald-50 text-emerald-700"
 										>
 											{stage1Logic.isCalculating ? (
 												<span className="flex items-center gap-1">
@@ -906,15 +896,28 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 																estimated
 																anomalies
 															</div>
-                                                        <ul className="list-disc list-inside">
-                                                            {stage1Logic.candidateStats.top_devices_by_estimated_anomalies.map(
-                                                                (d: any) => (
-                                                                    <li key={d.deviceNumber}>
-                                                                        Device {d.deviceNumber}: {d.estimated_anomalies}
-                                                                    </li>
-                                                                ),
-                                                            )}
-                                                        </ul>
+															<ul className="list-disc list-inside">
+																{stage1Logic.candidateStats.top_devices_by_estimated_anomalies.map(
+																	(
+																		d: any,
+																	) => (
+																		<li
+																			key={
+																				d.deviceNumber
+																			}
+																		>
+																			Device{" "}
+																			{
+																				d.deviceNumber
+																			}
+																			:{" "}
+																			{
+																				d.estimated_anomalies
+																			}
+																		</li>
+																	),
+																)}
+															</ul>
 														</div>
 													)}
 											</div>
@@ -945,14 +948,14 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 									</div>
 								</div>
 								<div className="text-right">
-									<div className="text-3xl font-bold text-green-600">
+									<div className="text-3xl font-bold text-emerald-600">
 										{stage1Logic.isCalculating ? (
 											<Loader2 className="h-8 w-8 animate-spin mx-auto" />
 										) : (
 											stage1Logic.candidateCount.toLocaleString()
 										)}
 									</div>
-									<div className="text-sm text-green-600">
+									<div className="text-sm text-slate-600">
 										Candidates
 									</div>
 								</div>

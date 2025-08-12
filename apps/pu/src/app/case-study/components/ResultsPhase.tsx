@@ -68,7 +68,7 @@ export function ResultsPhase() {
 			<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 				{/* 左欄：互動模型表現圖表 (40% 寬度) */}
 				<div className="lg:col-span-2">
-					<Card>
+					<Card className="border border-blue-200">
 						<CardHeader>
 							<CardTitle className="flex items-center text-sm">
 								<Zap className="h-4 w-4 mr-2 text-blue-600" />
@@ -126,10 +126,10 @@ export function ResultsPhase() {
 
 				{/* 中欄：量化指標比較 (30% 寬度) */}
 				<div className="lg:col-span-2">
-					<Card>
+					<Card className="border border-blue-200">
 						<CardHeader>
 							<CardTitle className="flex items-center text-sm">
-								<BarChart3 className="h-4 w-4 mr-2 text-green-600" />
+								<BarChart3 className="h-4 w-4 mr-2 text-emerald-600" />
 								Quantitative Metrics Comparison
 							</CardTitle>
 						</CardHeader>
@@ -141,10 +141,10 @@ export function ResultsPhase() {
 
 				{/* 右欄：模型控制與即時分析 (30% 寬度) */}
 				<div className="lg:col-span-1">
-					<Card>
+					<Card className="border border-blue-200">
 						<CardHeader>
 							<CardTitle className="flex items-center text-sm">
-								<Brain className="h-4 w-4 mr-2 text-purple-600" />
+								<Brain className="h-4 w-4 mr-2 text-violet-600" />
 								Live Analysis & Model Tuning
 							</CardTitle>
 						</CardHeader>
@@ -214,16 +214,16 @@ export function ResultsPhase() {
 			</div>
 
 			{/* 下方內容區塊 */}
-			<Card>
+			<Card className="border border-blue-200">
 				<CardHeader>
 					<CardTitle className="flex items-center">
-						<TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+						<TrendingUp className="h-5 w-5 mr-2 text-emerald-600" />
 						Results & Performance Analysis
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					{/* 性能比較表格 */}
-					<div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg">
+					<div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
 						<h4 className="font-semibold text-slate-800 mb-4">
 							Performance Comparison: Three-Model Analysis
 						</h4>

@@ -249,6 +249,27 @@ async def delete_experiment_run(run_id: str):
         logger.error(f"Failed to delete experiment run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete experiment run: {str(e)}")
 
+@router.get("/{run_id}/models")
+async def list_models_for_experiment_run(run_id: str):
+    """列出指定 ExperimentRun 之下的 TrainedModel 清單（id, modelName）。"""
+    try:
+        async with db_manager.get_session() as session:
+            q = text(
+                """
+                SELECT id, "modelName"
+                FROM trained_model
+                WHERE "experimentRunId" = :rid
+                ORDER BY "createdAt" DESC
+                """
+            )
+            res = await session.execute(q, {"rid": run_id})
+            rows = res.fetchall()
+            data = [{"id": r.id, "modelName": r.modelName} for r in rows]
+        return {"success": True, "data": data}
+    except Exception as e:
+        logger.error(f"Failed to list models for experiment run {run_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list models for experiment run")
+
 @router.get("/{run_id}", response_model=ExperimentRunResponse)
 async def get_experiment_run(run_id: str):
     """

@@ -649,7 +649,8 @@ class TrainingService:
         model_path: str,
         metrics: Dict[str, float],
         data_summary: Dict[str, Any],
-        organization_id: str
+        organization_id: str,
+        experiment_run_id: Optional[str] = None
     ) -> str:
         """將模型資訊儲存到資料庫"""
         try:
@@ -659,11 +660,11 @@ class TrainingService:
                 query = """
                 INSERT INTO trained_model (
                     id, modelName, modelType, modelPath, precision, recall, f1Score,
-                    trainingDataSummary, organizationId, createdAt, updatedAt
+                    trainingDataSummary, organizationId, "experimentRunId", createdAt, updatedAt
                 ) VALUES (
                     gen_random_uuid()::text, :model_name, :model_type, :model_path,
                     :precision, :recall, :f1_score, :training_data_summary,
-                    :organization_id, NOW(), NOW()
+                    :organization_id, :experiment_run_id, NOW(), NOW()
                 ) RETURNING id
                 """
                 
@@ -675,7 +676,8 @@ class TrainingService:
                     'recall': metrics['recall'],
                     'f1_score': metrics['f1_score'],
                     'training_data_summary': data_summary,
-                    'organization_id': organization_id
+                    'organization_id': organization_id,
+                    'experiment_run_id': experiment_run_id
                 })
                 
                 model_id = result.scalar()

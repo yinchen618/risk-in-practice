@@ -13,20 +13,62 @@ const Plot = dynamic(() => import("react-plotly.js"), {
 	),
 });
 
+interface ModelPredictionPoint {
+	timestamp: string;
+	predictionScore: number;
+	groundTruth?: number | null;
+}
+
 interface InteractiveModelComparisonProps {
 	activeModel: "upu" | "nnpu" | "proposed";
 	confidenceThreshold: number;
+	predictions?: ModelPredictionPoint[];
+	modelLabel?: string;
 }
 
 export function InteractiveModelComparison({
 	activeModel,
 	confidenceThreshold,
+	predictions,
+	modelLabel,
 }: InteractiveModelComparisonProps) {
-	// 生成模擬時序資料
+	// 生成/或採用後端提供的時序資料
 	const plotData = useMemo(() => {
+		if (predictions && predictions.length > 0) {
+			const xs = predictions.map((p) => p.timestamp);
+			const scores = predictions.map((p) => p.predictionScore);
+			const anomalyXs = predictions
+				.filter((p) => p.groundTruth === 1)
+				.map((p) => p.timestamp);
+			const anomalyYs = predictions
+				.filter((p) => p.groundTruth === 1)
+				.map((p) => p.predictionScore);
+
+			return [
+				{
+					x: xs,
+					y: scores,
+					type: "scatter" as const,
+					mode: "lines" as const,
+					name: modelLabel
+						? `${modelLabel} score`
+						: "Prediction score",
+					line: { color: "#3b82f6", width: 2 },
+				},
+				{
+					x: anomalyXs,
+					y: anomalyYs,
+					type: "scatter" as const,
+					mode: "markers" as const,
+					name: "Ground truth anomalies",
+					marker: { color: "#ef4444", size: 8, symbol: "diamond" },
+				},
+			];
+		}
+
 		const timePoints: string[] = [];
 		const actualValues: number[] = [];
-		const predictions: number[] = [];
+		const simPredictions: number[] = [];
 
 		// 使用固定的偽隨機數，確保 SSR 和客戶端渲染一致
 		const seededRandom = (seed: number) => {
@@ -59,7 +101,7 @@ export function InteractiveModelComparison({
 					prediction += (seededRandom(i * 987) - 0.5) * 4; // 較小誤差
 					break;
 			}
-			predictions.push(Math.max(0, prediction));
+			simPredictions.push(Math.max(0, prediction));
 		}
 
 		// 在某些點添加異常檢測標記
@@ -78,7 +120,7 @@ export function InteractiveModelComparison({
 			},
 			{
 				x: timePoints,
-				y: predictions,
+				y: simPredictions,
 				type: "scatter" as const,
 				mode: "lines" as const,
 				name: `${activeModel.toUpperCase()} 預測`,
@@ -106,7 +148,7 @@ export function InteractiveModelComparison({
 				},
 			},
 		];
-	}, [activeModel]);
+	}, [activeModel, predictions, modelLabel]);
 
 	// 根據模型和閾值計算性能指標
 	const modelPerformance = useMemo(() => {

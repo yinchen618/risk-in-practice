@@ -2,27 +2,32 @@
 
 import { LaTeX } from "@/components/LaTeX";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Database, Target } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CheckCircle, Database } from "lucide-react";
 import Link from "next/link";
 
 export function ProblemApproachPhase() {
 	return (
 		<div className="space-y-8">
-			<Card>
+			<Card className="border border-blue-200">
 				<CardHeader>
-					<CardTitle className="flex items-center">
-						<Target className="h-5 w-5 mr-2 text-red-600" />
-						Problem & Approach
-					</CardTitle>
+					<div className="mb-4 flex items-center gap-2">
+						<span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+							P
+						</span>
+						<h2 className="text-lg font-semibold text-slate-900">
+							Problem & Approach
+						</h2>
+					</div>
+					<header className="pb-2 mb-2 border-b-4 border-slate-400" />
 				</CardHeader>
 				<CardContent className="space-y-8">
-					{/* Top Goal summary in red block */}
-					<div className="bg-red-50 p-6 rounded-lg border border-red-100">
-						<h4 className="font-semibold text-red-800 mb-2">
+					{/* Top Goal summary info block */}
+					<div className="rounded-xl border border-blue-100 bg-blue-50 p-6">
+						<h4 className="font-semibold text-slate-800 mb-2">
 							Goal
 						</h4>
-						<p className="text-sm text-red-700">
+						<p className="text-sm text-slate-600">
 							Develop a PU-learning based anomaly detection system
 							that identifies energy anomalies using confirmed
 							positives and massive unlabeled data, with near
@@ -32,42 +37,42 @@ export function ProblemApproachPhase() {
 
 					{/* Dataset vs Constraints side-by-side */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						<div className="bg-yellow-50 p-6 rounded-lg">
-							<h4 className="font-semibold text-yellow-800 mb-4">
+						<div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
+							<h4 className="font-semibold text-slate-800 mb-4">
 								Dataset Characteristics
 							</h4>
 							<div className="grid grid-cols-2 gap-4 text-sm">
 								<div>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Time Period:</strong> 18 months
 									</p>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Apartments:</strong> 95 units
 									</p>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Sensors:</strong> 1,695 devices
 									</p>
 								</div>
 								<div>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Data Points:</strong> 43.2M
 										readings
 									</p>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Labeled Anomalies:</strong> 200
 										cases
 									</p>
-									<p className="text-yellow-700">
+									<p className="text-slate-600">
 										<strong>Unlabeled:</strong> 43.2M - 200
 									</p>
 								</div>
 							</div>
 						</div>
-						<div className="bg-blue-50 p-6 rounded-lg">
-							<h4 className="font-semibold text-blue-800 mb-4">
+						<div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+							<h4 className="font-semibold text-slate-800 mb-4">
 								Real-world Constraints
 							</h4>
-							<ul className="text-sm text-blue-700 space-y-2">
+							<ul className="text-sm text-slate-600 space-y-2">
 								<li>
 									• <strong>Limited Labels:</strong> Only 200
 									confirmed anomalies

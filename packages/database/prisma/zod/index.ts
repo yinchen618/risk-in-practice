@@ -152,6 +152,8 @@ export const TempleScalarFieldEnumSchema = z.enum(['id','name','address','phone'
 
 export const TrainedModelScalarFieldEnumSchema = z.enum(['id','modelName','modelType','modelPath','precision','recall','f1Score','trainingDataSummary','experimentRunId','createdAt','updatedAt']);
 
+export const ModelPredictionScalarFieldEnumSchema = z.enum(['id','trainedModelId','timestamp','predictionScore','groundTruth']);
+
 export const SortOrderSchema = z.enum(['asc','desc']);
 
 export const JsonNullValueInputSchema = z.enum(['JsonNull',]).transform((value) => (value === 'JsonNull' ? Prisma.JsonNull : value));
@@ -980,6 +982,20 @@ export const TrainedModelSchema = z.object({
 export type TrainedModel = z.infer<typeof TrainedModelSchema>
 
 /////////////////////////////////////////
+// MODEL PREDICTION SCHEMA
+/////////////////////////////////////////
+
+export const ModelPredictionSchema = z.object({
+  id: z.string().cuid(),
+  trainedModelId: z.string(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().nullable(),
+})
+
+export type ModelPrediction = z.infer<typeof ModelPredictionSchema>
+
+/////////////////////////////////////////
 // SELECT & INCLUDE
 /////////////////////////////////////////
 
@@ -1736,7 +1752,7 @@ export const AmmeterLogSelectSchema: z.ZodType<Prisma.AmmeterLogSelect> = z.obje
 
 export const ExperimentRunIncludeSchema: z.ZodType<Prisma.ExperimentRunInclude> = z.object({
   anomalyEvents: z.union([z.boolean(),z.lazy(() => AnomalyEventFindManyArgsSchema)]).optional(),
-  trainedModel: z.union([z.boolean(),z.lazy(() => TrainedModelArgsSchema)]).optional(),
+  trainedModels: z.union([z.boolean(),z.lazy(() => TrainedModelFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => ExperimentRunCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -1751,6 +1767,7 @@ export const ExperimentRunCountOutputTypeArgsSchema: z.ZodType<Prisma.Experiment
 
 export const ExperimentRunCountOutputTypeSelectSchema: z.ZodType<Prisma.ExperimentRunCountOutputTypeSelect> = z.object({
   anomalyEvents: z.boolean().optional(),
+  trainedModels: z.boolean().optional(),
 }).strict();
 
 export const ExperimentRunSelectSchema: z.ZodType<Prisma.ExperimentRunSelect> = z.object({
@@ -1765,7 +1782,7 @@ export const ExperimentRunSelectSchema: z.ZodType<Prisma.ExperimentRunSelect> = 
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
   anomalyEvents: z.union([z.boolean(),z.lazy(() => AnomalyEventFindManyArgsSchema)]).optional(),
-  trainedModel: z.union([z.boolean(),z.lazy(() => TrainedModelArgsSchema)]).optional(),
+  trainedModels: z.union([z.boolean(),z.lazy(() => TrainedModelFindManyArgsSchema)]).optional(),
   _count: z.union([z.boolean(),z.lazy(() => ExperimentRunCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
@@ -2307,11 +2324,21 @@ export const TempleSelectSchema: z.ZodType<Prisma.TempleSelect> = z.object({
 
 export const TrainedModelIncludeSchema: z.ZodType<Prisma.TrainedModelInclude> = z.object({
   experimentRun: z.union([z.boolean(),z.lazy(() => ExperimentRunArgsSchema)]).optional(),
+  predictions: z.union([z.boolean(),z.lazy(() => ModelPredictionFindManyArgsSchema)]).optional(),
+  _count: z.union([z.boolean(),z.lazy(() => TrainedModelCountOutputTypeArgsSchema)]).optional(),
 }).strict()
 
 export const TrainedModelArgsSchema: z.ZodType<Prisma.TrainedModelDefaultArgs> = z.object({
   select: z.lazy(() => TrainedModelSelectSchema).optional(),
   include: z.lazy(() => TrainedModelIncludeSchema).optional(),
+}).strict();
+
+export const TrainedModelCountOutputTypeArgsSchema: z.ZodType<Prisma.TrainedModelCountOutputTypeDefaultArgs> = z.object({
+  select: z.lazy(() => TrainedModelCountOutputTypeSelectSchema).nullish(),
+}).strict();
+
+export const TrainedModelCountOutputTypeSelectSchema: z.ZodType<Prisma.TrainedModelCountOutputTypeSelect> = z.object({
+  predictions: z.boolean().optional(),
 }).strict();
 
 export const TrainedModelSelectSchema: z.ZodType<Prisma.TrainedModelSelect> = z.object({
@@ -2327,6 +2354,29 @@ export const TrainedModelSelectSchema: z.ZodType<Prisma.TrainedModelSelect> = z.
   createdAt: z.boolean().optional(),
   updatedAt: z.boolean().optional(),
   experimentRun: z.union([z.boolean(),z.lazy(() => ExperimentRunArgsSchema)]).optional(),
+  predictions: z.union([z.boolean(),z.lazy(() => ModelPredictionFindManyArgsSchema)]).optional(),
+  _count: z.union([z.boolean(),z.lazy(() => TrainedModelCountOutputTypeArgsSchema)]).optional(),
+}).strict()
+
+// MODEL PREDICTION
+//------------------------------------------------------
+
+export const ModelPredictionIncludeSchema: z.ZodType<Prisma.ModelPredictionInclude> = z.object({
+  trainedModel: z.union([z.boolean(),z.lazy(() => TrainedModelArgsSchema)]).optional(),
+}).strict()
+
+export const ModelPredictionArgsSchema: z.ZodType<Prisma.ModelPredictionDefaultArgs> = z.object({
+  select: z.lazy(() => ModelPredictionSelectSchema).optional(),
+  include: z.lazy(() => ModelPredictionIncludeSchema).optional(),
+}).strict();
+
+export const ModelPredictionSelectSchema: z.ZodType<Prisma.ModelPredictionSelect> = z.object({
+  id: z.boolean().optional(),
+  trainedModelId: z.boolean().optional(),
+  timestamp: z.boolean().optional(),
+  predictionScore: z.boolean().optional(),
+  groundTruth: z.boolean().optional(),
+  trainedModel: z.union([z.boolean(),z.lazy(() => TrainedModelArgsSchema)]).optional(),
 }).strict()
 
 
@@ -4592,7 +4642,7 @@ export const ExperimentRunWhereInputSchema: z.ZodType<Prisma.ExperimentRunWhereI
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventListRelationFilterSchema).optional(),
-  trainedModel: z.union([ z.lazy(() => TrainedModelNullableScalarRelationFilterSchema),z.lazy(() => TrainedModelWhereInputSchema) ]).optional().nullable(),
+  trainedModels: z.lazy(() => TrainedModelListRelationFilterSchema).optional()
 }).strict();
 
 export const ExperimentRunOrderByWithRelationInputSchema: z.ZodType<Prisma.ExperimentRunOrderByWithRelationInput> = z.object({
@@ -4607,7 +4657,7 @@ export const ExperimentRunOrderByWithRelationInputSchema: z.ZodType<Prisma.Exper
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventOrderByRelationAggregateInputSchema).optional(),
-  trainedModel: z.lazy(() => TrainedModelOrderByWithRelationInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const ExperimentRunWhereUniqueInputSchema: z.ZodType<Prisma.ExperimentRunWhereUniqueInput> = z.object({
@@ -4628,7 +4678,7 @@ export const ExperimentRunWhereUniqueInputSchema: z.ZodType<Prisma.ExperimentRun
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventListRelationFilterSchema).optional(),
-  trainedModel: z.union([ z.lazy(() => TrainedModelNullableScalarRelationFilterSchema),z.lazy(() => TrainedModelWhereInputSchema) ]).optional().nullable(),
+  trainedModels: z.lazy(() => TrainedModelListRelationFilterSchema).optional()
 }).strict());
 
 export const ExperimentRunOrderByWithAggregationInputSchema: z.ZodType<Prisma.ExperimentRunOrderByWithAggregationInput> = z.object({
@@ -6193,6 +6243,7 @@ export const TrainedModelWhereInputSchema: z.ZodType<Prisma.TrainedModelWhereInp
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   experimentRun: z.union([ z.lazy(() => ExperimentRunNullableScalarRelationFilterSchema),z.lazy(() => ExperimentRunWhereInputSchema) ]).optional().nullable(),
+  predictions: z.lazy(() => ModelPredictionListRelationFilterSchema).optional()
 }).strict();
 
 export const TrainedModelOrderByWithRelationInputSchema: z.ZodType<Prisma.TrainedModelOrderByWithRelationInput> = z.object({
@@ -6207,41 +6258,25 @@ export const TrainedModelOrderByWithRelationInputSchema: z.ZodType<Prisma.Traine
   experimentRunId: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
   createdAt: z.lazy(() => SortOrderSchema).optional(),
   updatedAt: z.lazy(() => SortOrderSchema).optional(),
-  experimentRun: z.lazy(() => ExperimentRunOrderByWithRelationInputSchema).optional()
+  experimentRun: z.lazy(() => ExperimentRunOrderByWithRelationInputSchema).optional(),
+  predictions: z.lazy(() => ModelPredictionOrderByRelationAggregateInputSchema).optional()
 }).strict();
 
 export const TrainedModelWhereUniqueInputSchema: z.ZodType<Prisma.TrainedModelWhereUniqueInput> = z.union([
   z.object({
     id: z.string().cuid(),
-    modelName: z.string(),
-    experimentRunId: z.string()
-  }),
-  z.object({
-    id: z.string().cuid(),
-    modelName: z.string(),
-  }),
-  z.object({
-    id: z.string().cuid(),
-    experimentRunId: z.string(),
+    modelName: z.string()
   }),
   z.object({
     id: z.string().cuid(),
   }),
   z.object({
     modelName: z.string(),
-    experimentRunId: z.string(),
-  }),
-  z.object({
-    modelName: z.string(),
-  }),
-  z.object({
-    experimentRunId: z.string(),
   }),
 ])
 .and(z.object({
   id: z.string().cuid().optional(),
   modelName: z.string().optional(),
-  experimentRunId: z.string().optional(),
   AND: z.union([ z.lazy(() => TrainedModelWhereInputSchema),z.lazy(() => TrainedModelWhereInputSchema).array() ]).optional(),
   OR: z.lazy(() => TrainedModelWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => TrainedModelWhereInputSchema),z.lazy(() => TrainedModelWhereInputSchema).array() ]).optional(),
@@ -6251,9 +6286,11 @@ export const TrainedModelWhereUniqueInputSchema: z.ZodType<Prisma.TrainedModelWh
   recall: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
   f1Score: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
   trainingDataSummary: z.lazy(() => JsonFilterSchema).optional(),
+  experimentRunId: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
   createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
   experimentRun: z.union([ z.lazy(() => ExperimentRunNullableScalarRelationFilterSchema),z.lazy(() => ExperimentRunWhereInputSchema) ]).optional().nullable(),
+  predictions: z.lazy(() => ModelPredictionListRelationFilterSchema).optional()
 }).strict());
 
 export const TrainedModelOrderByWithAggregationInputSchema: z.ZodType<Prisma.TrainedModelOrderByWithAggregationInput> = z.object({
@@ -6290,6 +6327,66 @@ export const TrainedModelScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.
   experimentRunId: z.union([ z.lazy(() => StringNullableWithAggregatesFilterSchema),z.string() ]).optional().nullable(),
   createdAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
   updatedAt: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+}).strict();
+
+export const ModelPredictionWhereInputSchema: z.ZodType<Prisma.ModelPredictionWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => ModelPredictionWhereInputSchema),z.lazy(() => ModelPredictionWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ModelPredictionWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ModelPredictionWhereInputSchema),z.lazy(() => ModelPredictionWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  trainedModelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  timestamp: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  predictionScore: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  groundTruth: z.union([ z.lazy(() => IntNullableFilterSchema),z.number() ]).optional().nullable(),
+  trainedModel: z.union([ z.lazy(() => TrainedModelScalarRelationFilterSchema),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
+}).strict();
+
+export const ModelPredictionOrderByWithRelationInputSchema: z.ZodType<Prisma.ModelPredictionOrderByWithRelationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  trainedModelId: z.lazy(() => SortOrderSchema).optional(),
+  timestamp: z.lazy(() => SortOrderSchema).optional(),
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  trainedModel: z.lazy(() => TrainedModelOrderByWithRelationInputSchema).optional()
+}).strict();
+
+export const ModelPredictionWhereUniqueInputSchema: z.ZodType<Prisma.ModelPredictionWhereUniqueInput> = z.object({
+  id: z.string().cuid()
+})
+.and(z.object({
+  id: z.string().cuid().optional(),
+  AND: z.union([ z.lazy(() => ModelPredictionWhereInputSchema),z.lazy(() => ModelPredictionWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ModelPredictionWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ModelPredictionWhereInputSchema),z.lazy(() => ModelPredictionWhereInputSchema).array() ]).optional(),
+  trainedModelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  timestamp: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  predictionScore: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  groundTruth: z.union([ z.lazy(() => IntNullableFilterSchema),z.number().int() ]).optional().nullable(),
+  trainedModel: z.union([ z.lazy(() => TrainedModelScalarRelationFilterSchema),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
+}).strict());
+
+export const ModelPredictionOrderByWithAggregationInputSchema: z.ZodType<Prisma.ModelPredictionOrderByWithAggregationInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  trainedModelId: z.lazy(() => SortOrderSchema).optional(),
+  timestamp: z.lazy(() => SortOrderSchema).optional(),
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.union([ z.lazy(() => SortOrderSchema),z.lazy(() => SortOrderInputSchema) ]).optional(),
+  _count: z.lazy(() => ModelPredictionCountOrderByAggregateInputSchema).optional(),
+  _avg: z.lazy(() => ModelPredictionAvgOrderByAggregateInputSchema).optional(),
+  _max: z.lazy(() => ModelPredictionMaxOrderByAggregateInputSchema).optional(),
+  _min: z.lazy(() => ModelPredictionMinOrderByAggregateInputSchema).optional(),
+  _sum: z.lazy(() => ModelPredictionSumOrderByAggregateInputSchema).optional()
+}).strict();
+
+export const ModelPredictionScalarWhereWithAggregatesInputSchema: z.ZodType<Prisma.ModelPredictionScalarWhereWithAggregatesInput> = z.object({
+  AND: z.union([ z.lazy(() => ModelPredictionScalarWhereWithAggregatesInputSchema),z.lazy(() => ModelPredictionScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ModelPredictionScalarWhereWithAggregatesInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ModelPredictionScalarWhereWithAggregatesInputSchema),z.lazy(() => ModelPredictionScalarWhereWithAggregatesInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  trainedModelId: z.union([ z.lazy(() => StringWithAggregatesFilterSchema),z.string() ]).optional(),
+  timestamp: z.union([ z.lazy(() => DateTimeWithAggregatesFilterSchema),z.coerce.date() ]).optional(),
+  predictionScore: z.union([ z.lazy(() => FloatWithAggregatesFilterSchema),z.number() ]).optional(),
+  groundTruth: z.union([ z.lazy(() => IntNullableWithAggregatesFilterSchema),z.number() ]).optional().nullable(),
 }).strict();
 
 export const UserCreateInputSchema: z.ZodType<Prisma.UserCreateInput> = z.object({
@@ -8690,7 +8787,7 @@ export const ExperimentRunCreateInputSchema: z.ZodType<Prisma.ExperimentRunCreat
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   anomalyEvents: z.lazy(() => AnomalyEventCreateNestedManyWithoutExperimentRunInputSchema).optional(),
-  trainedModel: z.lazy(() => TrainedModelCreateNestedOneWithoutExperimentRunInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
 export const ExperimentRunUncheckedCreateInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedCreateInput> = z.object({
@@ -8705,7 +8802,7 @@ export const ExperimentRunUncheckedCreateInputSchema: z.ZodType<Prisma.Experimen
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   anomalyEvents: z.lazy(() => AnomalyEventUncheckedCreateNestedManyWithoutExperimentRunInputSchema).optional(),
-  trainedModel: z.lazy(() => TrainedModelUncheckedCreateNestedOneWithoutExperimentRunInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUncheckedCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
 export const ExperimentRunUpdateInputSchema: z.ZodType<Prisma.ExperimentRunUpdateInput> = z.object({
@@ -8720,7 +8817,7 @@ export const ExperimentRunUpdateInputSchema: z.ZodType<Prisma.ExperimentRunUpdat
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventUpdateManyWithoutExperimentRunNestedInputSchema).optional(),
-  trainedModel: z.lazy(() => TrainedModelUpdateOneWithoutExperimentRunNestedInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUpdateManyWithoutExperimentRunNestedInputSchema).optional()
 }).strict();
 
 export const ExperimentRunUncheckedUpdateInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedUpdateInput> = z.object({
@@ -8735,7 +8832,7 @@ export const ExperimentRunUncheckedUpdateInputSchema: z.ZodType<Prisma.Experimen
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventUncheckedUpdateManyWithoutExperimentRunNestedInputSchema).optional(),
-  trainedModel: z.lazy(() => TrainedModelUncheckedUpdateOneWithoutExperimentRunNestedInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUncheckedUpdateManyWithoutExperimentRunNestedInputSchema).optional()
 }).strict();
 
 export const ExperimentRunCreateManyInputSchema: z.ZodType<Prisma.ExperimentRunCreateManyInput> = z.object({
@@ -10344,7 +10441,8 @@ export const TrainedModelCreateInputSchema: z.ZodType<Prisma.TrainedModelCreateI
   trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  experimentRun: z.lazy(() => ExperimentRunCreateNestedOneWithoutTrainedModelInputSchema).optional()
+  experimentRun: z.lazy(() => ExperimentRunCreateNestedOneWithoutTrainedModelsInputSchema).optional(),
+  predictions: z.lazy(() => ModelPredictionCreateNestedManyWithoutTrainedModelInputSchema).optional()
 }).strict();
 
 export const TrainedModelUncheckedCreateInputSchema: z.ZodType<Prisma.TrainedModelUncheckedCreateInput> = z.object({
@@ -10358,7 +10456,8 @@ export const TrainedModelUncheckedCreateInputSchema: z.ZodType<Prisma.TrainedMod
   trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
   experimentRunId: z.string().optional().nullable(),
   createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional()
+  updatedAt: z.coerce.date().optional(),
+  predictions: z.lazy(() => ModelPredictionUncheckedCreateNestedManyWithoutTrainedModelInputSchema).optional()
 }).strict();
 
 export const TrainedModelUpdateInputSchema: z.ZodType<Prisma.TrainedModelUpdateInput> = z.object({
@@ -10372,7 +10471,8 @@ export const TrainedModelUpdateInputSchema: z.ZodType<Prisma.TrainedModelUpdateI
   trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  experimentRun: z.lazy(() => ExperimentRunUpdateOneWithoutTrainedModelNestedInputSchema).optional()
+  experimentRun: z.lazy(() => ExperimentRunUpdateOneWithoutTrainedModelsNestedInputSchema).optional(),
+  predictions: z.lazy(() => ModelPredictionUpdateManyWithoutTrainedModelNestedInputSchema).optional()
 }).strict();
 
 export const TrainedModelUncheckedUpdateInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateInput> = z.object({
@@ -10387,6 +10487,7 @@ export const TrainedModelUncheckedUpdateInputSchema: z.ZodType<Prisma.TrainedMod
   experimentRunId: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictions: z.lazy(() => ModelPredictionUncheckedUpdateManyWithoutTrainedModelNestedInputSchema).optional()
 }).strict();
 
 export const TrainedModelCreateManyInputSchema: z.ZodType<Prisma.TrainedModelCreateManyInput> = z.object({
@@ -10428,6 +10529,61 @@ export const TrainedModelUncheckedUpdateManyInputSchema: z.ZodType<Prisma.Traine
   experimentRunId: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const ModelPredictionCreateInputSchema: z.ZodType<Prisma.ModelPredictionCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable(),
+  trainedModel: z.lazy(() => TrainedModelCreateNestedOneWithoutPredictionsInputSchema)
+}).strict();
+
+export const ModelPredictionUncheckedCreateInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedCreateInput> = z.object({
+  id: z.string().cuid().optional(),
+  trainedModelId: z.string(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable()
+}).strict();
+
+export const ModelPredictionUpdateInputSchema: z.ZodType<Prisma.ModelPredictionUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  trainedModel: z.lazy(() => TrainedModelUpdateOneRequiredWithoutPredictionsNestedInputSchema).optional()
+}).strict();
+
+export const ModelPredictionUncheckedUpdateInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedUpdateInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  trainedModelId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+}).strict();
+
+export const ModelPredictionCreateManyInputSchema: z.ZodType<Prisma.ModelPredictionCreateManyInput> = z.object({
+  id: z.string().cuid().optional(),
+  trainedModelId: z.string(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable()
+}).strict();
+
+export const ModelPredictionUpdateManyMutationInputSchema: z.ZodType<Prisma.ModelPredictionUpdateManyMutationInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+}).strict();
+
+export const ModelPredictionUncheckedUpdateManyInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedUpdateManyInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  trainedModelId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
 }).strict();
 
 export const StringFilterSchema: z.ZodType<Prisma.StringFilter> = z.object({
@@ -12286,12 +12442,17 @@ export const AnomalyEventListRelationFilterSchema: z.ZodType<Prisma.AnomalyEvent
   none: z.lazy(() => AnomalyEventWhereInputSchema).optional()
 }).strict();
 
-export const TrainedModelNullableScalarRelationFilterSchema: z.ZodType<Prisma.TrainedModelNullableScalarRelationFilter> = z.object({
-  is: z.lazy(() => TrainedModelWhereInputSchema).optional().nullable(),
-  isNot: z.lazy(() => TrainedModelWhereInputSchema).optional().nullable()
+export const TrainedModelListRelationFilterSchema: z.ZodType<Prisma.TrainedModelListRelationFilter> = z.object({
+  every: z.lazy(() => TrainedModelWhereInputSchema).optional(),
+  some: z.lazy(() => TrainedModelWhereInputSchema).optional(),
+  none: z.lazy(() => TrainedModelWhereInputSchema).optional()
 }).strict();
 
 export const AnomalyEventOrderByRelationAggregateInputSchema: z.ZodType<Prisma.AnomalyEventOrderByRelationAggregateInput> = z.object({
+  _count: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const TrainedModelOrderByRelationAggregateInputSchema: z.ZodType<Prisma.TrainedModelOrderByRelationAggregateInput> = z.object({
   _count: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
@@ -13212,6 +13373,16 @@ export const TempleMinOrderByAggregateInputSchema: z.ZodType<Prisma.TempleMinOrd
   updatedAt: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
+export const ModelPredictionListRelationFilterSchema: z.ZodType<Prisma.ModelPredictionListRelationFilter> = z.object({
+  every: z.lazy(() => ModelPredictionWhereInputSchema).optional(),
+  some: z.lazy(() => ModelPredictionWhereInputSchema).optional(),
+  none: z.lazy(() => ModelPredictionWhereInputSchema).optional()
+}).strict();
+
+export const ModelPredictionOrderByRelationAggregateInputSchema: z.ZodType<Prisma.ModelPredictionOrderByRelationAggregateInput> = z.object({
+  _count: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
 export const TrainedModelCountOrderByAggregateInputSchema: z.ZodType<Prisma.TrainedModelCountOrderByAggregateInput> = z.object({
   id: z.lazy(() => SortOrderSchema).optional(),
   modelName: z.lazy(() => SortOrderSchema).optional(),
@@ -13262,6 +13433,45 @@ export const TrainedModelSumOrderByAggregateInputSchema: z.ZodType<Prisma.Traine
   precision: z.lazy(() => SortOrderSchema).optional(),
   recall: z.lazy(() => SortOrderSchema).optional(),
   f1Score: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const TrainedModelScalarRelationFilterSchema: z.ZodType<Prisma.TrainedModelScalarRelationFilter> = z.object({
+  is: z.lazy(() => TrainedModelWhereInputSchema).optional(),
+  isNot: z.lazy(() => TrainedModelWhereInputSchema).optional()
+}).strict();
+
+export const ModelPredictionCountOrderByAggregateInputSchema: z.ZodType<Prisma.ModelPredictionCountOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  trainedModelId: z.lazy(() => SortOrderSchema).optional(),
+  timestamp: z.lazy(() => SortOrderSchema).optional(),
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const ModelPredictionAvgOrderByAggregateInputSchema: z.ZodType<Prisma.ModelPredictionAvgOrderByAggregateInput> = z.object({
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const ModelPredictionMaxOrderByAggregateInputSchema: z.ZodType<Prisma.ModelPredictionMaxOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  trainedModelId: z.lazy(() => SortOrderSchema).optional(),
+  timestamp: z.lazy(() => SortOrderSchema).optional(),
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const ModelPredictionMinOrderByAggregateInputSchema: z.ZodType<Prisma.ModelPredictionMinOrderByAggregateInput> = z.object({
+  id: z.lazy(() => SortOrderSchema).optional(),
+  trainedModelId: z.lazy(() => SortOrderSchema).optional(),
+  timestamp: z.lazy(() => SortOrderSchema).optional(),
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.lazy(() => SortOrderSchema).optional()
+}).strict();
+
+export const ModelPredictionSumOrderByAggregateInputSchema: z.ZodType<Prisma.ModelPredictionSumOrderByAggregateInput> = z.object({
+  predictionScore: z.lazy(() => SortOrderSchema).optional(),
+  groundTruth: z.lazy(() => SortOrderSchema).optional()
 }).strict();
 
 export const AccountCreateNestedManyWithoutUserInputSchema: z.ZodType<Prisma.AccountCreateNestedManyWithoutUserInput> = z.object({
@@ -15442,10 +15652,11 @@ export const AnomalyEventCreateNestedManyWithoutExperimentRunInputSchema: z.ZodT
   connect: z.union([ z.lazy(() => AnomalyEventWhereUniqueInputSchema),z.lazy(() => AnomalyEventWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const TrainedModelCreateNestedOneWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelCreateNestedOneWithoutExperimentRunInput> = z.object({
-  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).optional(),
-  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional()
+export const TrainedModelCreateNestedManyWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelCreateNestedManyWithoutExperimentRunInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema).array(),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => TrainedModelCreateManyExperimentRunInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const AnomalyEventUncheckedCreateNestedManyWithoutExperimentRunInputSchema: z.ZodType<Prisma.AnomalyEventUncheckedCreateNestedManyWithoutExperimentRunInput> = z.object({
@@ -15455,10 +15666,11 @@ export const AnomalyEventUncheckedCreateNestedManyWithoutExperimentRunInputSchem
   connect: z.union([ z.lazy(() => AnomalyEventWhereUniqueInputSchema),z.lazy(() => AnomalyEventWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
-export const TrainedModelUncheckedCreateNestedOneWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedCreateNestedOneWithoutExperimentRunInput> = z.object({
-  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).optional(),
-  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional()
+export const TrainedModelUncheckedCreateNestedManyWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedCreateNestedManyWithoutExperimentRunInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema).array(),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => TrainedModelCreateManyExperimentRunInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
 }).strict();
 
 export const EnumExperimentRunStatusFieldUpdateOperationsInputSchema: z.ZodType<Prisma.EnumExperimentRunStatusFieldUpdateOperationsInput> = z.object({
@@ -15479,14 +15691,18 @@ export const AnomalyEventUpdateManyWithoutExperimentRunNestedInputSchema: z.ZodT
   deleteMany: z.union([ z.lazy(() => AnomalyEventScalarWhereInputSchema),z.lazy(() => AnomalyEventScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const TrainedModelUpdateOneWithoutExperimentRunNestedInputSchema: z.ZodType<Prisma.TrainedModelUpdateOneWithoutExperimentRunNestedInput> = z.object({
-  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).optional(),
-  upsert: z.lazy(() => TrainedModelUpsertWithoutExperimentRunInputSchema).optional(),
-  disconnect: z.union([ z.boolean(),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
-  delete: z.union([ z.boolean(),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
-  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional(),
-  update: z.union([ z.lazy(() => TrainedModelUpdateToOneWithWhereWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema) ]).optional(),
+export const TrainedModelUpdateManyWithoutExperimentRunNestedInputSchema: z.ZodType<Prisma.TrainedModelUpdateManyWithoutExperimentRunNestedInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema).array(),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => TrainedModelCreateManyExperimentRunInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => TrainedModelUpdateManyWithWhereWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateManyWithWhereWithoutExperimentRunInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => TrainedModelScalarWhereInputSchema),z.lazy(() => TrainedModelScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const AnomalyEventUncheckedUpdateManyWithoutExperimentRunNestedInputSchema: z.ZodType<Prisma.AnomalyEventUncheckedUpdateManyWithoutExperimentRunNestedInput> = z.object({
@@ -15503,14 +15719,18 @@ export const AnomalyEventUncheckedUpdateManyWithoutExperimentRunNestedInputSchem
   deleteMany: z.union([ z.lazy(() => AnomalyEventScalarWhereInputSchema),z.lazy(() => AnomalyEventScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
-export const TrainedModelUncheckedUpdateOneWithoutExperimentRunNestedInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateOneWithoutExperimentRunNestedInput> = z.object({
-  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).optional(),
-  upsert: z.lazy(() => TrainedModelUpsertWithoutExperimentRunInputSchema).optional(),
-  disconnect: z.union([ z.boolean(),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
-  delete: z.union([ z.boolean(),z.lazy(() => TrainedModelWhereInputSchema) ]).optional(),
-  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional(),
-  update: z.union([ z.lazy(() => TrainedModelUpdateToOneWithWhereWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema) ]).optional(),
+export const TrainedModelUncheckedUpdateManyWithoutExperimentRunNestedInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateManyWithoutExperimentRunNestedInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema).array(),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelCreateOrConnectWithoutExperimentRunInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => TrainedModelCreateManyExperimentRunInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => TrainedModelWhereUniqueInputSchema),z.lazy(() => TrainedModelWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => TrainedModelUpdateManyWithWhereWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUpdateManyWithWhereWithoutExperimentRunInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => TrainedModelScalarWhereInputSchema),z.lazy(() => TrainedModelScalarWhereInputSchema).array() ]).optional(),
 }).strict();
 
 export const ExperimentRunCreateNestedOneWithoutAnomalyEventsInputSchema: z.ZodType<Prisma.ExperimentRunCreateNestedOneWithoutAnomalyEventsInput> = z.object({
@@ -16385,20 +16605,76 @@ export const OrganizationUpdateOneRequiredWithoutTempleNestedInputSchema: z.ZodT
   update: z.union([ z.lazy(() => OrganizationUpdateToOneWithWhereWithoutTempleInputSchema),z.lazy(() => OrganizationUpdateWithoutTempleInputSchema),z.lazy(() => OrganizationUncheckedUpdateWithoutTempleInputSchema) ]).optional(),
 }).strict();
 
-export const ExperimentRunCreateNestedOneWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunCreateNestedOneWithoutTrainedModelInput> = z.object({
-  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => ExperimentRunCreateOrConnectWithoutTrainedModelInputSchema).optional(),
+export const ExperimentRunCreateNestedOneWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunCreateNestedOneWithoutTrainedModelsInput> = z.object({
+  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => ExperimentRunCreateOrConnectWithoutTrainedModelsInputSchema).optional(),
   connect: z.lazy(() => ExperimentRunWhereUniqueInputSchema).optional()
 }).strict();
 
-export const ExperimentRunUpdateOneWithoutTrainedModelNestedInputSchema: z.ZodType<Prisma.ExperimentRunUpdateOneWithoutTrainedModelNestedInput> = z.object({
-  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema) ]).optional(),
-  connectOrCreate: z.lazy(() => ExperimentRunCreateOrConnectWithoutTrainedModelInputSchema).optional(),
-  upsert: z.lazy(() => ExperimentRunUpsertWithoutTrainedModelInputSchema).optional(),
+export const ModelPredictionCreateNestedManyWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionCreateNestedManyWithoutTrainedModelInput> = z.object({
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema).array(),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ModelPredictionCreateManyTrainedModelInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const ModelPredictionUncheckedCreateNestedManyWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedCreateNestedManyWithoutTrainedModelInput> = z.object({
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema).array(),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ModelPredictionCreateManyTrainedModelInputEnvelopeSchema).optional(),
+  connect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+}).strict();
+
+export const ExperimentRunUpdateOneWithoutTrainedModelsNestedInputSchema: z.ZodType<Prisma.ExperimentRunUpdateOneWithoutTrainedModelsNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => ExperimentRunCreateOrConnectWithoutTrainedModelsInputSchema).optional(),
+  upsert: z.lazy(() => ExperimentRunUpsertWithoutTrainedModelsInputSchema).optional(),
   disconnect: z.union([ z.boolean(),z.lazy(() => ExperimentRunWhereInputSchema) ]).optional(),
   delete: z.union([ z.boolean(),z.lazy(() => ExperimentRunWhereInputSchema) ]).optional(),
   connect: z.lazy(() => ExperimentRunWhereUniqueInputSchema).optional(),
-  update: z.union([ z.lazy(() => ExperimentRunUpdateToOneWithWhereWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUpdateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelInputSchema) ]).optional(),
+  update: z.union([ z.lazy(() => ExperimentRunUpdateToOneWithWhereWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUpdateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelsInputSchema) ]).optional(),
+}).strict();
+
+export const ModelPredictionUpdateManyWithoutTrainedModelNestedInputSchema: z.ZodType<Prisma.ModelPredictionUpdateManyWithoutTrainedModelNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema).array(),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ModelPredictionCreateManyTrainedModelInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => ModelPredictionUpdateManyWithWhereWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpdateManyWithWhereWithoutTrainedModelInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => ModelPredictionScalarWhereInputSchema),z.lazy(() => ModelPredictionScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const ModelPredictionUncheckedUpdateManyWithoutTrainedModelNestedInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedUpdateManyWithoutTrainedModelNestedInput> = z.object({
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema).array(),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema).array() ]).optional(),
+  connectOrCreate: z.union([ z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema).array() ]).optional(),
+  upsert: z.union([ z.lazy(() => ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInputSchema).array() ]).optional(),
+  createMany: z.lazy(() => ModelPredictionCreateManyTrainedModelInputEnvelopeSchema).optional(),
+  set: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  disconnect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  delete: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  connect: z.union([ z.lazy(() => ModelPredictionWhereUniqueInputSchema),z.lazy(() => ModelPredictionWhereUniqueInputSchema).array() ]).optional(),
+  update: z.union([ z.lazy(() => ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInputSchema).array() ]).optional(),
+  updateMany: z.union([ z.lazy(() => ModelPredictionUpdateManyWithWhereWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUpdateManyWithWhereWithoutTrainedModelInputSchema).array() ]).optional(),
+  deleteMany: z.union([ z.lazy(() => ModelPredictionScalarWhereInputSchema),z.lazy(() => ModelPredictionScalarWhereInputSchema).array() ]).optional(),
+}).strict();
+
+export const TrainedModelCreateNestedOneWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelCreateNestedOneWithoutPredictionsInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutPredictionsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutPredictionsInputSchema).optional(),
+  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional()
+}).strict();
+
+export const TrainedModelUpdateOneRequiredWithoutPredictionsNestedInputSchema: z.ZodType<Prisma.TrainedModelUpdateOneRequiredWithoutPredictionsNestedInput> = z.object({
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutPredictionsInputSchema) ]).optional(),
+  connectOrCreate: z.lazy(() => TrainedModelCreateOrConnectWithoutPredictionsInputSchema).optional(),
+  upsert: z.lazy(() => TrainedModelUpsertWithoutPredictionsInputSchema).optional(),
+  connect: z.lazy(() => TrainedModelWhereUniqueInputSchema).optional(),
+  update: z.union([ z.lazy(() => TrainedModelUpdateToOneWithWhereWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUpdateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutPredictionsInputSchema) ]).optional(),
 }).strict();
 
 export const NestedStringFilterSchema: z.ZodType<Prisma.NestedStringFilter> = z.object({
@@ -23121,7 +23397,8 @@ export const TrainedModelCreateWithoutExperimentRunInputSchema: z.ZodType<Prisma
   f1Score: z.number(),
   trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
   createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional()
+  updatedAt: z.coerce.date().optional(),
+  predictions: z.lazy(() => ModelPredictionCreateNestedManyWithoutTrainedModelInputSchema).optional()
 }).strict();
 
 export const TrainedModelUncheckedCreateWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedCreateWithoutExperimentRunInput> = z.object({
@@ -23134,12 +23411,18 @@ export const TrainedModelUncheckedCreateWithoutExperimentRunInputSchema: z.ZodTy
   f1Score: z.number(),
   trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
   createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional()
+  updatedAt: z.coerce.date().optional(),
+  predictions: z.lazy(() => ModelPredictionUncheckedCreateNestedManyWithoutTrainedModelInputSchema).optional()
 }).strict();
 
 export const TrainedModelCreateOrConnectWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelCreateOrConnectWithoutExperimentRunInput> = z.object({
   where: z.lazy(() => TrainedModelWhereUniqueInputSchema),
   create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]),
+}).strict();
+
+export const TrainedModelCreateManyExperimentRunInputEnvelopeSchema: z.ZodType<Prisma.TrainedModelCreateManyExperimentRunInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => TrainedModelCreateManyExperimentRunInputSchema),z.lazy(() => TrainedModelCreateManyExperimentRunInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
 }).strict();
 
 export const AnomalyEventUpsertWithWhereUniqueWithoutExperimentRunInputSchema: z.ZodType<Prisma.AnomalyEventUpsertWithWhereUniqueWithoutExperimentRunInput> = z.object({
@@ -23178,41 +23461,37 @@ export const AnomalyEventScalarWhereInputSchema: z.ZodType<Prisma.AnomalyEventSc
   updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
-export const TrainedModelUpsertWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpsertWithoutExperimentRunInput> = z.object({
+export const TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInput> = z.object({
+  where: z.lazy(() => TrainedModelWhereUniqueInputSchema),
   update: z.union([ z.lazy(() => TrainedModelUpdateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema) ]),
   create: z.union([ z.lazy(() => TrainedModelCreateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutExperimentRunInputSchema) ]),
-  where: z.lazy(() => TrainedModelWhereInputSchema).optional()
 }).strict();
 
-export const TrainedModelUpdateToOneWithWhereWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpdateToOneWithWhereWithoutExperimentRunInput> = z.object({
-  where: z.lazy(() => TrainedModelWhereInputSchema).optional(),
+export const TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpdateWithWhereUniqueWithoutExperimentRunInput> = z.object({
+  where: z.lazy(() => TrainedModelWhereUniqueInputSchema),
   data: z.union([ z.lazy(() => TrainedModelUpdateWithoutExperimentRunInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema) ]),
 }).strict();
 
-export const TrainedModelUpdateWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpdateWithoutExperimentRunInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+export const TrainedModelUpdateManyWithWhereWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpdateManyWithWhereWithoutExperimentRunInput> = z.object({
+  where: z.lazy(() => TrainedModelScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => TrainedModelUpdateManyMutationInputSchema),z.lazy(() => TrainedModelUncheckedUpdateManyWithoutExperimentRunInputSchema) ]),
 }).strict();
 
-export const TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateWithoutExperimentRunInput> = z.object({
-  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
-  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
-  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
-  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+export const TrainedModelScalarWhereInputSchema: z.ZodType<Prisma.TrainedModelScalarWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => TrainedModelScalarWhereInputSchema),z.lazy(() => TrainedModelScalarWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => TrainedModelScalarWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => TrainedModelScalarWhereInputSchema),z.lazy(() => TrainedModelScalarWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  modelName: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  modelType: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  modelPath: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  precision: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  recall: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  f1Score: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  trainingDataSummary: z.lazy(() => JsonFilterSchema).optional(),
+  experimentRunId: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
+  createdAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  updatedAt: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
 }).strict();
 
 export const ExperimentRunCreateWithoutAnomalyEventsInputSchema: z.ZodType<Prisma.ExperimentRunCreateWithoutAnomalyEventsInput> = z.object({
@@ -23226,7 +23505,7 @@ export const ExperimentRunCreateWithoutAnomalyEventsInputSchema: z.ZodType<Prism
   negativeLabelCount: z.number().int().optional().nullable(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  trainedModel: z.lazy(() => TrainedModelCreateNestedOneWithoutExperimentRunInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
 export const ExperimentRunUncheckedCreateWithoutAnomalyEventsInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedCreateWithoutAnomalyEventsInput> = z.object({
@@ -23240,7 +23519,7 @@ export const ExperimentRunUncheckedCreateWithoutAnomalyEventsInputSchema: z.ZodT
   negativeLabelCount: z.number().int().optional().nullable(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
-  trainedModel: z.lazy(() => TrainedModelUncheckedCreateNestedOneWithoutExperimentRunInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUncheckedCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
 export const ExperimentRunCreateOrConnectWithoutAnomalyEventsInputSchema: z.ZodType<Prisma.ExperimentRunCreateOrConnectWithoutAnomalyEventsInput> = z.object({
@@ -23292,7 +23571,7 @@ export const ExperimentRunUpdateWithoutAnomalyEventsInputSchema: z.ZodType<Prism
   negativeLabelCount: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  trainedModel: z.lazy(() => TrainedModelUpdateOneWithoutExperimentRunNestedInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUpdateManyWithoutExperimentRunNestedInputSchema).optional()
 }).strict();
 
 export const ExperimentRunUncheckedUpdateWithoutAnomalyEventsInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedUpdateWithoutAnomalyEventsInput> = z.object({
@@ -23306,7 +23585,7 @@ export const ExperimentRunUncheckedUpdateWithoutAnomalyEventsInputSchema: z.ZodT
   negativeLabelCount: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
-  trainedModel: z.lazy(() => TrainedModelUncheckedUpdateOneWithoutExperimentRunNestedInputSchema).optional()
+  trainedModels: z.lazy(() => TrainedModelUncheckedUpdateManyWithoutExperimentRunNestedInputSchema).optional()
 }).strict();
 
 export const EventLabelLinkUpsertWithWhereUniqueWithoutAnomalyEventInputSchema: z.ZodType<Prisma.EventLabelLinkUpsertWithWhereUniqueWithoutAnomalyEventInput> = z.object({
@@ -26749,7 +27028,7 @@ export const OrganizationUncheckedUpdateWithoutTempleInputSchema: z.ZodType<Pris
   servicing2: z.lazy(() => Servicing2UncheckedUpdateManyWithoutOrganizationNestedInputSchema).optional()
 }).strict();
 
-export const ExperimentRunCreateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunCreateWithoutTrainedModelInput> = z.object({
+export const ExperimentRunCreateWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunCreateWithoutTrainedModelsInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string(),
   description: z.string().optional().nullable(),
@@ -26763,7 +27042,7 @@ export const ExperimentRunCreateWithoutTrainedModelInputSchema: z.ZodType<Prisma
   anomalyEvents: z.lazy(() => AnomalyEventCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
-export const ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedCreateWithoutTrainedModelInput> = z.object({
+export const ExperimentRunUncheckedCreateWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedCreateWithoutTrainedModelsInput> = z.object({
   id: z.string().cuid().optional(),
   name: z.string(),
   description: z.string().optional().nullable(),
@@ -26777,23 +27056,47 @@ export const ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema: z.ZodTy
   anomalyEvents: z.lazy(() => AnomalyEventUncheckedCreateNestedManyWithoutExperimentRunInputSchema).optional()
 }).strict();
 
-export const ExperimentRunCreateOrConnectWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunCreateOrConnectWithoutTrainedModelInput> = z.object({
+export const ExperimentRunCreateOrConnectWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunCreateOrConnectWithoutTrainedModelsInput> = z.object({
   where: z.lazy(() => ExperimentRunWhereUniqueInputSchema),
-  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema) ]),
+  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelsInputSchema) ]),
 }).strict();
 
-export const ExperimentRunUpsertWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunUpsertWithoutTrainedModelInput> = z.object({
-  update: z.union([ z.lazy(() => ExperimentRunUpdateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelInputSchema) ]),
-  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelInputSchema) ]),
+export const ModelPredictionCreateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionCreateWithoutTrainedModelInput> = z.object({
+  id: z.string().cuid().optional(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable()
+}).strict();
+
+export const ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedCreateWithoutTrainedModelInput> = z.object({
+  id: z.string().cuid().optional(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable()
+}).strict();
+
+export const ModelPredictionCreateOrConnectWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionCreateOrConnectWithoutTrainedModelInput> = z.object({
+  where: z.lazy(() => ModelPredictionWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema) ]),
+}).strict();
+
+export const ModelPredictionCreateManyTrainedModelInputEnvelopeSchema: z.ZodType<Prisma.ModelPredictionCreateManyTrainedModelInputEnvelope> = z.object({
+  data: z.union([ z.lazy(() => ModelPredictionCreateManyTrainedModelInputSchema),z.lazy(() => ModelPredictionCreateManyTrainedModelInputSchema).array() ]),
+  skipDuplicates: z.boolean().optional()
+}).strict();
+
+export const ExperimentRunUpsertWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunUpsertWithoutTrainedModelsInput> = z.object({
+  update: z.union([ z.lazy(() => ExperimentRunUpdateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelsInputSchema) ]),
+  create: z.union([ z.lazy(() => ExperimentRunCreateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedCreateWithoutTrainedModelsInputSchema) ]),
   where: z.lazy(() => ExperimentRunWhereInputSchema).optional()
 }).strict();
 
-export const ExperimentRunUpdateToOneWithWhereWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunUpdateToOneWithWhereWithoutTrainedModelInput> = z.object({
+export const ExperimentRunUpdateToOneWithWhereWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunUpdateToOneWithWhereWithoutTrainedModelsInput> = z.object({
   where: z.lazy(() => ExperimentRunWhereInputSchema).optional(),
-  data: z.union([ z.lazy(() => ExperimentRunUpdateWithoutTrainedModelInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelInputSchema) ]),
+  data: z.union([ z.lazy(() => ExperimentRunUpdateWithoutTrainedModelsInputSchema),z.lazy(() => ExperimentRunUncheckedUpdateWithoutTrainedModelsInputSchema) ]),
 }).strict();
 
-export const ExperimentRunUpdateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunUpdateWithoutTrainedModelInput> = z.object({
+export const ExperimentRunUpdateWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunUpdateWithoutTrainedModelsInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   description: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
@@ -26807,7 +27110,7 @@ export const ExperimentRunUpdateWithoutTrainedModelInputSchema: z.ZodType<Prisma
   anomalyEvents: z.lazy(() => AnomalyEventUpdateManyWithoutExperimentRunNestedInputSchema).optional()
 }).strict();
 
-export const ExperimentRunUncheckedUpdateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedUpdateWithoutTrainedModelInput> = z.object({
+export const ExperimentRunUncheckedUpdateWithoutTrainedModelsInputSchema: z.ZodType<Prisma.ExperimentRunUncheckedUpdateWithoutTrainedModelsInput> = z.object({
   id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   name: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   description: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
@@ -26819,6 +27122,105 @@ export const ExperimentRunUncheckedUpdateWithoutTrainedModelInputSchema: z.ZodTy
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   anomalyEvents: z.lazy(() => AnomalyEventUncheckedUpdateManyWithoutExperimentRunNestedInputSchema).optional()
+}).strict();
+
+export const ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUpsertWithWhereUniqueWithoutTrainedModelInput> = z.object({
+  where: z.lazy(() => ModelPredictionWhereUniqueInputSchema),
+  update: z.union([ z.lazy(() => ModelPredictionUpdateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedUpdateWithoutTrainedModelInputSchema) ]),
+  create: z.union([ z.lazy(() => ModelPredictionCreateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedCreateWithoutTrainedModelInputSchema) ]),
+}).strict();
+
+export const ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUpdateWithWhereUniqueWithoutTrainedModelInput> = z.object({
+  where: z.lazy(() => ModelPredictionWhereUniqueInputSchema),
+  data: z.union([ z.lazy(() => ModelPredictionUpdateWithoutTrainedModelInputSchema),z.lazy(() => ModelPredictionUncheckedUpdateWithoutTrainedModelInputSchema) ]),
+}).strict();
+
+export const ModelPredictionUpdateManyWithWhereWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUpdateManyWithWhereWithoutTrainedModelInput> = z.object({
+  where: z.lazy(() => ModelPredictionScalarWhereInputSchema),
+  data: z.union([ z.lazy(() => ModelPredictionUpdateManyMutationInputSchema),z.lazy(() => ModelPredictionUncheckedUpdateManyWithoutTrainedModelInputSchema) ]),
+}).strict();
+
+export const ModelPredictionScalarWhereInputSchema: z.ZodType<Prisma.ModelPredictionScalarWhereInput> = z.object({
+  AND: z.union([ z.lazy(() => ModelPredictionScalarWhereInputSchema),z.lazy(() => ModelPredictionScalarWhereInputSchema).array() ]).optional(),
+  OR: z.lazy(() => ModelPredictionScalarWhereInputSchema).array().optional(),
+  NOT: z.union([ z.lazy(() => ModelPredictionScalarWhereInputSchema),z.lazy(() => ModelPredictionScalarWhereInputSchema).array() ]).optional(),
+  id: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  trainedModelId: z.union([ z.lazy(() => StringFilterSchema),z.string() ]).optional(),
+  timestamp: z.union([ z.lazy(() => DateTimeFilterSchema),z.coerce.date() ]).optional(),
+  predictionScore: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
+  groundTruth: z.union([ z.lazy(() => IntNullableFilterSchema),z.number() ]).optional().nullable(),
+}).strict();
+
+export const TrainedModelCreateWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelCreateWithoutPredictionsInput> = z.object({
+  id: z.string().cuid().optional(),
+  modelName: z.string(),
+  modelType: z.string(),
+  modelPath: z.string(),
+  precision: z.number(),
+  recall: z.number(),
+  f1Score: z.number(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  experimentRun: z.lazy(() => ExperimentRunCreateNestedOneWithoutTrainedModelsInputSchema).optional()
+}).strict();
+
+export const TrainedModelUncheckedCreateWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelUncheckedCreateWithoutPredictionsInput> = z.object({
+  id: z.string().cuid().optional(),
+  modelName: z.string(),
+  modelType: z.string(),
+  modelPath: z.string(),
+  precision: z.number(),
+  recall: z.number(),
+  f1Score: z.number(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
+  experimentRunId: z.string().optional().nullable(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional()
+}).strict();
+
+export const TrainedModelCreateOrConnectWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelCreateOrConnectWithoutPredictionsInput> = z.object({
+  where: z.lazy(() => TrainedModelWhereUniqueInputSchema),
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutPredictionsInputSchema) ]),
+}).strict();
+
+export const TrainedModelUpsertWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelUpsertWithoutPredictionsInput> = z.object({
+  update: z.union([ z.lazy(() => TrainedModelUpdateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutPredictionsInputSchema) ]),
+  create: z.union([ z.lazy(() => TrainedModelCreateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedCreateWithoutPredictionsInputSchema) ]),
+  where: z.lazy(() => TrainedModelWhereInputSchema).optional()
+}).strict();
+
+export const TrainedModelUpdateToOneWithWhereWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelUpdateToOneWithWhereWithoutPredictionsInput> = z.object({
+  where: z.lazy(() => TrainedModelWhereInputSchema).optional(),
+  data: z.union([ z.lazy(() => TrainedModelUpdateWithoutPredictionsInputSchema),z.lazy(() => TrainedModelUncheckedUpdateWithoutPredictionsInputSchema) ]),
+}).strict();
+
+export const TrainedModelUpdateWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelUpdateWithoutPredictionsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  experimentRun: z.lazy(() => ExperimentRunUpdateOneWithoutTrainedModelsNestedInputSchema).optional()
+}).strict();
+
+export const TrainedModelUncheckedUpdateWithoutPredictionsInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateWithoutPredictionsInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
+  experimentRunId: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
 
 export const AccountCreateManyUserInputSchema: z.ZodType<Prisma.AccountCreateManyUserInput> = z.object({
@@ -29719,6 +30121,19 @@ export const AnomalyEventCreateManyExperimentRunInputSchema: z.ZodType<Prisma.An
   updatedAt: z.coerce.date()
 }).strict();
 
+export const TrainedModelCreateManyExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelCreateManyExperimentRunInput> = z.object({
+  id: z.string().cuid().optional(),
+  modelName: z.string(),
+  modelType: z.string(),
+  modelPath: z.string(),
+  precision: z.number(),
+  recall: z.number(),
+  f1Score: z.number(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional()
+}).strict();
+
 export const AnomalyEventUpdateWithoutExperimentRunInputSchema: z.ZodType<Prisma.AnomalyEventUpdateWithoutExperimentRunInput> = z.object({
   id: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
   eventId: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
@@ -29765,6 +30180,47 @@ export const AnomalyEventUncheckedUpdateManyWithoutExperimentRunInputSchema: z.Z
   reviewerId: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   reviewTimestamp: z.union([ z.coerce.date(),z.lazy(() => NullableDateTimeFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   justificationNotes: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const TrainedModelUpdateWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUpdateWithoutExperimentRunInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictions: z.lazy(() => ModelPredictionUpdateManyWithoutTrainedModelNestedInputSchema).optional()
+}).strict();
+
+export const TrainedModelUncheckedUpdateWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateWithoutExperimentRunInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
+  createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictions: z.lazy(() => ModelPredictionUncheckedUpdateManyWithoutTrainedModelNestedInputSchema).optional()
+}).strict();
+
+export const TrainedModelUncheckedUpdateManyWithoutExperimentRunInputSchema: z.ZodType<Prisma.TrainedModelUncheckedUpdateManyWithoutExperimentRunInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelName: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelType: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  modelPath: z.union([ z.string(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  precision: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  recall: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  f1Score: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  trainingDataSummary: z.union([ z.lazy(() => JsonNullValueInputSchema),z.record(z.any()) ]).optional(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
 }).strict();
@@ -30893,6 +31349,34 @@ export const Servicing2UncheckedUpdateManyWithoutServicing1InputSchema: z.ZodTyp
   ps: z.union([ z.string(),z.lazy(() => NullableStringFieldUpdateOperationsInputSchema) ]).optional().nullable(),
   createdAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
   updatedAt: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+}).strict();
+
+export const ModelPredictionCreateManyTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionCreateManyTrainedModelInput> = z.object({
+  id: z.string().cuid().optional(),
+  timestamp: z.coerce.date(),
+  predictionScore: z.number(),
+  groundTruth: z.number().int().optional().nullable()
+}).strict();
+
+export const ModelPredictionUpdateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUpdateWithoutTrainedModelInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+}).strict();
+
+export const ModelPredictionUncheckedUpdateWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedUpdateWithoutTrainedModelInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
+}).strict();
+
+export const ModelPredictionUncheckedUpdateManyWithoutTrainedModelInputSchema: z.ZodType<Prisma.ModelPredictionUncheckedUpdateManyWithoutTrainedModelInput> = z.object({
+  id: z.union([ z.string().cuid(),z.lazy(() => StringFieldUpdateOperationsInputSchema) ]).optional(),
+  timestamp: z.union([ z.coerce.date(),z.lazy(() => DateTimeFieldUpdateOperationsInputSchema) ]).optional(),
+  predictionScore: z.union([ z.number(),z.lazy(() => FloatFieldUpdateOperationsInputSchema) ]).optional(),
+  groundTruth: z.union([ z.number().int(),z.lazy(() => NullableIntFieldUpdateOperationsInputSchema) ]).optional().nullable(),
 }).strict();
 
 /////////////////////////////////////////
@@ -32823,6 +33307,58 @@ export const TrainedModelFindUniqueOrThrowArgsSchema: z.ZodType<Omit<Prisma.Trai
   where: TrainedModelWhereUniqueInputSchema,
 }).strict() ;
 
+export const ModelPredictionFindFirstArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionFindFirstArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
+  orderBy: z.union([ ModelPredictionOrderByWithRelationInputSchema.array(),ModelPredictionOrderByWithRelationInputSchema ]).optional(),
+  cursor: ModelPredictionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ModelPredictionScalarFieldEnumSchema,ModelPredictionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const ModelPredictionFindFirstOrThrowArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionFindFirstOrThrowArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
+  orderBy: z.union([ ModelPredictionOrderByWithRelationInputSchema.array(),ModelPredictionOrderByWithRelationInputSchema ]).optional(),
+  cursor: ModelPredictionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ModelPredictionScalarFieldEnumSchema,ModelPredictionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const ModelPredictionFindManyArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionFindManyArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
+  orderBy: z.union([ ModelPredictionOrderByWithRelationInputSchema.array(),ModelPredictionOrderByWithRelationInputSchema ]).optional(),
+  cursor: ModelPredictionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+  distinct: z.union([ ModelPredictionScalarFieldEnumSchema,ModelPredictionScalarFieldEnumSchema.array() ]).optional(),
+}).strict() ;
+
+export const ModelPredictionAggregateArgsSchema: z.ZodType<Prisma.ModelPredictionAggregateArgs> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
+  orderBy: z.union([ ModelPredictionOrderByWithRelationInputSchema.array(),ModelPredictionOrderByWithRelationInputSchema ]).optional(),
+  cursor: ModelPredictionWhereUniqueInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict() ;
+
+export const ModelPredictionGroupByArgsSchema: z.ZodType<Prisma.ModelPredictionGroupByArgs> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
+  orderBy: z.union([ ModelPredictionOrderByWithAggregationInputSchema.array(),ModelPredictionOrderByWithAggregationInputSchema ]).optional(),
+  by: ModelPredictionScalarFieldEnumSchema.array(),
+  having: ModelPredictionScalarWhereWithAggregatesInputSchema.optional(),
+  take: z.number().optional(),
+  skip: z.number().optional(),
+}).strict() ;
+
+export const ModelPredictionFindUniqueArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionFindUniqueArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereUniqueInputSchema,
+}).strict() ;
+
+export const ModelPredictionFindUniqueOrThrowArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionFindUniqueOrThrowArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereUniqueInputSchema,
+}).strict() ;
+
 export const UserCreateArgsSchema: z.ZodType<Omit<Prisma.UserCreateArgs, "select" | "include">> = z.object({
   data: z.union([ UserCreateInputSchema,UserUncheckedCreateInputSchema ]),
 }).strict() ;
@@ -34522,5 +35058,51 @@ export const TrainedModelUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.Trained
 
 export const TrainedModelDeleteManyArgsSchema: z.ZodType<Prisma.TrainedModelDeleteManyArgs> = z.object({
   where: TrainedModelWhereInputSchema.optional(),
+  limit: z.number().optional(),
+}).strict() ;
+
+export const ModelPredictionCreateArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionCreateArgs, "select" | "include">> = z.object({
+  data: z.union([ ModelPredictionCreateInputSchema,ModelPredictionUncheckedCreateInputSchema ]),
+}).strict() ;
+
+export const ModelPredictionUpsertArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionUpsertArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereUniqueInputSchema,
+  create: z.union([ ModelPredictionCreateInputSchema,ModelPredictionUncheckedCreateInputSchema ]),
+  update: z.union([ ModelPredictionUpdateInputSchema,ModelPredictionUncheckedUpdateInputSchema ]),
+}).strict() ;
+
+export const ModelPredictionCreateManyArgsSchema: z.ZodType<Prisma.ModelPredictionCreateManyArgs> = z.object({
+  data: z.union([ ModelPredictionCreateManyInputSchema,ModelPredictionCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict() ;
+
+export const ModelPredictionCreateManyAndReturnArgsSchema: z.ZodType<Prisma.ModelPredictionCreateManyAndReturnArgs> = z.object({
+  data: z.union([ ModelPredictionCreateManyInputSchema,ModelPredictionCreateManyInputSchema.array() ]),
+  skipDuplicates: z.boolean().optional(),
+}).strict() ;
+
+export const ModelPredictionDeleteArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionDeleteArgs, "select" | "include">> = z.object({
+  where: ModelPredictionWhereUniqueInputSchema,
+}).strict() ;
+
+export const ModelPredictionUpdateArgsSchema: z.ZodType<Omit<Prisma.ModelPredictionUpdateArgs, "select" | "include">> = z.object({
+  data: z.union([ ModelPredictionUpdateInputSchema,ModelPredictionUncheckedUpdateInputSchema ]),
+  where: ModelPredictionWhereUniqueInputSchema,
+}).strict() ;
+
+export const ModelPredictionUpdateManyArgsSchema: z.ZodType<Prisma.ModelPredictionUpdateManyArgs> = z.object({
+  data: z.union([ ModelPredictionUpdateManyMutationInputSchema,ModelPredictionUncheckedUpdateManyInputSchema ]),
+  where: ModelPredictionWhereInputSchema.optional(),
+  limit: z.number().optional(),
+}).strict() ;
+
+export const ModelPredictionUpdateManyAndReturnArgsSchema: z.ZodType<Prisma.ModelPredictionUpdateManyAndReturnArgs> = z.object({
+  data: z.union([ ModelPredictionUpdateManyMutationInputSchema,ModelPredictionUncheckedUpdateManyInputSchema ]),
+  where: ModelPredictionWhereInputSchema.optional(),
+  limit: z.number().optional(),
+}).strict() ;
+
+export const ModelPredictionDeleteManyArgsSchema: z.ZodType<Prisma.ModelPredictionDeleteManyArgs> = z.object({
+  where: ModelPredictionWhereInputSchema.optional(),
   limit: z.number().optional(),
 }).strict() ;

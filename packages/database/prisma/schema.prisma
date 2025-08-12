@@ -476,8 +476,8 @@ model ExperimentRun {
     // 一個實驗批次會產生多個異常事件候選
     anomalyEvents AnomalyEvent[]
 
-    // 一個實驗批次最終會訓練出一個模型
-    trainedModel TrainedModel?
+    // 一個實驗批次可以訓練出多個模型（不同超參數組合）
+    trainedModels TrainedModel[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -782,8 +782,8 @@ enum PurchaseType {
 }
 
 model TrainedModel {
-    id                  String         @id @default(cuid())
-    modelName           String         @unique
+    id                  String            @id @default(cuid())
+    modelName           String            @unique
     modelType           String // "uPU" or "nnPU"
     modelPath           String // 儲存模型檔案(.joblib)的路徑
     precision           Float
@@ -792,12 +792,26 @@ model TrainedModel {
     /// [Object]
     /// @zod.custom.use(z.record(z.any()))
     trainingDataSummary Json // JSON 格式的訓練數據摘要
-    experimentRunId     String?        @unique
-    createdAt           DateTime       @default(now())
-    updatedAt           DateTime       @updatedAt
-    experimentRun       ExperimentRun? @relation(fields: [experimentRunId], references: [id], onDelete: SetNull)
+    experimentRunId     String?
+    createdAt           DateTime          @default(now())
+    updatedAt           DateTime          @updatedAt
+    experimentRun       ExperimentRun?    @relation(fields: [experimentRunId], references: [id], onDelete: SetNull)
+    predictions         ModelPrediction[]
 
     @@map("trained_model")
+}
+
+// 儲存模型對驗證/分析資料集的逐點預測結果
+model ModelPrediction {
+    id              String   @id @default(cuid())
+    trainedModelId  String
+    timestamp       DateTime
+    predictionScore Float
+    groundTruth     Int?
+
+    trainedModel TrainedModel @relation(fields: [trainedModelId], references: [id])
+
+    @@map("model_prediction")
 }
 
 enum AnomalyEventStatus {

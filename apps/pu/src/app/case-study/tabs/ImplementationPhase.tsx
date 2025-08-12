@@ -1,30 +1,28 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Activity,
-	AlertTriangle,
-	Brain,
-	Clock,
-	Database,
-	FlaskConical,
-} from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Activity, AlertTriangle, Brain, Clock, Database } from "lucide-react";
 
 export function ImplementationPhase() {
 	return (
 		<div className="space-y-8">
-			<Card>
+			<Card className="border border-blue-200">
 				<CardHeader>
-					<CardTitle className="flex items-center">
-						<FlaskConical className="h-5 w-5 mr-2 text-orange-600" />
-						Implementation Details
-					</CardTitle>
+					<div className="mb-4 flex items-center gap-2">
+						<span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+							I
+						</span>
+						<h2 className="text-lg font-semibold text-slate-900">
+							Implementation Details
+						</h2>
+					</div>
+					<header className="pb-2 mb-2 border-b-4 border-violet-600" />
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 						<div className="space-y-6">
-							<div className="bg-orange-50 p-6 rounded-lg">
+							<div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
 								<h4 className="font-semibold text-orange-800 mb-4">
 									Technical Stack
 								</h4>
@@ -75,11 +73,11 @@ export function ImplementationPhase() {
 								</div>
 							</div>
 
-							<div className="bg-indigo-50 p-6 rounded-lg">
-								<h4 className="font-semibold text-indigo-800 mb-4">
+							<div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+								<h4 className="font-semibold text-slate-800 mb-4">
 									Model Architecture
 								</h4>
-								<div className="space-y-3 text-sm text-indigo-700">
+								<div className="space-y-3 text-sm text-slate-600">
 									<p>
 										<strong>Base Model:</strong> Deep Neural
 										Network (3 hidden layers)
@@ -105,7 +103,7 @@ export function ImplementationPhase() {
 						</div>
 
 						<div className="space-y-6">
-							<div className="bg-green-50 p-6 rounded-lg">
+							<div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
 								<h4 className="font-semibold text-green-800 mb-4">
 									Training Process
 								</h4>
@@ -149,11 +147,11 @@ export function ImplementationPhase() {
 								</div>
 							</div>
 
-							<div className="bg-yellow-50 p-6 rounded-lg">
+							<div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
 								<h4 className="font-semibold text-yellow-800 mb-4">
 									Deployment Pipeline
 								</h4>
-								<div className="space-y-2 text-sm text-yellow-700">
+								<div className="space-y-2 text-sm text-slate-600">
 									<div className="flex items-center space-x-2">
 										<Clock className="h-4 w-4" />
 										<span>

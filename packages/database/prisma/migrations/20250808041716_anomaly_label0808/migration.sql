@@ -8,20 +8,20 @@
   - A unique constraint covering the columns `[name]` on the table `anomaly_label` will be added. If there are existing duplicate values, this will fail.
 
 */
--- DropForeignKey
-ALTER TABLE "anomaly_event" DROP CONSTRAINT "anomaly_event_organizationId_fkey";
+-- DropForeignKey (guarded)
+ALTER TABLE "anomaly_event" DROP CONSTRAINT IF EXISTS "anomaly_event_organizationId_fkey";
 
--- DropForeignKey
-ALTER TABLE "anomaly_label" DROP CONSTRAINT "anomaly_label_organizationId_fkey";
+-- DropForeignKey (guarded)
+ALTER TABLE "anomaly_label" DROP CONSTRAINT IF EXISTS "anomaly_label_organizationId_fkey";
 
--- DropForeignKey
-ALTER TABLE "experiment_run" DROP CONSTRAINT "experiment_run_organizationId_fkey";
+-- DropForeignKey (guarded)
+ALTER TABLE "experiment_run" DROP CONSTRAINT IF EXISTS "experiment_run_organizationId_fkey";
 
--- DropForeignKey
-ALTER TABLE "trained_model" DROP CONSTRAINT "trained_model_organizationId_fkey";
+-- DropForeignKey (guarded)
+ALTER TABLE "trained_model" DROP CONSTRAINT IF EXISTS "trained_model_organizationId_fkey";
 
--- DropIndex
-DROP INDEX "anomaly_label_organizationId_name_key";
+-- DropIndex (guarded)
+DROP INDEX IF EXISTS "anomaly_label_organizationId_name_key";
 
 -- AlterTable
 ALTER TABLE "anomaly_event" DROP COLUMN "organizationId";
