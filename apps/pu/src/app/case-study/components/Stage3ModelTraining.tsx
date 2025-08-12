@@ -15,14 +15,15 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	Calendar,
-	CheckCircle,
-	ListChecks,
-	Play,
-	RotateCcw,
-	Settings,
-	TrendingUp,
-	Zap,
+    Calendar,
+    CheckCircle,
+    ListChecks,
+    Play,
+    RotateCcw,
+    Settings,
+    Target,
+    TrendingUp,
+    Zap,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -364,6 +365,15 @@ export function Stage3ModelTraining({
 						<AlertDescription>{errorMessage}</AlertDescription>
 					</Alert>
 				)}
+
+                {!selectedRunId && (
+                    <Alert className="bg-blue-50 border-blue-200">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        <AlertDescription>
+                            Please select a completed dataset from the dropdown to configure training.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
 				{/* Console */}
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">

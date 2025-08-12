@@ -1,6 +1,6 @@
 "use client";
 
-// import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -207,10 +207,11 @@ export function Stage4ModelEvaluation({
 						</div>
 					</CardTitle>
 					<div className="pb-2 mb-2 border-b-4 border-slate-400" />
-					<p className="text-slate-600 text-sm">
-						Please select a completed experiment run to view
-						results.
-					</p>
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertDescription>
+              Please select a completed dataset from the dropdown to view results and insights.
+            </AlertDescription>
+          </Alert>
 				</CardHeader>
 				<CardContent>
 					{!isTrainingCompleted && (

@@ -21,14 +21,15 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-	ArrowRight,
-	Calendar,
-	Filter,
-	Info,
-	Loader2,
-	Play,
-	Settings,
-	Users,
+    ArrowRight,
+    Calendar,
+    Filter,
+    Info,
+    Loader2,
+    Play,
+    Settings,
+    Target,
+    Users,
 } from "lucide-react";
 import {} from "react";
 import type { FilterParams } from "../types";
@@ -171,7 +172,15 @@ export function Stage1Automation({ onProceedToStage2 }: Stage1AutomationProps) {
 						candidate anomaly events from massive raw data
 					</p>
 				</CardHeader>
-				<CardContent className="space-y-6">
+                <CardContent className="space-y-6">
+                    {!stage1Logic.selectedRunId && (
+                        <Alert className="bg-blue-50 border-blue-200">
+                            <Target className="h-4 w-4 text-blue-600" />
+                            <AlertDescription>
+                                Please select a dataset from the dropdown to start Stage 1 candidate generation.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 					{/* Dataset (Experiment Run) Summary */}
 					<div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
 						<h4 className="font-semibold text-indigo-800 mb-3">
