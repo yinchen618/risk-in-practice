@@ -20,12 +20,9 @@ router = APIRouter(prefix="/api/v1/candidates", tags=["Candidate Events"])
 
 # Enhanced Pydantic Models
 class CandidateCalculationRequest(BaseModel):
-    # Top-level filter
-    start_date: date
-    end_date: date
-    # Optional precise datetime window (prioritized over date if provided)
-    start_datetime: Optional[datetime] = None
-    end_datetime: Optional[datetime] = None
+    # Top-level filter - 統一使用 datetime
+    start_datetime: datetime
+    end_datetime: datetime
     
     # Value-based rules
     z_score_threshold: Optional[float] = 3.0
@@ -41,6 +38,9 @@ class CandidateCalculationRequest(BaseModel):
     # Peer comparison rules
     peer_agg_window_minutes: Optional[int] = 5
     peer_exceed_percentage: Optional[float] = 150.0
+
+	# Floor filter
+    selected_floors_by_building: Optional[Dict[str, List[str]]] = None
 
 class CandidateCalculationResponse(BaseModel):
     success: bool
@@ -81,32 +81,63 @@ async def calculate_candidate_events(request: CandidateCalculationRequest):
     try:
         logger.info(f"Calculating candidate event count with parameters: {request.dict()}")
         
-        # Normalize optional datetimes to UTC-naive for consistent comparison
-        def to_utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
-            if dt is None:
-                return None
+        # 時間參數處理 - 保持台灣本地時間，不轉換為 UTC
+        # 因為資料庫中的 timestamp 欄位儲存的是台灣本地時間
+        def to_local_naive(dt: datetime) -> datetime:
             if dt.tzinfo is not None:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+                # 移除時區資訊但保持原始時間值（台灣時間）
+                return dt.replace(tzinfo=None)
             return dt
 
-        start_dt = to_utc_naive(request.start_datetime)
-        end_dt = to_utc_naive(request.end_datetime)
+        start_dt = to_local_naive(request.start_datetime)
+        end_dt = to_local_naive(request.end_datetime)
 
-        # Get raw data with date/time filtering
+        # 記錄搜尋時間範圍
+        time_range_str = f"時間範圍: {start_dt.strftime('%Y-%m-%d %H:%M:%S')} ~ {end_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        logger.info(f"=== 候選事件計算開始 ===")
+        logger.info(f"📅 {time_range_str}")
+        
+        # 記錄樓層過濾條件
+        if request.selected_floors_by_building:
+            logger.info(f"🏢 樓層過濾 - 按建築分組: {request.selected_floors_by_building}")
+        else:
+            logger.info(f"🏢 樓層過濾: 無過濾條件（搜尋全部設備）")
+
+        # Get raw data with datetime filtering and floor filtering
         raw_df = await data_loader.get_raw_dataframe(
-            start_date=request.start_date if start_dt is None else None,
-            end_date=request.end_date if end_dt is None else None,
             start_datetime=start_dt,
             end_datetime=end_dt,
+            selected_floors_by_building=request.selected_floors_by_building,
         )
         
+        # 記錄找到的電表設備詳情
+        if not raw_df.empty and 'deviceNumber' in raw_df.columns:
+            unique_devices = raw_df['deviceNumber'].unique()
+            device_room_mapping = data_loader.get_device_room_mapping()
+            
+            logger.info(f"🔍 找到電表設備 ({len(unique_devices)}個):")
+            for device_id in sorted(unique_devices):
+                room_info = device_room_mapping.get(device_id, {"building": "未知", "room": "未知", "floor": "未知"})
+                room_display = f"{room_info['building']} {room_info['floor']}F {room_info['room']}"
+                logger.info(f"  📍 {device_id} → {room_display}")
+        else:
+            logger.info(f"❌ 未找到任何電表設備數據")
+        
         if raw_df.empty:
+            logger.info(f"❌ 指定時間範圍內無數據")
             return CandidateCalculationResponse(
                 success=True,
                 candidate_count=0,
-                message="No data available for the specified date range",
+                message="No data available for the specified time range",
                 parameters_used=request.dict()
             )
+        
+        # 記錄數據統計
+        total_records = len(raw_df)
+        time_span = raw_df['timestamp'].max() - raw_df['timestamp'].min()
+        logger.info(f"📊 數據統計: {total_records:,} 筆記錄，時間跨度: {time_span}")
+        logger.info(f"📈 功率範圍: {raw_df['power'].min():.2f}W ~ {raw_df['power'].max():.2f}W (平均: {raw_df['power'].mean():.2f}W)")
         
         # Convert parameters for the detection engine
         detection_params = {
@@ -130,8 +161,8 @@ async def calculate_candidate_events(request: CandidateCalculationRequest):
         # Prepare processing details
         processing_details = {
             'data_range': {
-                'start_date': request.start_date.isoformat(),
-                'end_date': request.end_date.isoformat(),
+                'start_datetime': start_dt.isoformat(),
+                'end_datetime': end_dt.isoformat(),
                 'total_records': len(raw_df),
                 'unique_devices': raw_df['deviceNumber'].nunique() if 'deviceNumber' in raw_df.columns else 0
             },
@@ -230,8 +261,21 @@ async def _generate_events_background(task_id: str, params: Dict[str, Any]):
         running_tasks[task_id]['message'] = '正在載入原始數據...'
         running_tasks[task_id]['progress'] = 0.1
         
-        # 獲取原始數據
-        raw_df = await data_loader.get_raw_dataframe()
+        # 時間參數處理
+        def to_local_naive(dt: datetime) -> datetime:
+            if dt.tzinfo is not None:
+                return dt.replace(tzinfo=None)
+            return dt
+
+        start_dt = to_local_naive(datetime.fromisoformat(params['start_datetime'].replace('Z', ''))) if 'start_datetime' in params else None
+        end_dt = to_local_naive(datetime.fromisoformat(params['end_datetime'].replace('Z', ''))) if 'end_datetime' in params else None
+        
+        # 獲取原始數據 - 使用相同的時間範圍和樓層過濾條件
+        raw_df = await data_loader.get_raw_dataframe(
+            start_datetime=start_dt,
+            end_datetime=end_dt,
+            selected_floors_by_building=params.get('selected_floors_by_building')
+        )
         
         if raw_df.empty:
             raise Exception("沒有可用的原始數據")

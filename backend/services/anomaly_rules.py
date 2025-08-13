@@ -33,44 +33,65 @@ class AnomalyRulesService:
         Enhanced candidate count calculation with new multi-dimensional rules
         Returns estimated count without actually generating events (for performance)
         """
+        logger.info(f"[ANOMALY_RULES] 開始計算候選事件數量")
+        logger.info(f"[ANOMALY_RULES] 輸入資料: {len(df)} 行")
+        logger.info(f"[ANOMALY_RULES] 參數: {params}")
+        
         if df.empty:
+            logger.info(f"[ANOMALY_RULES] 資料為空，回傳 0")
             return 0
         
         # Merge parameters with defaults
         detection_params = {**self.default_params, **params}
+        logger.info(f"[ANOMALY_RULES] 合併後的檢測參數: {detection_params}")
         
-        logger.info(f"Enhanced candidate count calculation with params: {detection_params}")
+        logger.info(f"[ANOMALY_RULES] Enhanced candidate count calculation with params: {detection_params}")
         
         total_candidates = 0
+        device_list = df['deviceNumber'].unique()
+        logger.info(f"[ANOMALY_RULES] 處理 {len(device_list)} 個裝置: {device_list[:5]}{'...' if len(device_list) > 5 else ''}")
         
         # Process each device separately
-        for device in df['deviceNumber'].unique():
+        for i, device in enumerate(device_list):
             device_df = df[df['deviceNumber'] == device].sort_values('timestamp')
+            logger.info(f"[ANOMALY_RULES] 處理裝置 {i+1}/{len(device_list)}: {device} ({len(device_df)} 筆資料)")
             
             if len(device_df) < detection_params.get('min_data_points', 48):
+                logger.info(f"[ANOMALY_RULES] 裝置 {device} 資料不足 ({len(device_df)} < {detection_params.get('min_data_points', 48)})，跳過")
                 continue
             
             device_candidates = 0
             
             # A. Value-based rules
-            device_candidates += self._estimate_zscore_anomalies(device_df, detection_params)
-            device_candidates += self._estimate_spike_anomalies(device_df, detection_params)
+            zscore_count = self._estimate_zscore_anomalies(device_df, detection_params)
+            spike_count = self._estimate_spike_anomalies(device_df, detection_params)
+            device_candidates += zscore_count + spike_count
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} - Value-based: Z-score={zscore_count}, Spike={spike_count}")
             
             # B. Time-based rules
-            device_candidates += self._estimate_time_anomalies(device_df, detection_params)
+            time_count = self._estimate_time_anomalies(device_df, detection_params)
+            device_candidates += time_count
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} - Time-based: {time_count}")
             
             # C. Data integrity rules
-            device_candidates += self._estimate_gap_anomalies(device_df, detection_params)
+            gap_count = self._estimate_gap_anomalies(device_df, detection_params)
+            device_candidates += gap_count
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} - Gap anomalies: {gap_count}")
             
             # D. Peer comparison rules (simplified estimation)
-            device_candidates += self._estimate_peer_anomalies(device_df, detection_params)
+            peer_count = self._estimate_peer_anomalies(device_df, detection_params)
+            device_candidates += peer_count
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} - Peer comparison: {peer_count}")
             
             # Apply overlap reduction factor (avoid double counting)
+            before_reduction = device_candidates
             device_candidates = int(device_candidates * 0.7)  # Assume 30% overlap
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} - 重疊減少: {before_reduction} -> {device_candidates}")
             
             total_candidates += device_candidates
+            logger.info(f"[ANOMALY_RULES] 裝置 {device} 總計: {device_candidates} (累計: {total_candidates})")
             
-        logger.info(f"Estimated total candidates: {total_candidates}")
+        logger.info(f"[ANOMALY_RULES] Estimated total candidates: {total_candidates}")
         return total_candidates
 
     async def calculate_candidate_stats_enhanced(self, df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:

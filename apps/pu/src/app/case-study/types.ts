@@ -80,4 +80,63 @@ export interface FilterParams {
 	// Peer comparison rules
 	peerAggWindow: number;
 	peerExceedPercentage: number;
+
+	// Floor filter
+	selectedBuildings: string[]; // ["15學舍", "85學舍"]
+	selectedFloors: string[]; // ["1", "2", "3", "5", "6"]
+	selectedFloorsByBuilding?: Record<string, string[]>; // {"15學舍": ["1", "2"], "85學舍": ["3", "5"]}
+}
+
+// 樓層過濾參數
+export interface FloorParams {
+	selectedBuildings: string[];
+	selectedFloors: string[];
+	selectedFloorsByBuilding?: Record<string, string[]>;
+}
+
+export interface ExperimentRun {
+	id: string;
+	name: string;
+	status: string;
+}
+
+export interface ExperimentData {
+	selectedRunId: string | null;
+	setSelectedRunId: (id: string | null) => void;
+	experimentRuns: ExperimentRun[];
+	isLoadingRuns: boolean;
+	isLoadingDetail: boolean;
+	isCalculating: boolean;
+	isGenerating: boolean;
+	isCreatingRun: boolean;
+	candidateCount: number;
+	labeledPositive: number;
+	labeledNormal: number;
+	candidateStats: any | null;
+	filterParams: FilterParams;
+	savedParams: FilterParams | null;
+	lastCalculatedParams: FilterParams | null;
+	runDetail: any | null;
+
+	// Stage 1 特定功能
+	loadExperimentRuns: () => Promise<void>;
+	addExperimentRun: (run: ExperimentRun) => void;
+	updateExperimentRunStatus: (runId: string, status: string) => void;
+	removeExperimentRun: (runId: string) => void;
+	setLabeledPositive: (count: number) => void;
+	setLabeledNormal: (count: number) => void;
+	updateFilterParam: (key: keyof FilterParams, value: any) => void;
+	handleCalculateCandidates: () => Promise<void>;
+	handleSaveParameters: () => Promise<void>;
+	loadRunDetail: (runId: string | null) => Promise<void>;
+	createNewRun: (name?: string) => Promise<ExperimentRun>;
+
+	// Stage 2 特定功能
+	isCompleting: boolean;
+	handleMarkCompleted: (
+		selectedRunId: string | null,
+		candidateCount: number,
+		labeledPositive: number,
+		labeledNormal: number,
+	) => Promise<void>;
 }

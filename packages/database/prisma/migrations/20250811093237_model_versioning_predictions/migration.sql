@@ -10,6 +10,9 @@ END $$;
 -- AlterTable
 ALTER TABLE "user" ALTER COLUMN "createdAt" SET DEFAULT CURRENT_TIMESTAMP;
 
+-- AlterTable
+ALTER TABLE "experiment_run" ADD COLUMN IF NOT EXISTS "candidateStats" JSONB;
+
 CREATE TABLE IF NOT EXISTS "model_prediction" (
     "id" TEXT NOT NULL,
     "trainedModelId" TEXT NOT NULL,

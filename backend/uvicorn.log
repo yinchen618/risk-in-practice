@@ -1,134 +1,45 @@
 nohup: 忽略輸入
-INFO:     Will watch for changes in these directories: ['/home/infowin/Git-projects/supa-tw4_2-ai/backend']
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [3257385] using WatchFiles
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257388]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-PostgreSQL 資料表已建立
-Cron 任務已停用
-INFO:     127.0.0.1:34146 - "GET /api/testbed/overview HTTP/1.1" 500 Internal Server Error
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257388]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257545]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257545]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257569]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257569]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257598]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257598]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257625]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-PostgreSQL 資料表已建立
-Cron 任務已停用
-INFO:     127.0.0.1:42560 - "GET /api/testbed/overview HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58750 - "GET /api/testbed/units HTTP/1.1" 200 OK
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257625]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3257825]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-PostgreSQL 資料表已建立
-Cron 任務已停用
-INFO:     127.0.0.1:52872 - "GET /api/testbed/overview HTTP/1.1" 500 Internal Server Error
-INFO:     127.0.0.1:52872 - "GET /api/testbed/overview HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52872 - "GET /api/testbed/units HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52872 - "GET /api/testbed/ammeter-history?electric_meter_number=919700039&start_date=2025-07-25&end_date=2025-08-01 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58070 - "GET /api/testbed/overview HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58070 - "GET /favicon.ico HTTP/1.1" 404 Not Found
-WARNING:  WatchFiles detected changes in 'routes/testbed.py'. Reloading...
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3257825]
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-/home/infowin/Git-projects/supa-tw4_2-ai/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
-
-You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
-  warnings.warn(
-INFO:     Started server process [3264957]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-PostgreSQL 資料表已建立
-Cron 任務已停用
-INFO:     127.0.0.1:37242 - "GET /api/testbed/ammeter-history?electric_meter_number=919700095&start_date=2025-07-25&end_date=2025-08-01 HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [3264957]
-INFO:     Stopping reloader process [3257385]
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/__main__.py", line 4, in <module>
+    uvicorn.main()
+  File "/usr/lib/python3/dist-packages/click/core.py", line 1128, in __call__
+    return self.main(*args, **kwargs)
+  File "/usr/lib/python3/dist-packages/click/core.py", line 1053, in main
+    rv = self.invoke(ctx)
+  File "/usr/lib/python3/dist-packages/click/core.py", line 1395, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "/usr/lib/python3/dist-packages/click/core.py", line 754, in invoke
+    return __callback(*args, **kwargs)
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/main.py", line 412, in main
+    run(
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/main.py", line 579, in run
+    server.run()
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/server.py", line 65, in run
+    return asyncio.run(self.serve(sockets=sockets))
+  File "/usr/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/server.py", line 69, in serve
+    await self._serve(sockets)
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/server.py", line 76, in _serve
+    config.load()
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/config.py", line 434, in load
+    self.loaded_app = import_from_string(self.app)
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/home/infowin/.local/lib/python3.10/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 992, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1004, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'backend'

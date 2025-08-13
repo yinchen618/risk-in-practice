@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import init_database
+from core.logging_config import setup_backend_logging
 from routes.ammeters import ammeters_router
 from routes.pu_learning import router as pu_learning_router
 from routes.testbed import router as testbed_router
@@ -11,6 +12,8 @@ from routes.models import router as models_router
 from ai_api import router as ai_router
 import asyncio
 import argparse
+import os
+from datetime import datetime
 from cron_ammeter import start_cron, manual_fetch
 
 # 注意：coding 相關的 API 端點現在由 coding/main.py 提供

@@ -971,7 +971,7 @@ importers:
         specifier: ^2.2.2
         version: 2.2.2
       '@prisma/client':
-        specifier: ^6.11.1
+        specifier: ^6.8.2
         version: 6.11.1(prisma@6.11.1(typescript@5.8.3))(typescript@5.8.3)
       '@repo/config':
         specifier: workspace:*

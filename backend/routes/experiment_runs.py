@@ -2,21 +2,33 @@
 實驗批次管理 API 路由 - 管理科學實驗的完整生命週期
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends, Request
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 import logging
 import uuid
 import asyncio
-from datetime import datetime, date, timezone, time as dt_time
+from datetime import datetime, date, timezone, time as dt_time, timedelta
 import json
+import pandas as pd
+import numpy as np
 
 from services.data_loader import data_loader
 from services.anomaly_rules import anomaly_rules
 from services.anomaly_service import anomaly_service
+from services.candidate_calculation import candidate_calculation_service
 from core.database import db_manager
 from sqlalchemy import text
 
+# 使用與 coding 模組相同的 logger 配置
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('coding_backend.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/experiment-runs", tags=["Experiment Runs"])
@@ -43,12 +55,12 @@ class ExperimentRunUpdate(BaseModel):
 
 class FilteringParameters(BaseModel):
     # Top-level filter
-    start_date: date
-    end_date: date
+    start_date: str
+    end_date: str
     # Optional precise datetime window (prioritized over date if provided)
-    start_datetime: Optional[datetime] = None
-    end_datetime: Optional[datetime] = None
-    
+    start_time: str
+    end_time: str
+
     # Value-based rules
     z_score_threshold: Optional[float] = 3.0
     spike_percentage: Optional[float] = 200.0
@@ -63,6 +75,9 @@ class FilteringParameters(BaseModel):
     # Peer comparison rules
     peer_agg_window_minutes: Optional[int] = 5
     peer_exceed_percentage: Optional[float] = 150.0
+    
+    # 支援新的按建築分組功能
+    selected_floors_by_building: Optional[Dict[str, List[str]]] = None
 
 class CandidateGenerationRequest(BaseModel):
     filtering_parameters: FilteringParameters
@@ -141,9 +156,10 @@ async def list_experiment_runs(
             
             where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
             
+            
             query = text(f"""
                 SELECT 
-                    id, name, description, status, "candidateCount", 
+                    id, name, description, status, "candidateCount", "candidateStats",
                     "positiveLabelCount", "negativeLabelCount",
                     "createdAt", "updatedAt"
                 FROM experiment_run
@@ -152,32 +168,52 @@ async def list_experiment_runs(
                 LIMIT :limit OFFSET :offset
             """)
             
-            result = await session.execute(query, params)
-            rows = result.fetchall()
             
-            experiment_runs = []
-            for row in rows:
-                experiment_runs.append({
-                    "id": row.id,
-                    "name": row.name,
-                    "description": row.description,
-                    "status": row.status,
-                    "candidateCount": row.candidateCount,
-                    "positiveLabelCount": row.positiveLabelCount,
-                    "negativeLabelCount": row.negativeLabelCount,
-                    "createdAt": row.createdAt.isoformat() if row.createdAt else None,
-                    "updatedAt": row.updatedAt.isoformat() if row.updatedAt else None
-                })
-        
-        return ExperimentRunListResponse(
-            success=True,
-            data=experiment_runs,
-            message=f"Retrieved {len(experiment_runs)} experiment runs"
-        )
+            try:
+                result = await session.execute(query, params)
+                rows = result.fetchall()
+                
+                experiment_runs = []
+                for row in rows:
+                    try:
+                        run_data = {
+                            "id": row.id,
+                            "name": row.name,
+                            "description": row.description,
+                            "status": row.status,
+                            "candidateCount": row.candidateCount,
+                            "candidateStats": row.candidateStats,
+                            "positiveLabelCount": row.positiveLabelCount,
+                            "negativeLabelCount": row.negativeLabelCount,
+                            "createdAt": row.createdAt.isoformat() if row.createdAt else None,
+                            "updatedAt": row.updatedAt.isoformat() if row.updatedAt else None
+                        }
+                        experiment_runs.append(run_data)
+                        logger.debug(f"處理記錄: {run_data['id']}")
+                    except Exception as row_error:
+                        logger.error(f"處理記錄時出錯: {str(row_error)}")
+                        continue
+                
+                return ExperimentRunListResponse(
+                    success=True,
+                    data=experiment_runs,
+                    message=f"Retrieved {len(experiment_runs)} experiment runs"
+                )
+            except Exception as query_error:
+                logger.error(f"執行查詢時出錯: {str(query_error)}")
+                raise
         
     except Exception as e:
-        logger.error(f"Failed to list experiment runs: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list experiment runs: {str(e)}")
+        logger.error(f"獲取實驗批次列表失敗", exc_info=True)
+        if "connection" in str(e).lower():
+            raise HTTPException(
+                status_code=503, 
+                detail="資料庫連線失敗，可能是由於網路延遲或資料庫伺服器問題"
+            )
+        raise HTTPException(
+            status_code=500, 
+            detail=f"獲取實驗批次列表失敗: {str(e)}"
+        )
 
 @router.patch("/{run_id}", response_model=ExperimentRunResponse)
 async def update_experiment_run(run_id: str, request: ExperimentRunUpdate):
@@ -199,7 +235,7 @@ async def update_experiment_run(run_id: str, request: ExperimentRunUpdate):
             SET {', '.join(fields)}, "updatedAt" = NOW()
             WHERE id = :run_id
             RETURNING id, name, description, status, "filteringParameters",
-                      "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                      "candidateCount", "candidateStats", "positiveLabelCount", "negativeLabelCount",
                       "createdAt", "updatedAt"
         """)
 
@@ -218,6 +254,7 @@ async def update_experiment_run(run_id: str, request: ExperimentRunUpdate):
                 "status": row.status,
                 "filteringParameters": row.filteringParameters,
                 "candidateCount": row.candidateCount,
+                "candidateStats": row.candidateStats,
                 "positiveLabelCount": row.positiveLabelCount,
                 "negativeLabelCount": row.negativeLabelCount,
                 "createdAt": row.createdAt.isoformat() if row.createdAt else None,
@@ -249,26 +286,6 @@ async def delete_experiment_run(run_id: str):
         logger.error(f"Failed to delete experiment run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete experiment run: {str(e)}")
 
-@router.get("/{run_id}/models")
-async def list_models_for_experiment_run(run_id: str):
-    """列出指定 ExperimentRun 之下的 TrainedModel 清單（id, modelName）。"""
-    try:
-        async with db_manager.get_session() as session:
-            q = text(
-                """
-                SELECT id, "modelName"
-                FROM trained_model
-                WHERE "experimentRunId" = :rid
-                ORDER BY "createdAt" DESC
-                """
-            )
-            res = await session.execute(q, {"rid": run_id})
-            rows = res.fetchall()
-            data = [{"id": r.id, "modelName": r.modelName} for r in rows]
-        return {"success": True, "data": data}
-    except Exception as e:
-        logger.error(f"Failed to list models for experiment run {run_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to list models for experiment run")
 
 @router.get("/{run_id}", response_model=ExperimentRunResponse)
 async def get_experiment_run(run_id: str):
@@ -280,7 +297,7 @@ async def get_experiment_run(run_id: str):
             query = text("""
                 SELECT 
                     id, name, description, status, "filteringParameters",
-                    "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                    "candidateCount", "candidateStats", "positiveLabelCount", "negativeLabelCount",
                     "createdAt", "updatedAt"
                 FROM experiment_run
                 WHERE id = :run_id
@@ -333,94 +350,6 @@ async def get_experiment_run(run_id: str):
         logger.error(f"Failed to get experiment run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get experiment run: {str(e)}")
 
-@router.put("/{run_id}/parameters", response_model=ExperimentRunResponse)
-async def save_experiment_parameters(run_id: str, request: CandidateGenerationRequest):
-    """
-    儲存（僅儲存，不生成）Stage 1 的篩選參數到指定實驗批次
-    """
-    try:
-        # 將日期欄位轉為 ISO 字串，避免 json 序列化錯誤
-        filtering_params = request.filtering_parameters.dict()
-        logger.info(f"[SaveParams] incoming filtering_parameters: {filtering_params}")
-        # 正規化鍵名與可序列化：與生成流程一致
-        if isinstance(filtering_params.get('start_date'), (date, datetime)):
-            filtering_params['start_date'] = filtering_params['start_date'].isoformat()
-        if isinstance(filtering_params.get('end_date'), (date, datetime)):
-            filtering_params['end_date'] = filtering_params['end_date'].isoformat()
-
-        def _stringify_dates(obj: Any) -> Any:
-            if isinstance(obj, (date, datetime)):
-                return obj.isoformat()
-            if isinstance(obj, dict):
-                return {k: _stringify_dates(v) for k, v in obj.items()}
-            if isinstance(obj, list):
-                return [_stringify_dates(v) for v in obj]
-            return obj
-
-        serializable_params = _stringify_dates(filtering_params)
-        logger.info(f"[SaveParams] serializable filtering_parameters: {serializable_params}")
-
-        async with db_manager.get_async_session() as session:
-            update_query = text(
-                """
-                UPDATE experiment_run
-                SET "filteringParameters" = :filtering_params, "updatedAt" = NOW()
-                WHERE id = :run_id
-                RETURNING id, name, description, status, "filteringParameters",
-                          "candidateCount", "positiveLabelCount", "negativeLabelCount",
-                          "createdAt", "updatedAt"
-                """
-            )
-            result = await session.execute(update_query, {
-                "run_id": run_id,
-                "filtering_params": json.dumps(serializable_params)
-            })
-            row = result.fetchone()
-            await session.commit()
-
-            if not row:
-                raise HTTPException(status_code=404, detail="Experiment run not found")
-
-            # 動態計算標記統計
-            counts_query = text(
-                """
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 END) as positive,
-                    COUNT(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 END) as negative
-                FROM anomaly_event
-                WHERE "experimentRunId" = :run_id
-                """
-            )
-            counts_res = await session.execute(counts_query, {"run_id": run_id})
-            counts_row = counts_res.fetchone()
-            positive_cnt = counts_row.positive if counts_row and counts_row.positive is not None else 0
-            negative_cnt = counts_row.negative if counts_row and counts_row.negative is not None else 0
-
-            experiment_run = {
-                "id": row.id,
-                "name": row.name,
-                "description": row.description,
-                "status": row.status,
-                "filteringParameters": row.filteringParameters,
-                "candidateCount": row.candidateCount,
-                "positiveLabelCount": positive_cnt,
-                "negativeLabelCount": negative_cnt,
-                "createdAt": row.createdAt.isoformat() if row.createdAt else None,
-                "updatedAt": row.updatedAt.isoformat() if row.updatedAt else None
-            }
-
-        return ExperimentRunResponse(
-            success=True,
-            data=experiment_run,
-            message="Filtering parameters saved"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to save experiment parameters: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to save experiment parameters: {str(e)}")
-
 @router.post("/{run_id}/complete", response_model=ExperimentRunResponse)
 async def complete_experiment_run(run_id: str):
     """
@@ -445,7 +374,7 @@ async def complete_experiment_run(run_id: str):
                 q_get = text(
                     """
                     SELECT id, name, description, status, "filteringParameters",
-                           "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                           "candidateCount", "candidateStats", "positiveLabelCount", "negativeLabelCount",
                            "createdAt", "updatedAt"
                     FROM experiment_run WHERE id = :run_id
                     """
@@ -474,6 +403,7 @@ async def complete_experiment_run(run_id: str):
                     "status": row.status,
                     "filteringParameters": row.filteringParameters,
                     "candidateCount": row.candidateCount,
+                    "candidateStats": row.candidateStats,
                     "positiveLabelCount": positive_cnt,
                     "negativeLabelCount": negative_cnt,
                     "createdAt": row.createdAt.isoformat() if row.createdAt else None,
@@ -505,7 +435,7 @@ async def complete_experiment_run(run_id: str):
                 SET status = 'COMPLETED', "updatedAt" = NOW()
                 WHERE id = :run_id
                 RETURNING id, name, description, status, "filteringParameters",
-                          "candidateCount", "positiveLabelCount", "negativeLabelCount",
+                          "candidateCount", "candidateStats", "positiveLabelCount", "negativeLabelCount",
                           "createdAt", "updatedAt"
                 """
             )
@@ -538,6 +468,7 @@ async def complete_experiment_run(run_id: str):
                 "status": row.status,
                 "filteringParameters": row.filteringParameters,
                 "candidateCount": row.candidateCount,
+                "candidateStats": row.candidateStats,
                 "positiveLabelCount": positive_cnt,
                 "negativeLabelCount": negative_cnt,
                 "createdAt": row.createdAt.isoformat() if row.createdAt else None,
@@ -551,354 +482,772 @@ async def complete_experiment_run(run_id: str):
         logger.error(f"Failed to complete experiment run: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to complete experiment run: {str(e)}")
 
+
+# ========== 候選事件計算 API ==========
+
 @router.post("/{run_id}/candidates/calculate")
-async def calculate_candidates_for_experiment(
-    run_id: str,
-    request: CandidateGenerationRequest,
-):
+async def calculate_candidates(run_id: str, request: CandidateGenerationRequest):
     """
-    為特定實驗批次計算候選事件數量（僅計算，不寫入資料庫）。
-    與規範一致的別名端點，行為同 /api/v1/candidates/calculate。
+    計算候選異常事件 - 實現完整的多維度異常檢測
+    
+    這個 API 實現了 Calculate Candidates 的完整流程：
+    1. 載入和篩選數據
+    2. 應用多維度規則
+    3. 處理重疊
+    4. 計算統計結果
     """
     try:
-        # 確認實驗批次存在（不更動資料）
+        logger.info(f"[CALCULATE_CANDIDATES] 開始為實驗 {run_id} 計算候選事件")
+        logger.info(f"[CALCULATE_CANDIDATES] 請求參數: {request.dict()}")
+        
+        # 驗證實驗批次是否存在
         async with db_manager.get_async_session() as session:
-            check_query = text("SELECT 1 FROM experiment_run WHERE id = :run_id")
-            exists = await session.execute(check_query, {"run_id": run_id})
-            if not exists.first():
+            verify_query = text("SELECT id, status FROM experiment_run WHERE id = :run_id")
+            result = await session.execute(verify_query, {"run_id": run_id})
+            run_row = result.fetchone()
+            
+            if not run_row:
                 raise HTTPException(status_code=404, detail="Experiment run not found")
-
-        fp = request.filtering_parameters
-        # Normalize optional datetime to UTC-naive
-        def to_utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
-            if dt is None:
-                return None
-            if dt.tzinfo is not None:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
-            return dt
-
-        start_dt = to_utc_naive(fp.start_datetime)
-        end_dt = to_utc_naive(fp.end_datetime)
-
-        raw_df = await data_loader.get_raw_dataframe(
-            start_date=fp.start_date if start_dt is None else None,
-            end_date=fp.end_date if end_dt is None else None,
-            start_datetime=start_dt,
-            end_datetime=end_dt,
-        )
-        if raw_df.empty:
+        
+        # 提取篩選參數
+        filter_params = request.filtering_parameters
+        
+        # 格式化時間範圍
+        try:
+            start_datetime = f"{filter_params.start_date}T{filter_params.start_time}:00"
+            end_datetime = f"{filter_params.end_date}T{filter_params.end_time}:00"
+            logger.info(f"[CALCULATE_CANDIDATES] 時間範圍: {start_datetime} 到 {end_datetime}")
+        except Exception as e:
+            logger.error(f"[CALCULATE_CANDIDATES] 時間格式化失敗: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid time format: {e}")
+        
+        # 載入數據
+        logger.info(f"[CALCULATE_CANDIDATES] 載入數據...")
+        try:
+            # 載入數據 - 直接使用 selected_floors_by_building
+            df = await data_loader.load_meter_data_by_time_range(
+                start_time=start_datetime,
+                end_time=end_datetime,
+                selected_floors_by_building=filter_params.selected_floors_by_building
+            )
+            
+            logger.info(f"[CALCULATE_CANDIDATES] 載入了 {len(df)} 筆數據")
+            
+            if df.empty:
+                logger.warning(f"[CALCULATE_CANDIDATES] 沒有找到符合條件的數據")
+                empty_result = _convert_numpy_types(candidate_calculation_service._empty_result())
+                return {
+                    "success": True,
+                    "data": empty_result,
+                    "message": "No data found for the specified criteria"
+                }
+            
+        except Exception as e:
+            logger.error(f"[CALCULATE_CANDIDATES] 數據載入失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load data: {str(e)}")
+        
+        # 執行候選事件計算
+        logger.info(f"[CALCULATE_CANDIDATES] 執行候選事件計算...")
+        try:
+            # 轉換參數格式
+            calculation_params = {
+                'z_score_threshold': filter_params.z_score_threshold,
+                'spike_percentage': filter_params.spike_percentage,
+                'min_event_duration_minutes': filter_params.min_event_duration_minutes,
+                'detect_holiday_pattern': filter_params.detect_holiday_pattern,
+                'max_time_gap_minutes': filter_params.max_time_gap_minutes,
+                'peer_agg_window_minutes': filter_params.peer_agg_window_minutes,
+                'peer_exceed_percentage': filter_params.peer_exceed_percentage,
+            }
+            
+            # 執行計算
+            calculation_result = await candidate_calculation_service.calculate_anomaly_candidates(
+                df=df,
+                filtering_params=calculation_params,
+                selected_floors_by_building=filter_params.selected_floors_by_building
+            )
+            
+            logger.info(f"[CALCULATE_CANDIDATES] 計算完成，找到 {calculation_result.get('totalCandidates', 0)} 個候選事件")
+            
+            # 更新實驗批次的統計資訊
+            await _update_experiment_run_stats(run_id, calculation_result, filter_params.dict())
+            
+            # 轉換結果中的 numpy 類型為 Python 原生類型以便 JSON 序列化
+            clean_calculation_result = _convert_numpy_types(calculation_result)
+            
             return {
                 "success": True,
-                "candidate_count": 0,
-                "message": "No data available for the specified date range",
-                "parameters_used": fp.dict(),
+                "data": clean_calculation_result,
+                "message": f"Successfully calculated {clean_calculation_result.get('totalCandidates', 0)} candidate events"
             }
-
-        detection_params = {
-            "z_score_threshold": fp.z_score_threshold,
-            "spike_percentage": fp.spike_percentage,
-            "min_event_duration_minutes": fp.min_event_duration_minutes,
-            "detect_holiday_pattern": fp.detect_holiday_pattern,
-            "max_time_gap_minutes": fp.max_time_gap_minutes,
-            "peer_agg_window_minutes": fp.peer_agg_window_minutes,
-            "peer_exceed_percentage": fp.peer_exceed_percentage,
-        }
-
-        count = await anomaly_rules.calculate_candidate_count_enhanced(raw_df, detection_params)
-        # collect stats for better UI display
-        stats = await anomaly_rules.calculate_candidate_stats_enhanced(raw_df, detection_params)
-        count_int = int(count or 0)
-        return {
-            "success": True,
-            "candidate_count": count_int,
-            "message": f"Estimated {count_int} candidate events will be generated",
-            "parameters_used": detection_params,
-            "stats": stats,
-        }
+            
+        except Exception as e:
+            logger.error(f"[CALCULATE_CANDIDATES] 計算失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Calculation failed: {str(e)}")
+            
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to calculate candidates for experiment {run_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Calculation failed: {str(e)}")
+        logger.error(f"[CALCULATE_CANDIDATES] 未預期的錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
 
 @router.post("/{run_id}/candidates/generate")
-async def generate_candidates_for_experiment(
-    run_id: str,
+async def generate_candidates(
+    run_id: str, 
     request: CandidateGenerationRequest,
-    background_tasks: BackgroundTasks,
-    allow_overwrite: bool = Query(False, description="允許在 LABELING 狀態下重新生成並覆蓋舊資料"),
+    allow_overwrite: bool = Query(False, description="Allow overwriting existing candidates")
 ):
     """
-    為特定實驗批次生成候選事件（Stage 1 → Stage 2）
+    生成候選事件並持久化到資料庫 - Proceed to Stage 2 Manual Annotation
+    
+    這個 API 實現了 Proceed to Stage 2 的完整流程：
+    1. 執行候選事件計算（基於 calculate_candidates 邏輯）
+    2. 持久化候選事件到 anomaly_event 表
+    3. 更新實驗批次狀態為 LABELING
     """
     try:
-        logger.info(f"Generating candidates for experiment run: {run_id}")
+        logger.info(f"[GENERATE_CANDIDATES] === API 被調用 ===")
+        logger.info(f"[GENERATE_CANDIDATES] 開始為實驗 {run_id} 生成並持久化候選事件")
+        logger.info(f"[GENERATE_CANDIDATES] 允許覆蓋: {allow_overwrite}")
         
-        # 驗證實驗批次存在
+        # 詳細記錄接收到的參數
+        logger.info(f"=== 後端接收的參數 ===")
+        logger.info(f"run_id: {run_id}")
+        try:
+            logger.info(f"request.filtering_parameters: {request.filtering_parameters}")
+            logger.info(f"request dict: {request.dict()}")
+        except Exception as param_error:
+            logger.error(f"無法序列化請求參數: {param_error}")
+        
+        # 驗證實驗批次是否存在
         async with db_manager.get_async_session() as session:
-            check_query = text("SELECT status FROM experiment_run WHERE id = :run_id")
-            result = await session.execute(check_query, {"run_id": run_id})
-            row = result.fetchone()
+            verify_query = text("SELECT id, status FROM experiment_run WHERE id = :run_id")
+            result = await session.execute(verify_query, {"run_id": run_id})
+            run_row = result.fetchone()
             
-            if not row:
+            if not run_row:
                 raise HTTPException(status_code=404, detail="Experiment run not found")
             
-            # 預設僅允許在 CONFIGURING 生成；若 allow_overwrite=true，允許在 LABELING 覆蓋
-            if not allow_overwrite:
-                if row.status != "CONFIGURING":
+            current_status = run_row.status
+            logger.info(f"[GENERATE_CANDIDATES] 當前實驗狀態: {current_status}")
+        
+        # 檢查是否已有候選事件（如果不允許覆蓋）
+        if not allow_overwrite:
+            async with db_manager.get_async_session() as session:
+                count_query = text(
+                    'SELECT COUNT(*) as count FROM anomaly_event WHERE "experimentRunId" = :run_id'
+                )
+                count_result = await session.execute(count_query, {"run_id": run_id})
+                existing_count = count_result.fetchone().count
+                
+                if existing_count > 0:
                     raise HTTPException(
-                        status_code=400,
-                        detail=f"Cannot generate candidates unless status is CONFIGURING (current: {row.status})",
+                        status_code=409, 
+                        detail=f"Experiment run already has {existing_count} candidates. Use allow_overwrite=true to replace them."
                     )
+        
+        # 提取篩選參數
+        filter_params = request.filtering_parameters
+        
+        # 格式化時間範圍
+        try:
+            start_datetime = f"{filter_params.start_date}T{filter_params.start_time}:00"
+            end_datetime = f"{filter_params.end_date}T{filter_params.end_time}:00"
+            logger.info(f"[GENERATE_CANDIDATES] 時間範圍: {start_datetime} 到 {end_datetime}")
+        except Exception as e:
+            logger.error(f"[GENERATE_CANDIDATES] 時間格式化失敗: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid time format: {e}")
+        
+        # 載入數據
+        logger.info(f"[GENERATE_CANDIDATES] 載入數據...")
+        try:
+            df = await data_loader.load_meter_data_by_time_range(
+                start_time=start_datetime,
+                end_time=end_datetime,
+                selected_floors_by_building=filter_params.selected_floors_by_building
+            )
+            
+            logger.info(f"[GENERATE_CANDIDATES] 載入了 {len(df)} 筆數據")
+            
+            if df.empty:
+                logger.warning(f"[GENERATE_CANDIDATES] 沒有找到符合條件的數據")
+                return {
+                    "success": True,
+                    "data": {
+                        "candidatesGenerated": 0,
+                        "experimentRunId": run_id,
+                        "status": "LABELING"
+                    },
+                    "message": "No data found for the specified criteria, experiment run updated to LABELING status"
+                }
+            
+        except Exception as e:
+            logger.error(f"[GENERATE_CANDIDATES] 數據載入失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load data: {str(e)}")
+        
+        # 執行候選事件計算
+        logger.info(f"[GENERATE_CANDIDATES] 執行候選事件計算...")
+        try:
+            calculation_params = {
+                'z_score_threshold': filter_params.z_score_threshold,
+                'spike_percentage': filter_params.spike_percentage,
+                'min_event_duration_minutes': filter_params.min_event_duration_minutes,
+                'detect_holiday_pattern': filter_params.detect_holiday_pattern,
+                'max_time_gap_minutes': filter_params.max_time_gap_minutes,
+                'peer_agg_window_minutes': filter_params.peer_agg_window_minutes,
+                'peer_exceed_percentage': filter_params.peer_exceed_percentage,
+            }
+            
+            calculation_result = await candidate_calculation_service.calculate_anomaly_candidates(
+                df=df,
+                filtering_params=calculation_params,
+                selected_floors_by_building=filter_params.selected_floors_by_building
+            )
+            
+            logger.info(f"[GENERATE_CANDIDATES] 計算完成，找到 {calculation_result.get('totalCandidates', 0)} 個候選事件")
+            
+        except Exception as e:
+            logger.error(f"[GENERATE_CANDIDATES] 計算失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Calculation failed: {str(e)}")
+        
+        # 持久化候選事件到資料庫
+        logger.info(f"[GENERATE_CANDIDATES] 持久化候選事件到資料庫...")
+        try:
+            events = calculation_result.get("final_events", [])
+            logger.info(f"[GENERATE_CANDIDATES] calculation_result 的鍵: {list(calculation_result.keys())}")
+            logger.info(f"[GENERATE_CANDIDATES] final_events 類型: {type(events)}")
+            logger.info(f"[GENERATE_CANDIDATES] final_events 長度: {len(events)}")
+            
+            # 如果 final_events 為空，檢查其他可能的鍵
+            if not events:
+                logger.warning(f"[GENERATE_CANDIDATES] final_events 為空，檢查其他可能的事件鍵...")
+                potential_keys = ["events", "anomaly_events", "candidates", "detected_events"]
+                for key in potential_keys:
+                    if key in calculation_result:
+                        alt_events = calculation_result[key]
+                        logger.info(f"[GENERATE_CANDIDATES] 找到替代鍵 '{key}': {type(alt_events)}, 長度: {len(alt_events) if hasattr(alt_events, '__len__') else 'N/A'}")
+                        if hasattr(alt_events, '__len__') and len(alt_events) > 0:
+                            events = alt_events
+                            logger.info(f"[GENERATE_CANDIDATES] 使用替代鍵 '{key}' 的事件數據")
+                            break
+            
+            # 記錄完整的 calculation_result 結構（如果不太大的話）
+            if len(str(calculation_result)) < 2000:
+                logger.info(f"[GENERATE_CANDIDATES] 完整的 calculation_result: {calculation_result}")
             else:
-                if row.status not in ("CONFIGURING", "LABELING"):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Cannot generate candidates for experiment in status: {row.status}",
-                    )
+                logger.info(f"[GENERATE_CANDIDATES] calculation_result 太大，只顯示鍵和基本統計")
+                for key, value in calculation_result.items():
+                    if hasattr(value, '__len__'):
+                        logger.info(f"[GENERATE_CANDIDATES] {key}: {type(value)}, 長度: {len(value)}")
+                    else:
+                        logger.info(f"[GENERATE_CANDIDATES] {key}: {type(value)}, 值: {value}")
+            
+            events_saved = await _save_events_to_database_with_data_window(run_id, events, allow_overwrite, df)
+            
+            logger.info(f"[GENERATE_CANDIDATES] 成功持久化 {events_saved} 個事件")
+            
+        except Exception as e:
+            logger.error(f"[GENERATE_CANDIDATES] 持久化失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to persist events: {str(e)}")
         
-        # 生成任務 ID
-        task_id = str(uuid.uuid4())
-        
-        # 初始化任務狀態
-        running_tasks[task_id] = {
-            'experiment_run_id': run_id,
-            'status': 'pending',
-            'progress': 0.0,
-            'message': '正在準備生成候選事件...',
-            'start_time': datetime.utcnow(),
-            'result': None,
-            'error': None
-        }
-        
-        # 啟動背景任務
-        background_tasks.add_task(
-            _generate_candidates_background,
-            task_id,
-            run_id,
-            request.filtering_parameters.dict()
-        )
+        # 更新實驗批次狀態和統計資訊
+        logger.info(f"[GENERATE_CANDIDATES] 更新實驗批次狀態...")
+        try:
+            await _update_experiment_run_to_labeling_status(run_id, calculation_result, filter_params.dict(), events_saved)
+            logger.info(f"[GENERATE_CANDIDATES] 實驗批次狀態已更新為 LABELING")
+            
+        except Exception as e:
+            logger.error(f"[GENERATE_CANDIDATES] 狀態更新失敗: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to update experiment run status: {str(e)}")
         
         return {
             "success": True,
-            "task_id": task_id,
-            "message": "候選事件生成任務已啟動",
-            "experiment_run_id": run_id
+            "data": {
+                "candidatesGenerated": events_saved,
+                "experimentRunId": run_id,
+                "status": "LABELING",
+                "totalCandidatesCalculated": calculation_result.get('totalCandidates', 0)
+            },
+            "message": f"Successfully generated and persisted {events_saved} candidate events. Experiment run is now ready for manual annotation."
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to start candidate generation: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start candidate generation: {str(e)}")
+        logger.error(f"[GENERATE_CANDIDATES] 未預期的錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
 
 @router.get("/{run_id}/candidates/status/{task_id}")
 async def get_generation_status(run_id: str, task_id: str):
     """
-    獲取候選事件生成任務狀態
-    """
-    if task_id not in running_tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    task_info = running_tasks[task_id]
-    
-    if task_info['experiment_run_id'] != run_id:
-        raise HTTPException(status_code=400, detail="Task does not belong to this experiment run")
-    
-    return {
-        "success": True,
-        "task_id": task_id,
-        "experiment_run_id": run_id,
-        "status": task_info['status'],
-        "progress": task_info.get('progress'),
-        "message": task_info['message'],
-        "result": task_info.get('result'),
-        "error": task_info.get('error')
-    }
-
-async def _generate_candidates_background(task_id: str, run_id: str, filtering_params: Dict[str, Any]):
-    """
-    背景任務：為特定實驗批次生成候選事件
+    獲取候選事件生成任務的狀態
     """
     try:
-        # 更新任務狀態
-        running_tasks[task_id]['status'] = 'running'
-        running_tasks[task_id]['message'] = '正在載入原始數據...'
-        running_tasks[task_id]['progress'] = 0.1
+        if task_id not in running_tasks:
+            raise HTTPException(status_code=404, detail="Task not found")
         
-        # 解析日期（若已是 date 物件則直接使用）
-        def _to_date(v: Any) -> date:
-            if isinstance(v, date):
-                return v
-            if isinstance(v, str):
-                return date.fromisoformat(v)
-            raise ValueError("Invalid date value in filtering_parameters")
-
-        start_d = _to_date(filtering_params.get('start_date'))
-        end_d = _to_date(filtering_params.get('end_date'))
-
-        logger.info(f"[Generate] filtering_params: {filtering_params}")
-        # 獲取原始數據
-        # If precise datetime provided inside filtering_params, prioritize
-        start_dt = filtering_params.get('start_datetime')
-        end_dt = filtering_params.get('end_datetime')
-        if isinstance(start_dt, str):
-            try:
-                start_dt = datetime.fromisoformat(start_dt)
-            except Exception:
-                start_dt = None
-        if isinstance(end_dt, str):
-            try:
-                end_dt = datetime.fromisoformat(end_dt)
-            except Exception:
-                end_dt = None
-
-        def to_utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
-            if dt is None:
-                return None
-            if dt.tzinfo is not None:
-                return dt.astimezone(timezone.utc).replace(tzinfo=None)
-            return dt
-
-        start_dt_naive = to_utc_naive(start_dt)
-        end_dt_naive = to_utc_naive(end_dt)
-
-        raw_df = await data_loader.get_raw_dataframe(
-            start_date=start_d if start_dt_naive is None else None,
-            end_date=end_d if end_dt_naive is None else None,
-            start_datetime=start_dt_naive,
-            end_datetime=end_dt_naive,
-        )
+        task_info = running_tasks[task_id]
         
-        if raw_df.empty:
-            raise Exception("指定日期範圍內沒有可用的原始數據")
+        # 如果任務完成，清理任務記錄
+        if task_info["status"] in ["completed", "failed"]:
+            # 保留一段時間後再清理
+            if datetime.utcnow() - datetime.fromisoformat(task_info["started_at"]) > timedelta(minutes=5):
+                del running_tasks[task_id]
         
-        running_tasks[task_id]['message'] = '正在執行異常檢測...'
-        running_tasks[task_id]['progress'] = 0.3
+        return {
+            "success": True,
+            "status": task_info["status"],
+            "progress": task_info.get("progress", 0),
+            "message": task_info.get("message", ""),
+            "result": task_info.get("result"),
+            "error": task_info.get("error")
+        }
         
-        # 執行異常檢測（鍵名正規化：與規則引擎期望一致）
-        normalized_params = dict(filtering_params)
-        # 將 z_score_threshold -> zscore_threshold
-        if 'z_score_threshold' in normalized_params and 'zscore_threshold' not in normalized_params:
-            normalized_params['zscore_threshold'] = normalized_params['z_score_threshold']
-        # 將 min_event_duration_minutes -> min_duration_minutes
-        if 'min_event_duration_minutes' in normalized_params and 'min_duration_minutes' not in normalized_params:
-            normalized_params['min_duration_minutes'] = normalized_params['min_event_duration_minutes']
-        # 其他鍵已與規則引擎一致，例如 spike_percentage, detect_holiday_pattern, max_time_gap_minutes
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[GET_GENERATION_STATUS] 錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get task status: {str(e)}")
 
-        logger.info(f"[Generate] normalized_params: {normalized_params}")
-        candidate_events_df = anomaly_rules.get_candidate_events(raw_df, normalized_params)
+
+# ========== 輔助函數 ==========
+
+def _convert_numpy_types(obj):
+    """轉換 numpy 類型為 Python 原生類型，以便 JSON 序列化"""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: _convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_numpy_types(item) for item in obj]
+    elif hasattr(obj, 'item'):  # numpy scalars
+        return obj.item()
+    else:
+        return obj
+
+async def _update_experiment_run_stats(
+    run_id: str, 
+    calculation_result: Dict[str, Any], 
+    filtering_parameters: Dict[str, Any]
+):
+    """更新實驗批次的統計資訊"""
+    try:
+        # 轉換 numpy 類型為 Python 原生類型
+        clean_calculation_result = _convert_numpy_types(calculation_result)
+        clean_filtering_parameters = _convert_numpy_types(filtering_parameters)
         
-        running_tasks[task_id]['message'] = '正在儲存實驗參數和候選事件到資料庫...'
-        running_tasks[task_id]['progress'] = 0.7
-        
-        # 更新實驗批次的篩選參數和狀態
+        # 確保 candidate_count 是純整數
+        candidate_count = clean_calculation_result.get("totalCandidates", 0)
+        if isinstance(candidate_count, (np.integer, np.int64)):
+            candidate_count = int(candidate_count)
+            
         async with db_manager.get_async_session() as session:
-            # 更新實驗批次
-            update_run_query = text("""
+            update_query = text("""
                 UPDATE experiment_run 
-                SET "filteringParameters" = :filtering_params,
-                    status = 'LABELING',
+                SET 
                     "candidateCount" = :candidate_count,
+                    "candidateStats" = :candidate_stats,
+                    "filteringParameters" = :filtering_parameters,
                     "updatedAt" = NOW()
                 WHERE id = :run_id
             """)
             
-            # 確保存入 DB 的 JSON 可序列化（日期轉字串）
-            def _stringify_dates(obj: Any) -> Any:
-                if isinstance(obj, (date, datetime)):
-                    return obj.isoformat()
-                if isinstance(obj, dict):
-                    return {k: _stringify_dates(v) for k, v in obj.items()}
-                if isinstance(obj, list):
-                    return [_stringify_dates(v) for v in obj]
-                return obj
-
-            serializable_params = _stringify_dates(filtering_params)
-
-            await session.execute(update_run_query, {
+            await session.execute(update_query, {
                 "run_id": run_id,
-                "filtering_params": json.dumps(serializable_params),
-                "candidate_count": len(candidate_events_df)
+                "candidate_count": candidate_count,
+                "candidate_stats": json.dumps(clean_calculation_result),
+                "filtering_parameters": json.dumps(clean_filtering_parameters)
             })
             await session.commit()
-
-        # 重新生成前，刪除舊的候選事件以免殘留
-        async with db_manager.get_async_session() as session:
-            await session.execute(text('DELETE FROM anomaly_event WHERE "experimentRunId" = :run_id'), {"run_id": run_id})
-            await session.commit()
-
-        # 批次準備候選事件資料，並以 executemany 方式批量寫入
-        saved_count = 0
-        batch_rows: List[Dict[str, Any]] = []
-        for _, event in candidate_events_df.iterrows():
-            try:
-                event_time = event['timestamp']
-                device_data = raw_df[
-                    (raw_df['deviceNumber'] == event['deviceNumber']) &
-                    (abs((raw_df['timestamp'] - event_time).dt.total_seconds()) <= 3600)
-                ].sort_values('timestamp')
-
-                data_window = {
-                    'timestamps': device_data['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist(),
-                    'values': device_data['power'].tolist(),
-                }
-
-                batch_rows.append({
-                    "id": str(uuid.uuid4()),
-                    "eventId": f"EXP_{run_id[:8]}_{event['deviceNumber']}_{event_time.strftime('%Y%m%d_%H%M%S')}",
-                    "meterId": event['deviceNumber'],
-                    "eventTimestamp": event_time,
-                    "detectionRule": event['detection_rule'],
-                    "score": float(event['score']),
-                    "dataWindow": json.dumps(data_window),
-                    "experimentRunId": run_id,
-                })
-            except Exception as e:
-                logger.warning(f"準備事件資料失敗: {e}")
-                continue
-
-        if batch_rows:
-            async with db_manager.get_async_session() as session:
-                insert_query = text(
-                    """
-                    INSERT INTO anomaly_event (
-                        id, "eventId", "meterId", "eventTimestamp", "detectionRule", score,
-                        "dataWindow", "experimentRunId", "createdAt", "updatedAt"
-                    ) VALUES (
-                        :id, :eventId, :meterId, :eventTimestamp, :detectionRule, :score,
-                        :dataWindow, :experimentRunId, NOW(), NOW()
-                    )
-                    ON CONFLICT ("eventId") DO NOTHING
-                    """
-                )
-                result = await session.execute(insert_query, batch_rows)
-                await session.commit()
-                try:
-                    saved_count = int(result.rowcount or 0)
-                except Exception:
-                    saved_count = len(batch_rows)
-        
-        # 任務完成
-        running_tasks[task_id]['status'] = 'completed'
-        running_tasks[task_id]['message'] = f'成功生成並儲存 {saved_count} 個候選事件到實驗批次 {run_id}'
-        running_tasks[task_id]['progress'] = 1.0
-        running_tasks[task_id]['result'] = {
-            'experiment_run_id': run_id,
-            'events_generated': saved_count,
-            'total_candidates': len(candidate_events_df),
-            'completion_time': datetime.utcnow().isoformat(),
-            'filtering_parameters': filtering_params
-        }
-        
-        logger.info(f"候選事件生成完成: {task_id}, 實驗批次: {run_id}, 儲存了 {saved_count} 個事件")
+            
+        logger.info(f"[UPDATE_STATS] 已更新實驗 {run_id} 的統計資訊")
         
     except Exception as e:
-        # 任務失敗
-        error_msg = str(e)
-        logger.error(f"候選事件生成失敗: {task_id}, 實驗批次: {run_id}, 錯誤: {error_msg}")
+        logger.error(f"[UPDATE_STATS] 更新統計資訊失敗: {e}")
+        # 不拋出異常，因為這不是關鍵操作
+
+
+async def _update_experiment_run_stats(
+    run_id: str, 
+    calculation_result: Dict[str, Any], 
+    filtering_parameters: Dict[str, Any]
+):
+    """更新實驗批次的統計資訊"""
+    try:
+        # 轉換 numpy 類型為 Python 原生類型
+        clean_calculation_result = _convert_numpy_types(calculation_result)
+        clean_filtering_parameters = _convert_numpy_types(filtering_parameters)
         
-        running_tasks[task_id]['status'] = 'failed'
-        running_tasks[task_id]['message'] = f'生成失敗: {error_msg}'
-        running_tasks[task_id]['error'] = error_msg
-        running_tasks[task_id]['progress'] = 0.0
+        # 確保 candidate_count 是純整數
+        candidate_count = clean_calculation_result.get("totalCandidates", 0)
+        if isinstance(candidate_count, (np.integer, np.int64)):
+            candidate_count = int(candidate_count)
+            
+        async with db_manager.get_async_session() as session:
+            update_query = text("""
+                UPDATE experiment_run 
+                SET 
+                    "candidateCount" = :candidate_count,
+                    "candidateStats" = :candidate_stats,
+                    "filteringParameters" = :filtering_parameters,
+                    "updatedAt" = NOW()
+                WHERE id = :run_id
+            """)
+            
+            await session.execute(update_query, {
+                "run_id": run_id,
+                "candidate_count": candidate_count,
+                "candidate_stats": json.dumps(clean_calculation_result),
+                "filtering_parameters": json.dumps(clean_filtering_parameters)
+            })
+            await session.commit()
+            
+        logger.info(f"[UPDATE_STATS] 已更新實驗 {run_id} 的統計資訊")
+        
+    except Exception as e:
+        logger.error(f"[UPDATE_STATS] 更新統計資訊失敗: {e}")
+        # 不拋出異常，因為這不是關鍵操作
+
+
+async def _save_events_to_database_with_data_window(
+    run_id: str, 
+    events: List[Dict[str, Any]], 
+    allow_overwrite: bool,
+    df: pd.DataFrame
+) -> int:
+    """
+    將候選事件保存到資料庫，包含完整的 dataWindow 數據
+    這是 Proceed to Stage 2 的核心功能 - 持久化候選事件
+    """
+    try:
+        logger.info(f"[SAVE_EVENTS_WITH_DATA] 保存 {len(events)} 個事件到資料庫（包含 dataWindow）")
+        logger.info(f"[SAVE_EVENTS_WITH_DATA] events 類型: {type(events)}")
+        logger.info(f"[SAVE_EVENTS_WITH_DATA] events 是否為空: {len(events) == 0}")
+        
+        # 記錄前幾個事件的結構
+        if events:
+            logger.info(f"[SAVE_EVENTS_WITH_DATA] 第一個事件結構: {events[0] if events else 'N/A'}")
+            logger.info(f"[SAVE_EVENTS_WITH_DATA] 事件的鍵: {list(events[0].keys()) if events else 'N/A'}")
+        
+        if not events:
+            logger.warning(f"[SAVE_EVENTS_WITH_DATA] events 列表為空，直接返回 0")
+            return 0
+        
+        async with db_manager.get_async_session() as session:
+            # 如果允許覆蓋，先刪除現有事件（確保冪等性）
+            if allow_overwrite:
+                delete_query = text(
+                    'DELETE FROM anomaly_event WHERE "experimentRunId" = :run_id'
+                )
+                await session.execute(delete_query, {"run_id": run_id})
+                logger.info(f"[SAVE_EVENTS_WITH_DATA] 已刪除實驗 {run_id} 的現有事件")
+            
+            # 批量插入新事件
+            events_saved = 0
+            for i, event in enumerate(events):
+                try:
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 處理事件 {i+1}/{len(events)}: {event}")
+                    
+                    # 生成人類可讀的 eventId
+                    event_id = f"EXP-{run_id[:8]}-{datetime.utcnow().strftime('%Y%m%d')}-{i+1:03d}"
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 生成的 eventId: {event_id}")
+                    
+                    # 為每個事件生成 dataWindow
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 開始生成 dataWindow...")
+                    data_window = await _generate_data_window_for_event(event, df)
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 生成的 dataWindow 大小: {len(str(data_window))} 字符")
+                    
+                    # 驗證必需字段
+                    required_fields = ["meterId", "eventTimestamp", "detectionRule", "score"]
+                    for field in required_fields:
+                        if field not in event:
+                            logger.error(f"[SAVE_EVENTS_WITH_DATA] 事件 {i} 缺少必需字段: {field}")
+                            raise ValueError(f"Missing required field: {field}")
+                    
+                    insert_query = text("""
+                        INSERT INTO anomaly_event (
+                            id, "eventId", "meterId", "eventTimestamp", "detectionRule",
+                            score, "dataWindow", status, "experimentRunId", "createdAt", "updatedAt"
+                        ) VALUES (
+                            :id, :eventId, :meterId, :eventTimestamp, :detectionRule,
+                            :score, :dataWindow, :status, :experimentRunId, NOW(), NOW()
+                        )
+                    """)
+                    
+                    params = {
+                        "id": str(uuid.uuid4()),
+                        "eventId": event_id,
+                        "meterId": event["meterId"],
+                        "eventTimestamp": pd.to_datetime(event["eventTimestamp"]).to_pydatetime(),  # 轉換為 datetime 對象
+                        "detectionRule": event["detectionRule"],
+                        "score": event["score"],
+                        "dataWindow": json.dumps(data_window),
+                        "status": "UNREVIEWED",  # 預設狀態
+                        "experimentRunId": run_id
+                    }
+                    
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 插入參數: {params}")
+                    
+                    await session.execute(insert_query, params)
+                    events_saved += 1
+                    logger.info(f"[SAVE_EVENTS_WITH_DATA] 成功保存事件 {i+1}, 累計: {events_saved}")
+                    
+                    if events_saved % 10 == 0:
+                        logger.info(f"[SAVE_EVENTS_WITH_DATA] 已保存 {events_saved}/{len(events)} 個事件")
+                    
+                except Exception as e:
+                    logger.error(f"[SAVE_EVENTS_WITH_DATA] 保存事件 {i} 失敗: {e}")
+                    logger.error(f"[SAVE_EVENTS_WITH_DATA] 事件數據: {event}")
+                    import traceback
+                    logger.error(f"[SAVE_EVENTS_WITH_DATA] 詳細錯誤堆棧: {traceback.format_exc()}")
+                    continue
+            
+            logger.info(f"[SAVE_EVENTS_WITH_DATA] 準備提交事務，已處理 {events_saved} 個事件")
+            await session.commit()
+            logger.info(f"[SAVE_EVENTS_WITH_DATA] 事務提交完成，成功保存 {events_saved} 個事件")
+            return events_saved
+            
+    except Exception as e:
+        logger.error(f"[SAVE_EVENTS_WITH_DATA] 保存事件到資料庫失敗: {e}")
+        import traceback
+        logger.error(f"[SAVE_EVENTS_WITH_DATA] 詳細錯誤堆棧: {traceback.format_exc()}")
+        raise
+
+
+async def _generate_data_window_for_event(event: Dict[str, Any], df: pd.DataFrame) -> Dict[str, Any]:
+    """
+    為候選事件生成包含時序數據的 dataWindow
+    這個函數從原始數據中提取事件周圍的時間窗口數據
+    """
+    try:
+        logger.info(f"[DATA_WINDOW] 為事件生成 dataWindow: {event}")
+        
+        meter_id = event.get("meterId")
+        if not meter_id:
+            logger.error(f"[DATA_WINDOW] 事件缺少 meterId 字段: {event}")
+            return {
+                "eventTimestamp": event.get("eventTimestamp", ""),
+                "eventPowerValue": 0,
+                "windowStart": event.get("eventTimestamp", ""),
+                "windowEnd": event.get("eventTimestamp", ""),
+                "timeSeries": [],
+                "error": "Missing meterId"
+            }
+        
+        event_timestamp_str = event.get("eventTimestamp")
+        if not event_timestamp_str:
+            logger.error(f"[DATA_WINDOW] 事件缺少 eventTimestamp 字段: {event}")
+            return {
+                "eventTimestamp": "",
+                "eventPowerValue": 0,
+                "windowStart": "",
+                "windowEnd": "",
+                "timeSeries": [],
+                "error": "Missing eventTimestamp"
+            }
+        
+        event_timestamp = pd.to_datetime(event_timestamp_str)
+        
+        # 檢查 DataFrame 中的列名
+        logger.info(f"[DATA_WINDOW] DataFrame 列名: {list(df.columns)}")
+        
+        # 根據實際列名確定設備ID列
+        device_column = None
+        for col in ['meterId', 'deviceNumber', 'device_id']:
+            if col in df.columns:
+                device_column = col
+                break
+        
+        if device_column is None:
+            logger.error(f"[DATA_WINDOW] DataFrame 中找不到設備ID列")
+            return {
+                "eventTimestamp": event_timestamp_str,
+                "eventPowerValue": 0,
+                "windowStart": event_timestamp_str,
+                "windowEnd": event_timestamp_str,
+                "timeSeries": [],
+                "error": "No device ID column found in DataFrame"
+            }
+        
+        logger.info(f"[DATA_WINDOW] 使用設備ID列: {device_column}")
+        
+        # 篩選出該電表的數據
+        meter_df = df[df[device_column] == meter_id].copy()
+        
+        if meter_df.empty:
+            logger.warning(f"[DATA_WINDOW] 沒有找到電表 {meter_id} 的數據")
+            return {
+                "eventTimestamp": event_timestamp_str,
+                "eventPowerValue": 0,
+                "windowStart": event_timestamp_str,
+                "windowEnd": event_timestamp_str,
+                "timeSeries": []
+            }
+        
+        # 確保時間戳是 datetime 類型
+        meter_df['timestamp'] = pd.to_datetime(meter_df['timestamp'])
+        meter_df = meter_df.sort_values('timestamp')
+        
+        # 定義時間窗口：事件前後各 15 分鐘
+        window_start = event_timestamp - timedelta(minutes=15)
+        window_end = event_timestamp + timedelta(minutes=15)
+        
+        # 篩選時間窗口內的數據
+        window_df = meter_df[
+            (meter_df['timestamp'] >= window_start) & 
+            (meter_df['timestamp'] <= window_end)
+        ]
+        
+        # 找到最接近事件時間的數據點
+        time_diffs = abs(meter_df['timestamp'] - event_timestamp)
+        closest_idx = time_diffs.idxmin()
+        event_power_value = meter_df.loc[closest_idx, 'power'] if not meter_df.empty else 0
+        
+        # 構建時序數據列表
+        time_series = []
+        for _, row in window_df.iterrows():
+            time_series.append({
+                "timestamp": row['timestamp'].isoformat(),
+                "power": float(row['power']) if pd.notna(row['power']) else 0.0
+            })
+        
+        # 構建 dataWindow 對象
+        data_window = {
+            "eventTimestamp": event_timestamp_str,
+            "eventPowerValue": float(event_power_value) if pd.notna(event_power_value) else 0.0,
+            "windowStart": window_start.isoformat(),
+            "windowEnd": window_end.isoformat(),
+            "timeSeries": time_series,
+            "totalDataPoints": len(time_series),
+            "detectionRule": event.get("detectionRule", ""),
+            "anomalyScore": event.get("score", 0)
+        }
+        
+        logger.info(f"[DATA_WINDOW] 為事件 {meter_id}@{event_timestamp} 生成了包含 {len(time_series)} 個數據點的時間窗口")
+        return data_window
+        
+    except Exception as e:
+        logger.error(f"[DATA_WINDOW] 生成 dataWindow 失敗: {e}")
+        import traceback
+        logger.error(f"[DATA_WINDOW] 詳細錯誤堆棧: {traceback.format_exc()}")
+        # 返回最小化的 dataWindow
+        return {
+            "eventTimestamp": event.get("eventTimestamp", ""),
+            "eventPowerValue": 0,
+            "windowStart": event.get("eventTimestamp", ""),
+            "windowEnd": event.get("eventTimestamp", ""),
+            "timeSeries": [],
+            "error": str(e)
+        }
+
+
+async def _update_experiment_run_to_labeling_status(
+    run_id: str, 
+    calculation_result: Dict[str, Any], 
+    filtering_parameters: Dict[str, Any],
+    events_saved: int
+):
+    """
+    更新實驗批次狀態為 LABELING，並儲存完整的統計資訊
+    這是 Proceed to Stage 2 的最後步驟
+    """
+    try:
+        # 轉換 numpy 類型為 Python 原生類型
+        clean_calculation_result = _convert_numpy_types(calculation_result)
+        clean_filtering_parameters = _convert_numpy_types(filtering_parameters)
+        
+        async with db_manager.get_async_session() as session:
+            update_query = text("""
+                UPDATE experiment_run 
+                SET 
+                    status = 'LABELING',
+                    "candidateCount" = :candidate_count,
+                    "candidateStats" = :candidate_stats,
+                    "filteringParameters" = :filtering_parameters,
+                    "positiveLabelCount" = 0,
+                    "negativeLabelCount" = 0,
+                    "updatedAt" = NOW()
+                WHERE id = :run_id
+            """)
+            
+            await session.execute(update_query, {
+                "run_id": run_id,
+                "candidate_count": events_saved,  # 使用實際保存的事件數量
+                "candidate_stats": json.dumps(clean_calculation_result),
+                "filtering_parameters": json.dumps(clean_filtering_parameters)
+            })
+            await session.commit()
+            
+        logger.info(f"[UPDATE_TO_LABELING] 已更新實驗 {run_id} 狀態為 LABELING，候選事件數量: {events_saved}")
+        
+    except Exception as e:
+        logger.error(f"[UPDATE_TO_LABELING] 更新實驗狀態失敗: {e}")
+        raise
+
+
+async def _save_events_to_database(
+    run_id: str, 
+    events: List[Dict[str, Any]], 
+    allow_overwrite: bool
+) -> int:
+    """將候選事件保存到資料庫"""
+    try:
+        logger.info(f"[SAVE_EVENTS] 保存 {len(events)} 個事件到資料庫")
+        
+        if not events:
+            return 0
+        
+        async with db_manager.get_async_session() as session:
+            # 如果允許覆蓋，先刪除現有事件
+            if allow_overwrite:
+                delete_query = text(
+                    'DELETE FROM anomaly_event WHERE "experimentRunId" = :run_id'
+                )
+                await session.execute(delete_query, {"run_id": run_id})
+                logger.info(f"[SAVE_EVENTS] 已刪除實驗 {run_id} 的現有事件")
+            
+            # 批量插入新事件
+            events_saved = 0
+            for event in events:
+                try:
+                    insert_query = text("""
+                        INSERT INTO anomaly_event (
+                            id, "eventId", "meterId", "eventTimestamp", "detectionRule",
+                            score, "dataWindow", status, "experimentRunId", "createdAt", "updatedAt"
+                        ) VALUES (
+                            :id, :eventId, :meterId, :eventTimestamp, :detectionRule,
+                            :score, :dataWindow, :status, :experimentRunId, NOW(), NOW()
+                        )
+                    """)
+                    
+                    await session.execute(insert_query, {
+                        "id": event["id"],
+                        "eventId": event["eventId"],
+                        "meterId": event["meterId"],
+                        "eventTimestamp": event["eventTimestamp"],
+                        "detectionRule": event["detectionRule"],
+                        "score": event["score"],
+                        "dataWindow": json.dumps(event["dataWindow"]),
+                        "status": event["status"],
+                        "experimentRunId": run_id
+                    })
+                    events_saved += 1
+                    
+                except Exception as e:
+                    logger.warning(f"[SAVE_EVENTS] 保存事件失敗: {e}")
+                    continue
+            
+            await session.commit()
+            logger.info(f"[SAVE_EVENTS] 成功保存 {events_saved} 個事件")
+            return events_saved
+            
+    except Exception as e:
+        logger.error(f"[SAVE_EVENTS] 保存事件到資料庫失敗: {e}")
+        raise
