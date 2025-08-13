@@ -1,7 +1,7 @@
 "use client";
 
 import { DatasetPanel } from "@/app/case-study/tabs/components/DatasetPanel";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Stage1Automation } from "../components/Stage1AutomationRefactored";
 import Stage2LabelingRefactored from "../components/Stage2LabelingRefactored";
 import { Stage3ModelTraining } from "../components/Stage3ModelTraining";
@@ -45,6 +45,36 @@ export function DataResultsPhase() {
 	const [candidateCount, setCandidateCount] = useState(0);
 	const [labeledPositive, setLabeledPositive] = useState(0);
 	const [labeledNormal, setLabeledNormal] = useState(0);
+
+	// 載入候選統計資料
+	const loadCandidateStats = useCallback(async (runId: string) => {
+		try {
+			const response = await fetch(`http://localhost:8000/api/v1/stats?experiment_run_id=${runId}`);
+			if (response.ok) {
+				const result = await response.json();
+				if (result.success && result.data) {
+					setCandidateCount(result.data.totalEvents);
+					setLabeledPositive(result.data.confirmedCount);
+					setLabeledNormal(result.data.rejectedCount);
+				}
+			}
+		} catch (error) {
+			console.error("Failed to load candidate stats:", error);
+		}
+	}, []);
+
+	// 處理標籤進度更新
+	const handleLabelingProgress = useCallback((positive: number, normal: number) => {
+		setLabeledPositive(positive);
+		setLabeledNormal(normal);
+	}, []);
+
+	// 當選擇的運行ID改變時載入統計資料
+	useEffect(() => {
+		if (selectedRunId) {
+			loadCandidateStats(selectedRunId);
+		}
+	}, [selectedRunId, loadCandidateStats]);
 
 	// 過濾參數狀態管理 - 優化後的預設值以獲得合理候選數量
 	const [filterParams, setFilterParams] = useState<FilterParams>({
@@ -134,6 +164,7 @@ export function DataResultsPhase() {
 			peerExceedPercentage: "Peer Exceed Percentage",
 			selectedBuildings: "Selected Buildings",
 			selectedFloors: "Selected Floors",
+			selectedFloorsByBuilding: "Selected Floors by Building",
 		};
 
 		const formatParamValue = (
@@ -159,6 +190,14 @@ export function DataResultsPhase() {
 			if (key === "selectedBuildings" || key === "selectedFloors") {
 				return Array.isArray(value) ? value.join(", ") : "None";
 			}
+			if (key === "selectedFloorsByBuilding") {
+				if (value && typeof value === "object") {
+					return Object.entries(value).map(([building, floors]) => 
+						`${building}: ${Array.isArray(floors) ? floors.join(", ") : floors}`
+					).join("; ");
+				}
+				return "None";
+			}
 			return String(value);
 		};
 
@@ -171,6 +210,7 @@ export function DataResultsPhase() {
 
 			const isDate = k === "startDate" || k === "endDate";
 			const isArray = k === "selectedBuildings" || k === "selectedFloors";
+			const isObject = k === "selectedFloorsByBuilding";
 
 			let changed: boolean;
 			if (isDate) {
@@ -184,6 +224,9 @@ export function DataResultsPhase() {
 					!arrayA.every(
 						(item: any, index: number) => item === arrayB[index],
 					);
+			} else if (isObject) {
+				// 比較物件內容
+				changed = JSON.stringify(a) !== JSON.stringify(b);
 			} else {
 				changed = a !== b;
 			}
@@ -260,6 +303,7 @@ export function DataResultsPhase() {
 							onUpdateRunStatus={updateExperimentRunStatus}
 							onBackToOverview={() => setViewMode("overview")}
 							onProceedToTraining={() => setViewMode("training")}
+							onLabelingProgress={handleLabelingProgress}
 						/>
 					)}
 

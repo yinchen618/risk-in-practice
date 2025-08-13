@@ -13,6 +13,7 @@ interface Stage2LabelingProps {
 	onUpdateRunStatus: (runId: string, status: string) => void;
 	onBackToOverview: () => void;
 	onProceedToTraining: () => void;
+	onLabelingProgress?: (positive: number, normal: number) => void;
 }
 
 export default function Stage2LabelingRefactored({
@@ -22,6 +23,7 @@ export default function Stage2LabelingRefactored({
 	labeledNormal,
 	onUpdateRunStatus,
 	onProceedToTraining,
+	onLabelingProgress,
 }: Stage2LabelingProps) {
 	const [isCompleting, setIsCompleting] = useState(false);
 
@@ -109,6 +111,8 @@ export default function Stage2LabelingRefactored({
 						<CardContent className="p-6">
 							<AnomalyLabelingSystem
 								experimentRunId={selectedRunId}
+								candidateCount={candidateCount}
+								onLabelingProgress={onLabelingProgress}
 							/>
 						</CardContent>
 					</Card>

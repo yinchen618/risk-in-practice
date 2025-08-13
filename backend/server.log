@@ -12926,3 +12926,142 @@ INFO:     127.0.0.1:34350 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:48558 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:48562 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:48558 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59434 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4&limit=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54660 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40088 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54660 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40098 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:35616 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35616 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35634 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:35630 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51870 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51870 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:32968 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:41416 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41440 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:41416 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41430 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44560 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59136 - "GET /api/v1/events/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55528 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50676 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37708 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37728 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37708 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37722 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43066 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52412 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52428 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43470 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43476 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57290 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57282 - "GET /api/v1/experiment-runs/bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "GET /api/v1/experiment-runs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "OPTIONS /api/ammeters HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52364 - "OPTIONS /api/ammeters HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "GET /api/ammeters HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52364 - "GET /api/ammeters HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:52364 - "OPTIONS /api/ammeters/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "OPTIONS /api/ammeters/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52364 - "GET /api/ammeters/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "GET /api/ammeters/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "OPTIONS /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52364 - "OPTIONS /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52364 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52366 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52348 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52366 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "OPTIONS /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "OPTIONS /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/0ada4121-d744-4238-8975-2b93f2bccb8d/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60206 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:39350 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:39364 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4&limit=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60192 - "GET /api/v1/events/4cfd42b6-c225-4c98-a9e2-9205e545ae59/window?minutes=10 HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:41638 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60192 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52104 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52112 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35670 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35684 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50222 - "GET /api/v1/stats?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50220 - "GET /api/v1/events?experiment_run_id=bc37eb3c-aff3-4c05-a2ad-6e272887f5b4 HTTP/1.1" 200 OK
