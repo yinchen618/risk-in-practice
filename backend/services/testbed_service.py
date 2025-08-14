@@ -83,9 +83,9 @@ class TestbedService:
             
             for ammeter in all_ammeters:
                 # 根據電表名稱判斷建築物
-                if ammeter.electricMeterName and "15學舍" in ammeter.electricMeterName:
+                if ammeter.electricMeterName and "Building A" in ammeter.electricMeterName:
                     building_15_count += 1
-                elif ammeter.electricMeterName and "85學舍" in ammeter.electricMeterName:
+                elif ammeter.electricMeterName and "Building B" in ammeter.electricMeterName:
                     building_85_count += 1
                     
                 # 統計活躍電表（有網路連線的）
@@ -230,9 +230,9 @@ class TestbedService:
                 
                 # 應用建築物篩選
                 if building_filter:
-                    if building_filter == "15" and room_info['building'] != "15學舍":
+                    if building_filter == "15" and room_info['building'] != "Building A":
                         continue
-                    elif building_filter == "85" and room_info['building'] != "85學舍":
+                    elif building_filter == "85" and room_info['building'] != "Building B":
                         continue
                 
                 units.append(unit)
@@ -247,11 +247,11 @@ class TestbedService:
     def _parse_room_info(self, electric_meter_name: str) -> Optional[Dict]:
         """解析電表名稱中的房間資訊"""
         try:
-            if "15學舍" in electric_meter_name:
-                building = "15學舍"
+            if "Building A" in electric_meter_name:
+                building = "Building A"
                 building_name = "Building A (15學舍)"
-            elif "85學舍" in electric_meter_name:
-                building = "85學舍"
+            elif "Building B" in electric_meter_name:
+                building = "Building B"
                 building_name = "Building B (85學舍)"
             else:
                 return None

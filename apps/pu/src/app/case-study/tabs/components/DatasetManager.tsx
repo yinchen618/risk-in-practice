@@ -1,6 +1,14 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -8,7 +16,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Info, Loader2 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 interface DatasetManagerProps {
 	selectedRunId: string | null;
@@ -37,20 +46,22 @@ export function DatasetManager({
 	showPendingChanges = false,
 	pendingDiffs = [],
 }: DatasetManagerProps) {
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
 	// Create new run
 	const handleCreateRun = useCallback(async () => {
 		try {
 			await onCreateRun();
 		} catch (error) {
 			console.error("Failed to create dataset", error);
-			alert("An error occurred while creating dataset");
+			toast.error("An error occurred while creating dataset");
 		}
 	}, [onCreateRun]);
 
 	// Save parameters
 	const handleSaveParameters = useCallback(async () => {
 		if (!selectedRunId) {
-			alert("Please select a dataset first");
+			toast.warning("Please select a dataset first");
 			return;
 		}
 
@@ -58,7 +69,7 @@ export function DatasetManager({
 			await onSaveParameters();
 		} catch (error) {
 			console.error("Failed to save parameters:", error);
-			alert("An error occurred while saving parameters");
+			toast.error("An error occurred while saving parameters");
 		}
 	}, [selectedRunId, onSaveParameters]);
 
@@ -72,7 +83,7 @@ export function DatasetManager({
 		if (newName) {
 			try {
 				// TODO: Implement rename functionality
-				alert(`Dataset renamed to: ${newName}`);
+				toast.success(`Dataset renamed to: ${newName}`);
 			} catch (error) {
 				console.error("Failed to rename dataset:", error);
 			}
@@ -85,15 +96,29 @@ export function DatasetManager({
 			return;
 		}
 
-		if (confirm("Are you sure you want to delete this dataset?")) {
-			try {
-				await onDeleteRun(selectedRunId);
-			} catch (error) {
-				console.error("Failed to delete dataset:", error);
-				alert("An error occurred while deleting dataset");
-			}
+		setShowDeleteDialog(true);
+	}, [selectedRunId]);
+
+	// Confirm delete operation
+	const handleConfirmDelete = useCallback(async () => {
+		setShowDeleteDialog(false);
+		if (!selectedRunId) {
+			return;
+		}
+
+		try {
+			await onDeleteRun(selectedRunId);
+			toast.success("Dataset deleted successfully");
+		} catch (error) {
+			console.error("Failed to delete dataset:", error);
+			toast.error("An error occurred while deleting dataset");
 		}
 	}, [onDeleteRun, selectedRunId]);
+
+	// Cancel delete operation
+	const handleCancelDelete = useCallback(() => {
+		setShowDeleteDialog(false);
+	}, []);
 
 	return (
 		<div className="flex items-center gap-3">
@@ -167,6 +192,42 @@ export function DatasetManager({
 					</AlertDescription>
 				</Alert>
 			)}
+
+			{/* Delete Confirmation Dialog */}
+			<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+				<DialogContent className="max-w-md">
+					<DialogHeader className="space-y-4">
+						<DialogTitle className="text-xl font-semibold text-gray-900">
+							Delete Dataset Confirmation
+						</DialogTitle>
+						<DialogDescription className="text-gray-600 leading-relaxed">
+							You are about to permanently delete this dataset and
+							all its associated data. This operation cannot be
+							undone and will remove all training progress.
+							<br />
+							<br />
+							<span className="text-sm text-gray-500">
+								Please confirm to proceed with the deletion.
+							</span>
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-3 pt-6">
+						<Button
+							variant="outline"
+							onClick={handleCancelDelete}
+							className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleConfirmDelete}
+							className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium"
+						>
+							Delete Dataset
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

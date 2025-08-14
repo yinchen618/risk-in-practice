@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DataResultsPhase } from "../tabs/DataResultsPhase";
 import { ImplementationPhase } from "../tabs/ImplementationPhase";
 import { ProblemApproachPhase } from "../tabs/ProblemApproachPhase";
@@ -11,31 +11,29 @@ import type { TabKey } from "./TabNavigation";
 
 export default function CaseStudyPageContent() {
 	const searchParams = useSearchParams();
-	const tabParam = searchParams.get("tab") as TabKey;
 	const [activeTab, setActiveTab] = useState<TabKey>(
-		tabParam || "problem-approach",
+		() => (searchParams.get("tab") as TabKey) || "problem-approach",
 	);
-	// Sync activeTab with URL parameters
-	useEffect(() => {
-		const tab = searchParams.get("tab") as TabKey;
-		if (
-			tab &&
-			["problem-approach", "implementation", "data-results"].includes(tab)
-		) {
-			setActiveTab(tab);
-		}
-	}, [searchParams]);
+
+	const handleTabChange = (tab: TabKey) => {
+		setActiveTab(tab);
+	};
 
 	return (
 		<div className="min-h-screen bg-blue-50/40" id="top">
 			{/* Top Navigation */}
-			<TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+			<TabNavigation
+				activeTab={activeTab}
+				onTabChange={handleTabChange}
+			/>
 
 			{/* Main Content */}
 			<div className="container mx-auto px-4 py-8">
 				{activeTab === "problem-approach" && <ProblemApproachPhase />}
 				{activeTab === "implementation" && <ImplementationPhase />}
-				{activeTab === "data-results" && <DataResultsPhase />}
+				{activeTab === "data-results" && (
+					<DataResultsPhase stageParam={searchParams.get("stage")} />
+				)}
 
 				<BottomNavigation />
 			</div>

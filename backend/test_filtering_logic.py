@@ -22,7 +22,7 @@ def test_device_filtering_logic():
     print(f"總設備數: {len(device_mapping)}")
     
     # 測試參數
-    selected_floors_by_building = {"85學舍": ["5"]}
+    selected_floors_by_building = {"Building B": ["5"]}
     
     # 重現ammeter_service中的過濾邏輯
     print(f"\n測試過濾條件: {selected_floors_by_building}")
@@ -70,7 +70,7 @@ def test_device_filtering_logic():
     print(f"舊邏輯匹配的設備數: {len(old_matched_devices)}")
     
     # 驗證修復
-    if len(matched_devices) == 20:  # 我們知道85學舍5樓有20個設備
+    if len(matched_devices) == 20:  # 我們知道Building B5樓有20個設備
         print("✅ 修復成功！匹配的設備數量正確")
     else:
         print(f"❌ 可能還有問題，期望20個設備，實際得到{len(matched_devices)}個")
@@ -88,7 +88,7 @@ def test_time_range_filtering():
     end_date = datetime.strptime("2025-08-13", "%Y-%m-%d").date()
     start_time = time(0, 0)
     end_time = time(23, 59)
-    device_ids = ['402A8FB038C7', '402A8FB01E11']  # 85學舍5樓的兩個設備
+    device_ids = ['402A8FB038C7', '402A8FB01E11']  # Building B5樓的兩個設備
     
     try:
         df = data_loader.load_meter_data_by_time_range(
@@ -120,10 +120,10 @@ if __name__ == "__main__":
         test_time_range_filtering()
         
         print(f"\n=== 總結 ===")
-        print(f"85學舍5樓設備過濾結果: {matched_count} 個設備")
+        print(f"Building B5樓設備過濾結果: {matched_count} 個設備")
         
         if matched_count == 20:
-            print("🎉 設備過濾修復成功！現在應該能正確找到85學舍5樓的所有設備")
+            print("🎉 設備過濾修復成功！現在應該能正確找到Building B5樓的所有設備")
         else:
             print("⚠️ 設備過濾可能仍有問題，需要進一步調查")
             

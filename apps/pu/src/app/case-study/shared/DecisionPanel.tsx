@@ -4,7 +4,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Clock, Filter, User } from "lucide-react";
 import { useState } from "react";
 import type { AnomalyEvent } from "../types";
@@ -134,7 +133,7 @@ export function DecisionPanel({
 				</div>
 
 				{/* Notes Section */}
-				<div className="space-y-2">
+				{/* <div className="space-y-2">
 					<Label htmlFor="notes" className="text-sm font-medium">
 						Review Notes (Optional)
 					</Label>
@@ -150,7 +149,7 @@ export function DecisionPanel({
 						e.g., Confirmed anomaly - suspected equipment failure,
 						high consumption during abnormal hours
 					</p>
-				</div>
+				</div> */}
 			</div>
 		);
 	};

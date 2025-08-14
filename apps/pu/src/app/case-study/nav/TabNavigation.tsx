@@ -1,7 +1,7 @@
 "use client";
 
 import { FlaskConical, Target, TrendingUp } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React from "react";
 
 export type TabKey = "problem-approach" | "implementation" | "data-results";
@@ -15,25 +15,21 @@ const tabs: {
 	key: TabKey;
 	label: string;
 	icon: React.ComponentType<any>;
-	href: string;
 }[] = [
 	{
 		key: "problem-approach",
 		label: "Problem & Approach",
 		icon: Target,
-		href: "/case-study?tab=problem-approach",
 	},
 	{
 		key: "implementation",
 		label: "Implementation",
 		icon: FlaskConical,
-		href: "/case-study?tab=implementation",
 	},
 	{
 		key: "data-results",
 		label: "Data & Results",
 		icon: TrendingUp,
-		href: "/case-study?tab=data-results",
 	},
 ];
 
@@ -41,6 +37,15 @@ export default function TabNavigation({
 	activeTab,
 	onTabChange,
 }: TabNavigationProps) {
+	const router = useRouter();
+
+	const handleTabClick = (tab: TabKey) => {
+		// 同時立即更新URL，不等待任何資料載入
+		router.push(`/case-study?tab=${tab}`);
+		// 立即更新本地狀態，讓UI即時響應
+		onTabChange(tab);
+	};
+
 	return (
 		<nav className="sticky top-0 z-50 bg-white shadow-sm border-b">
 			<div className="container mx-auto px-4 py-4">
@@ -55,11 +60,10 @@ export default function TabNavigation({
 							const Icon = tab.icon;
 							const isActive = activeTab === tab.key;
 							return (
-								<Link
+								<button
 									key={tab.key}
-									href={tab.href}
-									prefetch={false}
-									onClick={() => onTabChange(tab.key)}
+									type="button"
+									onClick={() => handleTabClick(tab.key)}
 									className={`h-10 flex items-center px-3 text-sm transition-colors gap-2 cursor-pointer border-b-2 ${
 										isActive
 											? "text-blue-600 font-semibold border-blue-600"
@@ -68,7 +72,7 @@ export default function TabNavigation({
 								>
 									<Icon className="h-4 w-4" />
 									{tab.label}
-								</Link>
+								</button>
 							);
 						})}
 					</div>

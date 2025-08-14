@@ -79,7 +79,7 @@ export interface MeterData {
 export interface ResidentialUnitItem {
 	id: string;
 	roomNumber: string;
-	building: string; // 15學舍 or 85學舍
+	building: string; // Building A or Building B
 	hasAppliance: boolean;
 }
 

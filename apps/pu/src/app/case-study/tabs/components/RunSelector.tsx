@@ -5,7 +5,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import * as datasetService from "../../services/datasetService";
 
@@ -28,10 +27,6 @@ export function RunSelector({
 	className = "w-80",
 	label,
 }: RunSelectorProps) {
-	const router = useRouter();
-	const pathname = usePathname();
-	const searchParams = useSearchParams();
-
 	// 使用固定 ID 避免 hydration 問題
 	const selectId = "run-selector";
 	const [isLoadingRuns, setIsLoadingRuns] = useState(false);
@@ -46,11 +41,8 @@ export function RunSelector({
 			const runs = await datasetService.loadExperimentRuns();
 			setExperimentRuns(runs);
 
-			// 如果 URL 有 run 參數，設定為選中；否則選第一個
-			const runFromUrl = searchParams.get("run");
-			if (runFromUrl && runs.some((r: any) => r.id === runFromUrl)) {
-				onRunChange(runFromUrl);
-			} else if (!selectedRunId && runs.length > 0) {
+			// 如果沒有選中的run且有可用的runs，選擇第一個
+			if (!selectedRunId && runs.length > 0) {
 				onRunChange(runs[0].id);
 			}
 		} catch (error) {
@@ -59,24 +51,42 @@ export function RunSelector({
 		} finally {
 			setIsLoadingRuns(false);
 		}
-	}, [searchParams, selectedRunId, onRunChange]);
+	}, [selectedRunId, onRunChange]);
 
 	// 組件初始化時載入所有 dataset
 	useEffect(() => {
 		loadAllExperimentRuns();
 	}, [loadAllExperimentRuns]);
 
-	// URL 同步管理
-	useEffect(() => {
-		const current = new URLSearchParams(searchParams.toString());
-		if (selectedRunId) {
-			current.set("run", selectedRunId);
-		} else {
-			current.delete("run");
+	// 獲取狀態顯示樣式
+	const getStatusBadge = (status: string) => {
+		switch (status) {
+			case "COMPLETED":
+				return (
+					<span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+						✓ COMPLETED
+					</span>
+				);
+			case "LABELING":
+				return (
+					<span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+						● LABELING
+					</span>
+				);
+			case "CONFIGURING":
+				return (
+					<span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+						○ CONFIGURING
+					</span>
+				);
+			default:
+				return (
+					<span className="ml-2 text-xs text-gray-500">
+						({status})
+					</span>
+				);
 		}
-		const next = `${pathname}?${current.toString()}`;
-		router.replace(next, { scroll: false });
-	}, [selectedRunId, pathname, router, searchParams]);
+	};
 
 	return (
 		<div className={`flex items-center gap-3 ${className}`}>
@@ -112,12 +122,11 @@ export function RunSelector({
 								</SelectItem>
 								{experimentRuns.map((run) => (
 									<SelectItem key={run.id} value={run.id}>
-										{run.name}
-										{run.status && (
-											<span className="ml-2 text-xs text-gray-500">
-												({run.status})
-											</span>
-										)}
+										<div className="flex items-center justify-between w-full">
+											<span>{run.name}</span>
+											{run.status &&
+												getStatusBadge(run.status)}
+										</div>
 									</SelectItem>
 								))}
 							</>

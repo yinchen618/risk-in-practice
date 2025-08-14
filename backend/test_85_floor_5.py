@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-測試85學舍5樓設備過濾的腳本
+測試Building B5樓設備過濾的腳本
 """
 
 import requests
 import json
 
 def test_85_floor_5():
-    """測試85學舍5樓的設備過濾"""
-    print("=== 測試85學舍5樓設備過濾 ===")
+    """測試Building B5樓的設備過濾"""
+    print("=== 測試Building B5樓設備過濾 ===")
     
     # 構建測試參數
     test_data = {
@@ -17,7 +17,7 @@ def test_85_floor_5():
         "start_time": "00:00",
         "end_time": "23:59",
         "selected_floors_by_building": {
-            "85學舍": ["5"]
+            "Building B": ["5"]
         }
     }
     
@@ -49,9 +49,9 @@ def test_85_floor_5():
         print(f"總記錄數: {total_records}")
         
         if matched_devices > 0:
-            print("✓ 成功找到85學舍5樓的設備！")
+            print("✓ 成功找到Building B5樓的設備！")
         else:
-            print("❌ 未找到85學舍5樓的設備，可能仍有問題")
+            print("❌ 未找到Building B5樓的設備，可能仍有問題")
     else:
         print(f"❌ API調用失敗: {response.text}")
 
@@ -65,16 +65,16 @@ def test_device_mapping():
     data_loader = DataLoaderService()
     device_mapping = data_loader.get_device_room_mapping()
     
-    # 找出85學舍5樓的設備
+    # 找出Building B5樓的設備
     floor_5_devices = []
     for device_id, room_info in device_mapping.items():
-        if room_info["building"] == "85學舍" and room_info["floor"] == "5":
+        if room_info["building"] == "Building B" and room_info["floor"] == "5":
             floor_5_devices.append({
                 "device_id": device_id,
                 "room": room_info["room"]
             })
     
-    print(f"85學舍5樓設備總數: {len(floor_5_devices)}")
+    print(f"Building B5樓設備總數: {len(floor_5_devices)}")
     print("設備列表:")
     for i, device in enumerate(floor_5_devices[:10]):  # 只顯示前10個
         print(f"  {i+1}. {device['device_id']} - {device['room']}")
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         test_85_floor_5()
         
         print(f"\n=== 總結 ===")
-        print(f"設備映射中85學舍5樓設備數: {device_count}")
+        print(f"設備映射中Building B5樓設備數: {device_count}")
         print("如果API返回的匹配設備數與設備映射中的數量一致，則修復成功！")
         
     except Exception as e:

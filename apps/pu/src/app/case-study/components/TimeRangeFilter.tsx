@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Building2, Calendar, Loader2, Play } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import type { FloorParams } from "../types";
 
 export interface TimeRangeParams {
@@ -37,12 +38,12 @@ export interface MeterDataCount {
 // 根據 meter.csv 分析的樓層資料
 const BUILDINGS_WITH_FLOORS = [
 	{
-		id: "15學舍",
+		id: "Building A",
 		name: "Building A",
 		floors: ["1", "2", "3", "5"],
 	},
 	{
-		id: "85學舍",
+		id: "Building B",
 		name: "Building B",
 		floors: ["1", "2", "3", "5", "6"],
 	},
@@ -213,11 +214,11 @@ export function TimeRangeFilter({
 				setMeterDataCount(result.data);
 			} else {
 				console.error("Failed to fetch meter data count");
-				alert("Failed to query meter data count");
+				toast.error("Failed to query meter data count");
 			}
 		} catch (error) {
 			console.error("Error counting meter data:", error);
-			alert("Error occurred while querying meter data count");
+			toast.error("Error occurred while querying meter data count");
 		} finally {
 			setIsCountingMeterData(false);
 		}

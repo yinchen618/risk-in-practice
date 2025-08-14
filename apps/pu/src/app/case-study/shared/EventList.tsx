@@ -1,6 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import type { AnomalyEvent } from "../types";
 import { EventListItem } from "./EventListItem";
 
@@ -30,6 +39,9 @@ interface EventListProps {
 	onPageChange?: (page: number) => void;
 	onFiltersChange?: (filters: any) => void;
 	meterLabelMap?: Record<string, string>;
+	// 批量標註功能
+	onBatchConfirmAnomaly?: (eventIds: string[]) => void;
+	isBatchProcessing?: boolean;
 }
 
 export function EventList({
@@ -46,9 +58,13 @@ export function EventList({
 	onPageChange,
 	onFiltersChange,
 	meterLabelMap = {},
+	onBatchConfirmAnomaly,
+	isBatchProcessing = false,
 }: EventListProps) {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
+	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+	const [pendingBatchIds, setPendingBatchIds] = useState<string[]>([]);
 
 	// 處理篩選變更
 	const handleFilterChange = (
@@ -74,28 +90,75 @@ export function EventList({
 	// 使用所有事件，不進行前端篩選（已由後端處理）
 	const displayEvents = events || [];
 
+	// 批量確認異常事件
+	const handleBatchConfirmAnomaly = () => {
+		if (!onBatchConfirmAnomaly || displayEvents.length === 0) {
+			return;
+		}
+
+		// 過濾出未處理的事件IDs
+		const unprocessedEventIds = displayEvents
+			.filter((event) => event.status === "UNREVIEWED")
+			.map((event) => event.id);
+
+		if (unprocessedEventIds.length === 0) {
+			toast.warning("No unreviewed events available for labeling");
+			return;
+		}
+
+		// 設置待處理的事件IDs並顯示確認對話框
+		setPendingBatchIds(unprocessedEventIds);
+		setShowConfirmDialog(true);
+	};
+
+	// 確認批量處理
+	const handleConfirmBatch = async () => {
+		setShowConfirmDialog(false);
+
+		if (pendingBatchIds.length > 0 && onBatchConfirmAnomaly) {
+			toast.promise(
+				Promise.resolve(onBatchConfirmAnomaly(pendingBatchIds)),
+				{
+					loading: `Processing ${pendingBatchIds.length} events...`,
+					success: "Batch labeling completed successfully",
+					error: "Failed to complete batch labeling",
+				},
+			);
+		}
+
+		setPendingBatchIds([]);
+	};
+
+	// 取消批量處理
+	const handleCancelBatch = () => {
+		setShowConfirmDialog(false);
+		setPendingBatchIds([]);
+	};
+
 	return (
 		<div className="h-full flex flex-col">
-			{/* Title and Refresh Button */}
+			{/* Title and Action Buttons */}
 			<div className="flex items-center justify-between mb-4">
 				<h3 className="text-lg font-semibold text-gray-800">
 					Anomaly Candidates
 				</h3>
-				{onRefresh && (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onRefresh}
-						disabled={isLoading}
-					>
-						<RefreshCw
-							className={`size-4 mr-1 ${
-								isLoading ? "animate-spin" : ""
-							}`}
-						/>
-						Refresh
-					</Button>
-				)}
+				<div className="flex items-center gap-2">
+					{onRefresh && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onRefresh}
+							disabled={isLoading}
+						>
+							<RefreshCw
+								className={`size-4 mr-1 ${
+									isLoading ? "animate-spin" : ""
+								}`}
+							/>
+							Refresh
+						</Button>
+					)}
+				</div>
 			</div>
 
 			{/* Filter Controls */}
@@ -159,6 +222,24 @@ export function EventList({
 					</div>
 				)}
 			</div>
+
+			{/* Batch Action Button */}
+			{onBatchConfirmAnomaly && (
+				<div className="mb-4">
+					<Button
+						variant="secondary"
+						size="sm"
+						onClick={handleBatchConfirmAnomaly}
+						disabled={isLoading || isBatchProcessing}
+						className="bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300 w-full"
+					>
+						{isBatchProcessing ? (
+							<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2" />
+						) : null}
+						Confirm All as Anomaly
+					</Button>
+				</div>
+			)}
 
 			{/* Event Statistics and Pagination */}
 			<div className="flex items-center justify-between text-sm text-gray-600 mb-3">
@@ -225,6 +306,59 @@ export function EventList({
 					))
 				)}
 			</div>
+
+			{/* Confirmation Dialog */}
+			<Dialog
+				open={showConfirmDialog}
+				onOpenChange={setShowConfirmDialog}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader className="space-y-4">
+						<DialogTitle className="text-xl font-semibold text-gray-900">
+							Batch Anomaly Classification Confirmation
+						</DialogTitle>
+						<DialogDescription className="text-gray-600 leading-relaxed">
+							You are about to classify{" "}
+							<span className="font-medium text-gray-900">
+								{pendingBatchIds.length}
+							</span>{" "}
+							unreviewed events as anomalous instances. This
+							operation will update the training dataset and
+							cannot be reversed.
+							<br />
+							<br />
+							<span className="text-sm text-gray-500">
+								Please confirm to proceed with the batch
+								labeling operation.
+							</span>
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-3 pt-6">
+						<Button
+							variant="outline"
+							onClick={handleCancelBatch}
+							disabled={isBatchProcessing}
+							className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+						>
+							Cancel Operation
+						</Button>
+						<Button
+							onClick={handleConfirmBatch}
+							disabled={isBatchProcessing}
+							className="flex-1 bg-slate-700 hover:bg-slate-800 text-white font-medium"
+						>
+							{isBatchProcessing ? (
+								<>
+									<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+									Processing...
+								</>
+							) : (
+								"Confirm Classification"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

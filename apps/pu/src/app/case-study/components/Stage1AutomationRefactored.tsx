@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Filter, Loader2, Target } from "lucide-react";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import type { FilterParams } from "../types";
 import type { FloorParams } from "../types";
 import {
@@ -144,17 +145,13 @@ export function Stage1Automation({
 
 					if (response.ok) {
 						const result = await response.json();
-						console.log("Task status:", result);
+						// console.log("Task status:", result);
 
 						if (result.status === "completed") {
 							setIsGenerating(false);
 							setGenerationTaskId(null);
-
-							// 刷新實驗數據以獲取最新狀態
-							// Note: 移除了 loadRunDetail 調用，因為不再需要
-
-							alert(
-								`候選事件生成完成！\n生成了 ${result.result?.events_generated || 0} 個候選事件`,
+							toast.success(
+								`Candidate event generation completed!\nGenerated ${result.result?.events_generated || 0} candidate events`,
 							);
 							return;
 						}
@@ -162,7 +159,9 @@ export function Stage1Automation({
 						if (result.status === "failed") {
 							setIsGenerating(false);
 							setGenerationTaskId(null);
-							alert(`生成失敗：${result.error || "未知錯誤"}`);
+							toast.error(
+								`Generation failed: ${result.error || "Unknown error"}`,
+							);
 							return;
 						}
 
@@ -177,7 +176,9 @@ export function Stage1Automation({
 							} else {
 								setIsGenerating(false);
 								setGenerationTaskId(null);
-								alert("生成任務超時，請檢查後端狀態");
+								toast.warning(
+									"Generation task timed out, please check backend status",
+								);
 							}
 						}
 					} else {
@@ -191,7 +192,9 @@ export function Stage1Automation({
 					} else {
 						setIsGenerating(false);
 						setGenerationTaskId(null);
-						alert("無法獲取任務狀態，請檢查網路連接");
+						toast.error(
+							"Unable to fetch task status, please check network connection",
+						);
 					}
 				}
 			};
@@ -228,9 +231,9 @@ export function Stage1Automation({
 				},
 			};
 
-			console.log("=== 前端發送的參數 ===");
-			console.log("filterParams:", filterParams);
-			console.log("payload:", JSON.stringify(payload, null, 2));
+			// console.log("=== 前端發送的參數 ===");
+			// console.log("filterParams:", filterParams);
+			// console.log("payload:", JSON.stringify(payload, null, 2));
 
 			// 調用候選事件生成 API
 			const response = await fetch(
@@ -246,26 +249,25 @@ export function Stage1Automation({
 
 			if (response.ok) {
 				const result = await response.json();
-				console.log("=== 後端回應結果 ===");
-				console.log("Generation result:", result);
+				// console.log("=== 後端回應結果 ===");
+				// console.log("Generation result:", result);
 
 				if (result.success) {
 					setIsGenerating(false);
 					setGenerationTaskId(null);
-
 					const candidatesGenerated =
 						result.data?.candidatesGenerated || 0;
-					alert(
-						`候選事件生成完成！\n生成了 ${candidatesGenerated} 個候選事件\n實驗狀態已更新為 LABELING`,
+					toast.success(
+						`Candidate event generation completed!\nGenerated ${candidatesGenerated} candidate events\nExperiment status updated to LABELING`,
 					);
-
-					// 可以在這裡觸發頁面刷新或導航到 Stage 2
-					// if (_onProceedToStage2) {
-					//     _onProceedToStage2();
-					// }
+					if (_onProceedToStage2) {
+						_onProceedToStage2();
+					}
 				} else {
 					setIsGenerating(false);
-					alert(`生成失敗：${result.message || "未知錯誤"}`);
+					toast.error(
+						`Generation failed: ${result.message || "Unknown error"}`,
+					);
 				}
 			} else {
 				const errorText = await response.text();
@@ -273,14 +275,16 @@ export function Stage1Automation({
 				console.error("Status:", response.status);
 				console.error("Response text:", errorText);
 				setIsGenerating(false);
-				alert(
-					`生成候選事件失敗：HTTP ${response.status}\n${errorText}`,
+				toast.error(
+					`Failed to generate candidate events: HTTP ${response.status}\n${errorText}`,
 				);
 			}
 		} catch (error) {
 			console.error("Error generating candidate events:", error);
 			setIsGenerating(false);
-			alert("生成候選事件時發生錯誤，請檢查網路連接");
+			toast.error(
+				"An error occurred while generating candidate events, please check network connection",
+			);
 		}
 	}, [selectedRunId, filterParams, pollTaskStatus]);
 
@@ -304,9 +308,11 @@ export function Stage1Automation({
 						<Alert className="bg-yellow-50 border-yellow-200">
 							<Loader2 className="h-4 w-4 text-yellow-600 animate-spin" />
 							<AlertDescription>
-								正在生成候選事件... 任務 ID: {generationTaskId}
+								Generating candidate events... Task ID:{" "}
+								{generationTaskId}
 								<br />
-								請勿關閉頁面，系統會自動更新完成狀態。
+								Please do not close the page; the system will
+								automatically update when finished.
 							</AlertDescription>
 						</Alert>
 					)}
@@ -318,8 +324,8 @@ export function Stage1Automation({
 							<AlertDescription>
 								<div className="space-y-2">
 									<div className="font-semibold text-orange-800">
-										未保存的參數變更 ({pendingDiffs.length}{" "}
-										項):
+										Unsaved parameter changes (
+										{pendingDiffs.length} items):
 									</div>
 									{pendingDiffs.map((diff, index) => (
 										<div key={index} className="text-sm">
@@ -340,7 +346,7 @@ export function Stage1Automation({
 										onClick={onSaveParameters}
 										className="mt-2 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700"
 									>
-										保存參數變更
+										Save Parameter Changes
 									</button>
 								</div>
 							</AlertDescription>

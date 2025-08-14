@@ -329,7 +329,7 @@ export async function calculateCandidatesForRun(
 		},
 	};
 
-	console.log("Request body:", JSON.stringify(requestBody, null, 2));
+	// console.log("Request body:", JSON.stringify(requestBody, null, 2));
 
 	const response = await fetch(
 		`${API_BASE}/api/v1/experiment-runs/${runId}/candidates/calculate`,
@@ -347,7 +347,7 @@ export async function calculateCandidatesForRun(
 	}
 
 	const data = await response.json();
-	console.log("API Response:", data);
+	// console.log("API Response:", data);
 
 	if (!data.success) {
 		throw new Error(data.message || "API returned unsuccessful result");

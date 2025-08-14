@@ -77,9 +77,17 @@ export function EventListItem({
 					<span>Time:</span>
 					<span className="font-medium">
 						{new Date(event.eventTimestamp)
-							.toISOString()
-							.replace("T", " ")
-							.substring(0, 16)}
+							.toLocaleString("zh-TW", {
+								timeZone: "Asia/Taipei",
+								year: "numeric",
+								month: "2-digit",
+								day: "2-digit",
+								hour: "2-digit",
+								minute: "2-digit",
+								hour12: false,
+							})
+							.replace(/\//g, "-")
+							.replace(",", "")}
 					</span>
 				</div>
 				<div className="flex justify-between">

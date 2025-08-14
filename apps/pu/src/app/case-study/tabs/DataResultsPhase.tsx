@@ -1,7 +1,9 @@
 "use client";
 
 import { DatasetPanel } from "@/app/case-study/tabs/components/DatasetPanel";
-import { useCallback, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Stage1Automation } from "../components/Stage1AutomationRefactored";
 import Stage2LabelingRefactored from "../components/Stage2LabelingRefactored";
 import { Stage3ModelTraining } from "../components/Stage3ModelTraining";
@@ -10,6 +12,10 @@ import * as datasetService from "../services/datasetService";
 import type { FilterParams } from "../types";
 
 type ViewMode = "overview" | "labeling" | "training" | "evaluation";
+
+interface DataResultsPhaseProps {
+	stageParam?: string | null;
+}
 
 const tabs = [
 	{
@@ -30,8 +36,79 @@ const tabs = [
 	},
 ];
 
-export function DataResultsPhase() {
-	const [viewMode, setViewMode] = useState<ViewMode>("overview");
+// 將 stage 參數映射到 viewMode
+const stageToViewMode = (stage: string | null | undefined): ViewMode => {
+	switch (stage) {
+		case "1":
+			return "overview";
+		case "2":
+			return "labeling";
+		case "3":
+			return "training";
+		case "4":
+			return "evaluation";
+		default:
+			return "overview";
+	}
+};
+
+// 將 viewMode 映射到 stage 參數
+const viewModeToStage = (viewMode: ViewMode): string => {
+	switch (viewMode) {
+		case "overview":
+			return "1";
+		case "labeling":
+			return "2";
+		case "training":
+			return "3";
+		case "evaluation":
+			return "4";
+		default:
+			return "1";
+	}
+};
+
+export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
+	const router = useRouter();
+	const [viewMode, setViewMode] = useState<ViewMode>(() =>
+		stageToViewMode(stageParam),
+	);
+
+	// 處理 viewMode 改變並同步到 URL
+	const handleViewModeChange = useCallback(
+		(newViewMode: ViewMode) => {
+			setViewMode(newViewMode);
+			const stage = viewModeToStage(newViewMode);
+			router.push(`/case-study?tab=data-results&stage=${stage}`);
+		},
+		[router],
+	);
+
+	// 當 stageParam 改變時同步 viewMode
+	useEffect(() => {
+		const newViewMode = stageToViewMode(stageParam);
+		if (newViewMode !== viewMode) {
+			setViewMode(newViewMode);
+		}
+	}, [stageParam, viewMode]);
+
+	// 載入實驗運行清單
+	useEffect(() => {
+		const loadRuns = async () => {
+			setIsLoadingRuns(true);
+			try {
+				const runs = await datasetService.loadExperimentRuns();
+				setExperimentRuns(runs);
+				console.log("Loaded experiment runs:", runs);
+			} catch (error) {
+				console.error("Failed to load experiment runs:", error);
+			} finally {
+				setIsLoadingRuns(false);
+			}
+		};
+
+		loadRuns();
+	}, []);
 
 	// Run 狀態管理
 	const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -49,7 +126,9 @@ export function DataResultsPhase() {
 	// 載入候選統計資料
 	const loadCandidateStats = useCallback(async (runId: string) => {
 		try {
-			const response = await fetch(`http://localhost:8000/api/v1/stats?experiment_run_id=${runId}`);
+			const response = await fetch(
+				`http://localhost:8000/api/v1/stats?experiment_run_id=${runId}`,
+			);
 			if (response.ok) {
 				const result = await response.json();
 				if (result.success && result.data) {
@@ -64,10 +143,13 @@ export function DataResultsPhase() {
 	}, []);
 
 	// 處理標籤進度更新
-	const handleLabelingProgress = useCallback((positive: number, normal: number) => {
-		setLabeledPositive(positive);
-		setLabeledNormal(normal);
-	}, []);
+	const handleLabelingProgress = useCallback(
+		(positive: number, normal: number) => {
+			setLabeledPositive(positive);
+			setLabeledNormal(normal);
+		},
+		[],
+	);
 
 	// 當選擇的運行ID改變時載入統計資料
 	useEffect(() => {
@@ -90,7 +172,7 @@ export function DataResultsPhase() {
 		peerAggWindow: 60, // 從 5 增加到 60 分鐘，更合理的聚合窗口
 		peerExceedPercentage: 150, // 從 150% 降到 50%，減少同儕比較檢測的誤報
 		// 樓層過濾 - 默認選擇所有建築和樓層
-		selectedBuildings: ["15學舍", "85學舍"],
+		selectedBuildings: ["Building A", "Building B"],
 		selectedFloors: ["1", "2", "3", "5", "6"],
 	});
 
@@ -105,12 +187,27 @@ export function DataResultsPhase() {
 	);
 
 	const updateExperimentRunStatus = useCallback(
-		(runId: string, status: string) => {
-			setExperimentRuns((prev) =>
-				prev.map((r) => (r.id === runId ? { ...r, status } : r)),
-			);
+		async (runId: string, status: string) => {
+			try {
+				// 調用後端 API 更新狀態
+				if (status === "COMPLETED") {
+					await datasetService.markRunAsComplete(runId);
+				}
+
+				// 重新載入完整的 experiment runs 列表以確保狀態同步
+				const updatedRuns = await datasetService.loadExperimentRuns();
+				setExperimentRuns(updatedRuns);
+
+				// 重新載入統計資料
+				if (selectedRunId === runId) {
+					await loadCandidateStats(runId);
+				}
+			} catch (error) {
+				console.error("Failed to update experiment run status:", error);
+				throw error; // 重新拋出錯誤，讓 Stage2 組件可以處理
+			}
 		},
-		[],
+		[selectedRunId, loadCandidateStats],
 	);
 
 	// 更新過濾參數的輔助函數
@@ -127,7 +224,7 @@ export function DataResultsPhase() {
 	// 保存參數
 	const handleSaveParameters = useCallback(async () => {
 		if (!selectedRunId) {
-			alert("Please select or create a dataset first");
+			toast.warning("Please select or create a dataset first");
 			return;
 		}
 
@@ -137,10 +234,10 @@ export function DataResultsPhase() {
 				filterParams,
 			);
 			setSavedParams({ ...filterParams });
-			alert("Parameters saved successfully!");
+			toast.success("Parameters saved successfully!");
 		} catch (error) {
 			console.error("Failed to save parameters:", error);
-			alert("An error occurred while saving parameters");
+			toast.error("An error occurred while saving parameters");
 		}
 	}, [filterParams, selectedRunId]);
 
@@ -192,9 +289,12 @@ export function DataResultsPhase() {
 			}
 			if (key === "selectedFloorsByBuilding") {
 				if (value && typeof value === "object") {
-					return Object.entries(value).map(([building, floors]) => 
-						`${building}: ${Array.isArray(floors) ? floors.join(", ") : floors}`
-					).join("; ");
+					return Object.entries(value)
+						.map(
+							([building, floors]) =>
+								`${building}: ${Array.isArray(floors) ? floors.join(", ") : floors}`,
+						)
+						.join("; ");
 				}
 				return "None";
 			}
@@ -270,7 +370,7 @@ export function DataResultsPhase() {
 							<button
 								key={tab.key}
 								type="button"
-								onClick={() => setViewMode(tab.key)}
+								onClick={() => handleViewModeChange(tab.key)}
 								className={`px-4 py-2 border-b-2 transition-colors ${
 									viewMode === tab.key
 										? "text-blue-600 font-semibold border-blue-600"
@@ -290,7 +390,9 @@ export function DataResultsPhase() {
 							onSaveParameters={handleSaveParameters}
 							pendingDiffs={pendingDiffs()}
 							onFilterParamChange={updateFilterParam}
-							onProceedToStage2={() => setViewMode("labeling")}
+							onProceedToStage2={() =>
+								handleViewModeChange("labeling")
+							}
 						/>
 					)}
 
@@ -301,9 +403,18 @@ export function DataResultsPhase() {
 							labeledPositive={labeledPositive}
 							labeledNormal={labeledNormal}
 							onUpdateRunStatus={updateExperimentRunStatus}
-							onBackToOverview={() => setViewMode("overview")}
-							onProceedToTraining={() => setViewMode("training")}
+							onBackToOverview={() =>
+								handleViewModeChange("overview")
+							}
+							onProceedToTraining={() =>
+								handleViewModeChange("training")
+							}
 							onLabelingProgress={handleLabelingProgress}
+							isCompleted={
+								experimentRuns.find(
+									(run) => run.id === selectedRunId,
+								)?.status === "COMPLETED"
+							}
 						/>
 					)}
 

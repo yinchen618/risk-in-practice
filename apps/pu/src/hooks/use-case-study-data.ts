@@ -96,7 +96,9 @@ class CaseStudyAPIClient {
 		// 將 camelCase 轉為後端 API 期望的 snake_case
 		const mapped: Record<string, any> = {};
 		for (const [k, v] of Object.entries(filters)) {
-			if (v === undefined) continue;
+			if (v === undefined) {
+				continue;
+			}
 			switch (k) {
 				case "meterId":
 					mapped.meter_id = v;
@@ -348,6 +350,40 @@ class CaseStudyAPIClient {
 		throw new Error("Invalid API response format");
 	}
 
+	async batchReviewAnomalyEvents(
+		eventIds: string[],
+		reviewData: {
+			status: string;
+			reviewerId: string;
+			justificationNotes?: string;
+		},
+	): Promise<{ success: number; failed: number; errors: any[] }> {
+		const response = await fetch(`${this.baseUrl}/events/batch-label`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				event_ids: eventIds,
+				status: reviewData.status,
+				reviewer_id: reviewData.reviewerId,
+				justification_notes: reviewData.justificationNotes,
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error(
+				`Failed to batch review anomaly events: ${response.status}`,
+			);
+		}
+
+		const result = await response.json();
+		if (result.success && result.data) {
+			return result.data;
+		}
+		throw new Error("Invalid API response format");
+	}
+
 	async getProjectInsights(): Promise<any> {
 		const response = await fetch(`${this.baseUrl}/project/insights`, {
 			method: "GET",
@@ -507,6 +543,8 @@ export function useCaseStudyData() {
 		getEventDetail: caseStudyAPI.getAnomalyEventDetail.bind(caseStudyAPI),
 		createEvent: caseStudyAPI.createAnomalyEvent.bind(caseStudyAPI),
 		reviewEvent: caseStudyAPI.reviewAnomalyEvent.bind(caseStudyAPI),
+		batchReviewEvents:
+			caseStudyAPI.batchReviewAnomalyEvents.bind(caseStudyAPI),
 		deleteEvent: caseStudyAPI.deleteAnomalyEvent.bind(caseStudyAPI),
 		createLabel: caseStudyAPI.createAnomalyLabel.bind(caseStudyAPI),
 		updateLabel: caseStudyAPI.updateAnomalyLabel.bind(caseStudyAPI),

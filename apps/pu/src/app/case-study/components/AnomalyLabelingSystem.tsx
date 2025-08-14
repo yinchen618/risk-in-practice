@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info, Target } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useCaseStudyData } from "../../../hooks/use-case-study-data";
 import { DecisionPanel } from "../shared/DecisionPanel";
 import { EventList } from "../shared/EventList";
@@ -42,6 +43,7 @@ export function AnomalyLabelingSystem({
 	);
 	const [stats, setStats] = useState<AnomalyEventStats | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 	const [currentFilters, setCurrentFilters] = useState({});
 	const [chartLoading, setChartLoading] = useState(false);
 	const [meterLabelMap, setMeterLabelMap] = useState<Record<string, string>>(
@@ -54,8 +56,11 @@ export function AnomalyLabelingSystem({
 		eventsLoading,
 		loadEvents,
 		reviewEvent,
+		batchReviewEvents,
 		loadStats,
 		getEventDetail,
+		stats: backendStats,
+		statsLoading,
 	} = useCaseStudyData();
 
 	// handle event select
@@ -89,8 +94,9 @@ export function AnomalyLabelingSystem({
 					justificationNotes: notes,
 				});
 
-				// 重新載入事件列表
+				// 重新載入事件列表和統計資料
 				await loadEvents();
+				await loadStats(experimentRunId);
 
 				// 更新選中的事件狀態
 				if (selectedEvent?.id === eventId) {
@@ -109,7 +115,7 @@ export function AnomalyLabelingSystem({
 				setIsSubmitting(false);
 			}
 		},
-		[reviewEvent, loadEvents, selectedEvent],
+		[reviewEvent, loadEvents, loadStats, experimentRunId, selectedEvent],
 	);
 
 	// handle filter changes
@@ -143,6 +149,48 @@ export function AnomalyLabelingSystem({
 		await loadEvents(merged);
 		await loadStats(experimentRunId);
 	}, [loadEvents, loadStats, currentFilters, experimentRunId]);
+
+	// handle batch confirm anomaly
+	const handleBatchConfirmAnomaly = useCallback(
+		async (eventIds: string[]) => {
+			if (!batchReviewEvents || eventIds.length === 0) {
+				return;
+			}
+
+			setIsBatchProcessing(true);
+			try {
+				const result = await batchReviewEvents(eventIds, {
+					status: "CONFIRMED_POSITIVE",
+					reviewerId: "demo-reviewer",
+					justificationNotes: "Batch confirmed as anomaly",
+				});
+
+				// 顯示批量處理結果
+				if (result.success > 0) {
+					toast.success(
+						`Successfully labeled ${result.success} events as anomalies`,
+					);
+				}
+				if (result.failed > 0) {
+					toast.error(`${result.failed} events failed to be labeled`);
+				}
+
+				// 重新載入事件列表和統計資料
+				await handleRefresh();
+
+				// 通知父組件標註進度
+				if (onLabelingProgress) {
+					onLabelingProgress(result.success, 0);
+				}
+			} catch (error) {
+				console.error("Batch confirm anomaly failed:", error);
+				toast.error("Batch labeling failed, please try again later");
+			} finally {
+				setIsBatchProcessing(false);
+			}
+		},
+		[batchReviewEvents, handleRefresh, onLabelingProgress],
+	);
 
 	// initial load; re-run when candidateCount changes
 	useEffect(() => {
@@ -195,7 +243,25 @@ export function AnomalyLabelingSystem({
 
 	// propagate stats & progress to parent
 	useEffect(() => {
-		if (events) {
+		if (backendStats) {
+			// 優先使用後端統計資料
+			const statsData: AnomalyEventStats = {
+				total: backendStats.totalEvents,
+				unreviewed: backendStats.unreviewedCount,
+				confirmed: backendStats.confirmedCount,
+				rejected: backendStats.rejectedCount,
+				avgScore: backendStats.avgScore,
+				maxScore: backendStats.maxScore,
+				uniqueMeters: backendStats.uniqueMeters,
+			};
+			setStats(statsData);
+
+			// Update parent component with labeling progress
+			if (onLabelingProgress) {
+				onLabelingProgress(statsData.confirmed, statsData.rejected);
+			}
+		} else if (events) {
+			// 後備：使用本地事件資料計算統計（僅當沒有後端統計時）
 			const statsData: AnomalyEventStats = {
 				total: events.total,
 				unreviewed: events.events.filter(
@@ -220,7 +286,7 @@ export function AnomalyLabelingSystem({
 				onLabelingProgress(statsData.confirmed, statsData.rejected);
 			}
 		}
-	}, [events, onLabelingProgress]);
+	}, [backendStats, events, onLabelingProgress]);
 
 	return (
 		<div className="space-y-6">
@@ -313,6 +379,10 @@ export function AnomalyLabelingSystem({
 								onPageChange={handlePageChange}
 								onFiltersChange={handleFiltersChange}
 								meterLabelMap={meterLabelMap}
+								onBatchConfirmAnomaly={
+									handleBatchConfirmAnomaly
+								}
+								isBatchProcessing={isBatchProcessing}
 							/>
 						</div>
 

@@ -42,7 +42,9 @@ export function TimeSeriesChart({
 		values: [],
 	};
 	const localWindow = useMemo(() => {
-		if (!selectedEvent) return { timestamps: [], values: [] };
+		if (!selectedEvent) {
+			return { timestamps: [], values: [] };
+		}
 		if (!fullWindow.timestamps?.length || !fullWindow.values?.length) {
 			return { timestamps: [], values: [] };
 		}
@@ -71,8 +73,9 @@ export function TimeSeriesChart({
 
 	const fetchRemoteWindow = useCallback(
 		async (minutes: number) => {
-			if (!selectedEvent) return;
-			setLoadingWindow(true);
+			if (!selectedEvent) {
+				return;
+			}
 			try {
 				const res = await fetch(
 					`http://localhost:8000/api/v1/events/${selectedEvent.id}/window?minutes=${minutes}`,
@@ -92,11 +95,35 @@ export function TimeSeriesChart({
 							eventId: selectedEvent.id,
 						});
 					} else {
-						setDynamicWindow(null);
+						// 如果沒有數據，但 API 調用成功，設置為空數據而不是 null
+						setDynamicWindow({
+							timestamps: [],
+							values: [],
+							minutes,
+							eventId: selectedEvent.id,
+						});
 					}
+				} else {
+					console.error(
+						`Failed to fetch window data: ${res.status} ${res.statusText}`,
+					);
+					// API 調用失敗時，設置為空數據而不是 null，避免無限循環
+					setDynamicWindow({
+						timestamps: [],
+						values: [],
+						minutes,
+						eventId: selectedEvent.id,
+					});
 				}
-			} catch {
-				setDynamicWindow(null);
+			} catch (error) {
+				console.error("Error fetching window data:", error);
+				// 網絡錯誤時，設置為空數據而不是 null，避免無限循環
+				setDynamicWindow({
+					timestamps: [],
+					values: [],
+					minutes,
+					eventId: selectedEvent.id,
+				});
 			} finally {
 				setLoadingWindow(false);
 			}
@@ -110,7 +137,9 @@ export function TimeSeriesChart({
 	}, [selectedEvent?.id]);
 
 	useEffect(() => {
-		if (!selectedEvent || loadingWindow) return;
+		if (!selectedEvent || loadingWindow) {
+			return;
+		}
 		// If we already have a dynamic window for this event and minutes, skip refetch
 		if (
 			dynamicWindow &&
@@ -130,8 +159,12 @@ export function TimeSeriesChart({
 			let maxMs = Number.NEGATIVE_INFINITY;
 			for (const t of ts) {
 				const v = new Date(t).getTime();
-				if (v < minMs) minMs = v;
-				if (v > maxMs) maxMs = v;
+				if (v < minMs) {
+					minMs = v;
+				}
+				if (v > maxMs) {
+					maxMs = v;
+				}
 			}
 			const eventMs = new Date(selectedEvent.eventTimestamp).getTime();
 			const rangeMs = windowMinutes * 60 * 1000;
@@ -140,6 +173,7 @@ export function TimeSeriesChart({
 			}
 		}
 		if (needRemote) {
+			setLoadingWindow(true);
 			void fetchRemoteWindow(windowMinutes);
 		} else {
 			// base window is sufficient for current minutes
@@ -151,9 +185,10 @@ export function TimeSeriesChart({
 		windowMinutes,
 		selectedEvent?.id,
 		selectedEvent?.eventTimestamp,
-		fetchRemoteWindow,
-		dynamicWindow,
 		loadingWindow,
+		dynamicWindow,
+		fullWindow.timestamps,
+		fetchRemoteWindow,
 	]);
 
 	const finalWindow = dynamicWindow
@@ -182,7 +217,9 @@ export function TimeSeriesChart({
 							const idx = timestamps.findIndex(
 								(t) => new Date(t).getTime() === tsMs,
 							);
-							if (idx >= 0) return values[idx] ?? 0;
+							if (idx >= 0) {
+								return values[idx] ?? 0;
+							}
 							return (
 								values[Math.floor(timestamps.length / 2)] || 0
 							);
@@ -327,6 +364,7 @@ export function TimeSeriesChart({
 											? "bg-blue-600 text-white border-blue-600"
 											: "bg-white text-gray-700 border-gray-300"
 									}`}
+									disabled={loadingWindow}
 								>
 									{m < 60 ? `${m} mins` : `${m / 60} hrs`}
 								</button>
@@ -338,13 +376,35 @@ export function TimeSeriesChart({
 							</span>
 						)}
 					</div>
-					<Plot
-						data={plotData}
-						layout={layout}
-						config={config}
-						useResizeHandler={true}
-						style={{ width: "100%", height: "100%" }}
-					/>
+
+					{/* Show loading overlay when fetching window data */}
+					{loadingWindow ? (
+						<div className="h-[calc(100%-3rem)] flex items-center justify-center">
+							<div className="text-center text-gray-500">
+								<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+								<p className="text-lg font-medium mb-2">
+									Loading Time Series Data
+								</p>
+								<p className="text-sm">
+									Fetching data for{" "}
+									{windowMinutes < 60
+										? `±${windowMinutes} minutes`
+										: `±${Math.round(windowMinutes / 60)} hours`}{" "}
+									window...
+								</p>
+							</div>
+						</div>
+					) : (
+						<div className="h-[calc(100%-3rem)]">
+							<Plot
+								data={plotData}
+								layout={layout}
+								config={config}
+								useResizeHandler={true}
+								style={{ width: "100%", height: "100%" }}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>
