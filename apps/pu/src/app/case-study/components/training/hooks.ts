@@ -72,7 +72,7 @@ export function useTrainingData(
 					x: 0.3 + Math.random() * 0.4,
 					y: 0.3 + Math.random() * 0.4,
 					id: `P_${i + 1}`,
-					category: "P",
+					category: "P" as const,
 					meterId: `meter_${Math.floor(Math.random() * 9999)}`,
 					score: 0.7 + Math.random() * 0.3,
 				}));
@@ -81,7 +81,7 @@ export function useTrainingData(
 					x: Math.random(),
 					y: Math.random(),
 					id: `U_${i + 1}`,
-					category: "U",
+					category: "U" as const,
 					meterId: `meter_${Math.floor(Math.random() * 9999)}`,
 					score: Math.random(),
 				}));
@@ -95,7 +95,7 @@ export function useTrainingData(
 				x: 0.3 + Math.random() * 0.4,
 				y: 0.3 + Math.random() * 0.4,
 				id: `P_${i + 1}`,
-				category: "P",
+				category: "P" as const,
 				meterId: `meter_${Math.floor(Math.random() * 9999)}`,
 				score: 0.7 + Math.random() * 0.3,
 			}));
@@ -104,7 +104,7 @@ export function useTrainingData(
 				x: Math.random(),
 				y: Math.random(),
 				id: `U_${i + 1}`,
-				category: "U",
+				category: "U" as const,
 				meterId: `meter_${Math.floor(Math.random() * 9999)}`,
 				score: Math.random(),
 			}));

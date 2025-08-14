@@ -1274,9 +1274,9 @@ async def get_training_stats(run_id: str):
             # 獲取真實的統計數據
             # 統計正樣本 (P) - 已標記為 CONFIRMED_POSITIVE 的事件
             positive_query = text("""
-                SELECT COUNT(*) as count 
-                FROM anomaly_event 
-                WHERE "experimentRunId" = :run_id 
+                SELECT COUNT(*) as count
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id
                 AND status = 'CONFIRMED_POSITIVE'
             """)
             positive_result = await session.execute(positive_query, {"run_id": run_id})
@@ -1284,9 +1284,9 @@ async def get_training_stats(run_id: str):
 
             # 統計未標記樣本 (U) - 包括 UNREVIEWED 和 REJECTED_NORMAL
             unlabeled_query = text("""
-                SELECT COUNT(*) as count 
-                FROM anomaly_event 
-                WHERE "experimentRunId" = :run_id 
+                SELECT COUNT(*) as count
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id
                 AND status IN ('UNREVIEWED', 'REJECTED_NORMAL')
             """)
             unlabeled_result = await session.execute(unlabeled_query, {"run_id": run_id})
@@ -1316,7 +1316,7 @@ async def get_training_stats(run_id: str):
 async def get_training_data_preview(run_id: str):
     """
     獲取訓練前的數據分布視覺化 - 降維後的 2D 散點圖數據
-    
+
     這個 API 實現文檔中的「訓練前視覺化」需求：
     1. 獲取 P 樣本（正樣本）和 U 樣本（未標記樣本）
     2. 從 dataWindow 提取特徵
@@ -1325,9 +1325,9 @@ async def get_training_data_preview(run_id: str):
     """
     try:
         logger.info(f"Getting training data preview for experiment run: {run_id}")
-        
+
         from services.feature_engineering import feature_engineering
-        
+
         async with db_manager.get_async_session() as session:
             # 檢查實驗批次是否存在
             run_query = text('SELECT * FROM experiment_run WHERE id = :run_id')
@@ -1339,16 +1339,16 @@ async def get_training_data_preview(run_id: str):
 
             # 1. 獲取正樣本 (P) - CONFIRMED_POSITIVE
             p_samples_query = text("""
-                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule", 
+                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule",
                        score, "dataWindow", status
-                FROM anomaly_event 
-                WHERE "experimentRunId" = :run_id 
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id
                 AND status = 'CONFIRMED_POSITIVE'
                 ORDER BY "eventTimestamp"
             """)
             p_result = await session.execute(p_samples_query, {"run_id": run_id})
             p_rows = p_result.fetchall()
-            
+
             p_samples = []
             for row in p_rows:
                 p_samples.append({
@@ -1363,17 +1363,17 @@ async def get_training_data_preview(run_id: str):
 
             # 2. 獲取未標記樣本 (U) - 隨機抽樣
             u_samples_query = text("""
-                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule", 
+                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule",
                        score, "dataWindow", status
-                FROM anomaly_event 
-                WHERE "experimentRunId" = :run_id 
+                FROM anomaly_event
+                WHERE "experimentRunId" = :run_id
                 AND status IN ('UNREVIEWED', 'REJECTED_NORMAL')
                 ORDER BY RANDOM()
                 LIMIT 1000
             """)
             u_result = await session.execute(u_samples_query, {"run_id": run_id})
             u_rows = u_result.fetchall()
-            
+
             u_samples = []
             for row in u_rows:
                 u_samples.append({
@@ -1396,7 +1396,7 @@ async def get_training_data_preview(run_id: str):
             # 4. 特徵工程
             all_samples = p_samples + u_samples
             feature_matrix, event_ids = feature_engineering.generate_feature_matrix(all_samples)
-            
+
             if feature_matrix.size == 0:
                 logger.warning("Failed to generate features, using simulated data")
                 return _generate_simulated_preview_data()
@@ -1406,7 +1406,7 @@ async def get_training_data_preview(run_id: str):
 
             # 6. 降維到 2D
             reduced_data = feature_engineering.reduce_dimensions_tsne(feature_matrix_scaled)
-            
+
             if reduced_data.size == 0:
                 logger.warning("Dimensionality reduction failed, using simulated data")
                 return _generate_simulated_preview_data()
@@ -1458,9 +1458,9 @@ async def get_training_data_preview(run_id: str):
 def _generate_simulated_preview_data():
     """生成模擬的訓練數據預覽"""
     import numpy as np
-    
+
     np.random.seed(42)  # 確保結果可重現
-    
+
     # 生成模擬的正樣本數據
     p_samples = []
     for i in range(50):

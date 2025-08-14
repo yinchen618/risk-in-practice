@@ -48,9 +48,17 @@ export interface ModelParameters {
 	feature_version: string;
 }
 
+export interface DataSplitConfig {
+	enabled: boolean;
+	trainRatio: number;
+	validationRatio: number;
+	testRatio: number;
+}
+
 export interface TrainingPayload {
 	experiment_run_id: string;
 	model_params: ModelParameters;
 	prediction_start_date: string;
 	prediction_end_date: string;
+	data_split_config?: DataSplitConfig;
 }

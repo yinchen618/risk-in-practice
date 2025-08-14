@@ -50,3 +50,5 @@ coding_backend.log
 backend.log
 server.log
 uvicorn.log
+trained_models/
+*.broken

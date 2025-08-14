@@ -2,10 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, RotateCcw, Settings } from "lucide-react";
+import { Play, RotateCcw, Settings, Zap } from "lucide-react";
 import { DataRangeConfigPanel } from "./DataRangeConfigPanel";
 import { ModelParametersPanel } from "./ModelParametersPanel";
-import { PredictionConfigPanel } from "./PredictionConfigPanel";
 
 type ModelType = "uPU" | "nnPU";
 type PriorMethod = "mean" | "median" | "kmm" | "en" | "custom";
@@ -29,12 +28,6 @@ interface FloorParams {
 	selectedFloorsByBuilding?: Record<string, string[]>;
 }
 
-// 預測設定參數
-interface PredictionConfig {
-	start: string;
-	end: string;
-}
-
 // 模型參數
 interface ModelParams {
 	modelType: ModelType;
@@ -50,7 +43,7 @@ interface ModelParams {
 	seed: number;
 }
 
-// 時間範圍與樓層選擇配置
+// 數據範圍配置
 interface DataRangeConfig {
 	mode: TimeRangeMode;
 	timeRange?: TimeRangeParams;
@@ -59,52 +52,38 @@ interface DataRangeConfig {
 	originalFloor?: FloorParams;
 }
 
-// 動作處理器
-interface ConfigActions {
+// 動作配置
+interface TrainingActions {
 	onApplyGoldenConfig: () => void;
 	onStartTraining: () => void;
 	onResetTraining: () => void;
 }
 
-interface ModelConfigurationPanelProps {
-	// 配置物件
-	predictionConfig: PredictionConfig;
+interface TrainingConfigurationPanelProps {
 	modelParams: ModelParams;
-	dataRangeConfig?: DataRangeConfig;
-
-	// 變更處理器
-	onPredictionConfigChange: (config: Partial<PredictionConfig>) => void;
 	onModelParamsChange: (params: Partial<ModelParams>) => void;
-	onDataRangeConfigChange?: (config: Partial<DataRangeConfig>) => void;
-
-	// 動作處理器
-	actions: ConfigActions;
-
-	// 狀態
+	dataRangeConfig: DataRangeConfig;
+	onDataRangeConfigChange: (config: Partial<DataRangeConfig>) => void;
+	actions: TrainingActions;
 	trainingStage: TrainingStage;
 	isConfigValid: boolean;
 }
 
-export function ModelConfigurationPanel({
-	predictionConfig,
+export function TrainingConfigurationPanel({
 	modelParams,
-	dataRangeConfig,
-	onPredictionConfigChange,
 	onModelParamsChange,
+	dataRangeConfig,
 	onDataRangeConfigChange,
 	actions,
 	trainingStage,
 	isConfigValid,
-}: ModelConfigurationPanelProps) {
-	// 移除未使用的 selectedRunId 參數
-	// 移除本地狀態和處理函數，因為現在由子組件處理
-
+}: TrainingConfigurationPanelProps) {
 	return (
-		<Card>
+		<Card className="border-blue-200">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2 text-lg">
-					<Settings className="h-5 w-5" />
-					Model Configuration
+					<Zap className="h-5 w-5 text-blue-600" />
+					Training Configuration
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-6">
@@ -114,20 +93,20 @@ export function ModelConfigurationPanel({
 					onConfigChange={onDataRangeConfigChange}
 				/>
 
-				{/* Prediction Configuration */}
-				<PredictionConfigPanel
-					config={predictionConfig}
-					onConfigChange={onPredictionConfigChange}
-				/>
-
 				{/* Model Parameters */}
-				<ModelParametersPanel
-					params={modelParams}
-					onParamsChange={onModelParamsChange}
-				/>
+				<div className="space-y-4">
+					<h4 className="font-medium text-slate-800 flex items-center">
+						<Settings className="h-4 w-4 mr-2" />
+						Model Parameters
+					</h4>
+					<ModelParametersPanel
+						params={modelParams}
+						onParamsChange={onModelParamsChange}
+					/>
+				</div>
 
 				{/* Action Buttons */}
-				<div className="flex items-center gap-3 pt-4">
+				<div className="flex items-center gap-3 pt-4 border-t">
 					<Button
 						onClick={actions.onApplyGoldenConfig}
 						variant="outline"

@@ -12,7 +12,7 @@ API_BASE = "http://localhost:8000"
 def test_experiment_runs_api():
     """測試實驗批次 API"""
     print("🧪 測試實驗批次 API...")
-    
+
     # 1. 列出實驗批次
     response = requests.get(f"{API_BASE}/api/v1/experiment-runs")
     if response.status_code == 200:
@@ -26,7 +26,7 @@ def test_experiment_runs_api():
 def test_training_stats_api(run_id):
     """測試訓練統計 API"""
     print(f"🧪 測試訓練統計 API (run_id: {run_id[:8]}...)...")
-    
+
     response = requests.get(f"{API_BASE}/api/v1/experiment-runs/{run_id}/training-stats")
     if response.status_code == 200:
         stats = response.json()
@@ -39,14 +39,14 @@ def test_training_stats_api(run_id):
 def test_training_data_preview_api(run_id):
     """測試訓練數據預覽 API"""
     print(f"🧪 測試訓練數據預覽 API (run_id: {run_id[:8]}...)...")
-    
+
     response = requests.get(f"{API_BASE}/api/v1/experiment-runs/{run_id}/training-data-preview")
     if response.status_code == 200:
         preview = response.json()
         p_count = len(preview.get('pSamples', []))
         u_count = len(preview.get('uSamples', []))
         print(f"✅ 訓練數據預覽: {p_count} P樣本, {u_count} U樣本")
-        
+
         # 檢查數據格式
         if p_count > 0:
             sample = preview['pSamples'][0]
@@ -56,7 +56,7 @@ def test_training_data_preview_api(run_id):
                 print(f"✅ 數據格式正確，樣本範例: {sample}")
             else:
                 print(f"⚠️ 數據格式缺少欄位: {missing_fields}")
-        
+
         return preview
     else:
         print(f"❌ 無法獲取訓練數據預覽: {response.status_code}")
@@ -65,7 +65,7 @@ def test_training_data_preview_api(run_id):
 def test_model_training_api(run_id):
     """測試模型訓練 API"""
     print(f"🧪 測試模型訓練 API (run_id: {run_id[:8]}...)...")
-    
+
     training_payload = {
         "experiment_run_id": run_id,
         "model_params": {
@@ -85,18 +85,18 @@ def test_model_training_api(run_id):
         "prediction_start_date": "2024-01-01",
         "prediction_end_date": "2024-12-31"
     }
-    
+
     response = requests.post(
         f"{API_BASE}/api/v1/models/train-and-predict",
         json=training_payload,
         headers={"Content-Type": "application/json"}
     )
-    
+
     if response.status_code == 200:
         result = response.json()
         job_id = result.get('job_id')
         print(f"✅ 訓練任務已啟動，Job ID: {job_id}")
-        
+
         # 監控任務狀態
         for i in range(10):  # 檢查 10 次
             time.sleep(2)
@@ -106,13 +106,13 @@ def test_model_training_api(run_id):
                 job_status = status.get('data', {}).get('status')
                 progress = status.get('data', {}).get('progress', 0)
                 print(f"📊 任務狀態: {job_status}, 進度: {progress}%")
-                
+
                 if job_status in ['COMPLETED', 'FAILED']:
                     break
             else:
                 print(f"⚠️ 無法獲取任務狀態: {status_response.status_code}")
                 break
-        
+
         return result
     else:
         try:
@@ -126,33 +126,33 @@ def main():
     """主測試函數"""
     print("🚀 開始測試 Stage 3 互動式模型訓練功能")
     print("=" * 60)
-    
+
     # 測試實驗批次 API
     runs = test_experiment_runs_api()
-    
+
     if not runs:
         print("❌ 沒有找到實驗批次，請先創建一些實驗數據")
         return
-    
+
     # 選擇第一個實驗批次進行測試
     test_run = runs[0]
     run_id = test_run['id']
-    
+
     print(f"\n📝 使用實驗批次: {test_run['name']} (ID: {run_id[:8]}...)")
     print("=" * 60)
-    
+
     # 測試訓練統計 API
     test_training_stats_api(run_id)
     print()
-    
+
     # 測試訓練數據預覽 API
     test_training_data_preview_api(run_id)
     print()
-    
+
     # 測試模型訓練 API
     test_model_training_api(run_id)
     print()
-    
+
     print("✅ 所有測試完成！")
 
 if __name__ == "__main__":

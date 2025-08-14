@@ -105,20 +105,20 @@ class DatabaseManager:
     async def save_api_log(self, log_data: Dict[str, Any]) -> Optional[str]:
         async with self.session_factory() as session:
             # 如果是 ammeterDetail 動作且成功，嘗試解析電表資料
-            if (log_data.get("action") == "ammeterDetail" and 
-                log_data.get("success") and 
+            if (log_data.get("action") == "ammeterDetail" and
+                log_data.get("success") and
                 log_data.get("responseData")):
-                
+
                 try:
                     import json
                     response_data = json.loads(log_data["responseData"])
-                    
+
                     # 檢查是否有電表資料
-                    if (response_data.get("result") == "1" and 
+                    if (response_data.get("result") == "1" and
                         "data" in response_data):
-                        
+
                         ammeter_data = response_data["data"]
-                        
+
                         # 解析數值資料
                         def parse_voltage(voltage_str: str) -> float:
                             try:
@@ -128,7 +128,7 @@ class DatabaseManager:
                                 return value / 10.0
                             except:
                                 return 0.0
-                        
+
                         def parse_current(current_str: str) -> float:
                             try:
                                 if not current_str or len(current_str) < 4:
@@ -137,7 +137,7 @@ class DatabaseManager:
                                 return value / 10.0
                             except:
                                 return 0.0
-                        
+
                         def parse_power(power_str: str) -> float:
                             try:
                                 if not power_str or len(power_str) < 4:
@@ -146,7 +146,7 @@ class DatabaseManager:
                                 return value / 10.0
                             except:
                                 return 0.0
-                        
+
                         def parse_battery(battery_str: str) -> float:
                             try:
                                 if not battery_str or len(battery_str) < 5:
@@ -155,7 +155,7 @@ class DatabaseManager:
                                 return value / 100.0
                             except:
                                 return 0.0
-                        
+
                         # 將解析後的資料加入 log_data
                         log_data.update({
                             "factory": ammeter_data.get("factory", ""),
@@ -168,11 +168,11 @@ class DatabaseManager:
                             "networkState": int(ammeter_data.get("networkState", 0)),
                             "lastUpdated": datetime.utcnow()
                         })
-                        
+
                 except Exception as e:
                     # 解析失敗不影響日誌記錄
                     print(f"解析電表資料失敗: {e}")
-            
+
             log = AmmeterLog(**log_data)
             session.add(log)
             await session.commit()
@@ -196,26 +196,26 @@ class DatabaseManager:
                 AmmeterLog.action == "ammeterDetail",
                 AmmeterLog.success == True
             ).order_by(AmmeterLog.createdAt.desc())
-            
+
             if start_date:
                 stmt = stmt.where(AmmeterLog.createdAt >= start_date)
             if end_date:
                 stmt = stmt.where(AmmeterLog.createdAt <= end_date)
             if limit:
                 stmt = stmt.limit(limit)
-                
+
             result = await session.execute(stmt)
             return result.scalars().all()
 
     async def get_ammeter_statistics(self, device_number: str, days: int = 7) -> Dict:
         """獲取電表統計資料"""
         from datetime import timedelta
-        
+
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
-        
+
         history = await self.get_ammeter_history(device_number, start_date, end_date)
-        
+
         if not history:
             return {
                 "deviceNumber": device_number,
@@ -228,7 +228,7 @@ class DatabaseManager:
                 "onlineRate": 0,
                 "activeRate": 0
             }
-        
+
         # 計算統計資料
         voltages = [h.voltage for h in history if h.voltage is not None]
         currents = [h.currents for h in history if h.currents is not None]
@@ -236,7 +236,7 @@ class DatabaseManager:
         batteries = [h.battery for h in history if h.battery is not None]
         network_states = [h.networkState for h in history if h.networkState is not None]
         switch_states = [h.switchState for h in history if h.switchState is not None]
-        
+
         return {
             "deviceNumber": device_number,
             "period": f"{days}天",
@@ -248,6 +248,45 @@ class DatabaseManager:
             "onlineRate": sum(1 for s in network_states if s == 1) / len(network_states) if network_states else 0,
             "activeRate": sum(1 for s in switch_states if s == 1) / len(switch_states) if switch_states else 0
         }
+
+    # PU Learning 訓練模型相關方法
+    async def save_trained_model(self, model_data: Dict[str, Any]) -> Optional[str]:
+        """保存訓練好的模型資訊到數據庫"""
+        async with self.session_factory() as session:
+            trained_model = TrainedModel(**model_data)
+            session.add(trained_model)
+            await session.commit()
+            return trained_model.id
+
+    async def get_trained_model_by_job_id(self, job_id: str) -> Optional['TrainedModel']:
+        """根據job_id獲取訓練模型"""
+        async with self.session_factory() as session:
+            result = await session.execute(select(TrainedModel).where(TrainedModel.job_id == job_id))
+            return result.scalar_one_or_none()
+
+    async def update_trained_model_status(self, job_id: str, status: str, **updates) -> bool:
+        """更新訓練模型狀態"""
+        async with self.session_factory() as session:
+            result = await session.execute(select(TrainedModel).where(TrainedModel.job_id == job_id))
+            model = result.scalar_one_or_none()
+            if model:
+                model.status = status
+                for key, value in updates.items():
+                    if hasattr(model, key):
+                        setattr(model, key, value)
+                if status == "COMPLETED":
+                    model.completed_at = datetime.utcnow()
+                await session.commit()
+                return True
+            return False
+
+    async def get_trained_models_by_experiment(self, experiment_run_id: str) -> List['TrainedModel']:
+        """獲取特定實驗的所有訓練模型"""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(TrainedModel).where(TrainedModel.experiment_run_id == experiment_run_id)
+            )
+            return result.scalars().all()
 
 # 異常事件相關表
 class AnomalyEvent(Base):
@@ -263,15 +302,13 @@ class AnomalyEvent(Base):
     reviewer_id = Column(String)
     review_timestamp = Column(DateTime)
     justification_notes = Column(Text)
-    organization_id = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # 為效能建立索引
     __table_args__ = (
         Index('idx_anomaly_event_meter_timestamp', 'meter_id', 'event_timestamp'),
         Index('idx_anomaly_event_status', 'status'),
-        Index('idx_anomaly_event_org', 'organization_id'),
         Index('idx_anomaly_event_timestamp', 'event_timestamp'),
     )
 
@@ -281,7 +318,6 @@ class AnomalyLabel(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     color = Column(String, default="#6B7280")  # 標籤顏色
-    organization_id = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -291,7 +327,7 @@ class EventLabelLink(Base):
     event_id = Column(String, ForeignKey('anomaly_events.id'), nullable=False)
     label_id = Column(String, ForeignKey('anomaly_labels.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # 確保同一事件和標籤的組合唯一
     __table_args__ = (
         Index('idx_event_label_unique', 'event_id', 'label_id', unique=True),
@@ -307,7 +343,7 @@ class TimeSeriesData(Base):
     value = Column(Float, nullable=False)
     unit = Column(String)  # V, A, W, etc.
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # 為查詢效能建立關鍵索引
     __table_args__ = (
         Index('idx_timeseries_device_timestamp', 'device_id', 'timestamp'),
@@ -315,4 +351,27 @@ class TimeSeriesData(Base):
         Index('idx_timeseries_device_metric', 'device_id', 'metric_name'),
     )
 
-db_manager = DatabaseManager() 
+# PU Learning 訓練模型表
+class TrainedModel(Base):
+    __tablename__ = "trained_models"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String, nullable=False, unique=True)
+    experiment_run_id = Column(String, nullable=False)
+    model_type = Column(String, nullable=False)  # 'uPU' or 'nnPU'
+    model_path = Column(String, nullable=False)
+    model_config = Column(JSON)  # 模型配置參數
+    training_metrics = Column(JSON)  # 訓練指標
+    test_sample_ids = Column(JSON)  # 測試集樣本ID列表（用於Stage 4）
+    data_split_config = Column(JSON)  # 數據切分配置
+    status = Column(String, nullable=False, default="TRAINING")  # TRAINING, COMPLETED, FAILED
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+
+    # 索引
+    __table_args__ = (
+        Index('idx_trained_model_job', 'job_id'),
+        Index('idx_trained_model_experiment', 'experiment_run_id'),
+        Index('idx_trained_model_status', 'status'),
+    )
+
+db_manager = DatabaseManager()

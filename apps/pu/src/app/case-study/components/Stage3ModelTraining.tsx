@@ -3,10 +3,12 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, ListChecks, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
-import { ModelConfigurationPanel } from "./training/ModelConfigurationPanel";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DataSplitConfigPanel } from "./training/DataSplitConfigPanel";
+import { PredictionConfigurationPanel } from "./training/PredictionConfigurationPanel";
 import { SampleDistributionPanel } from "./training/SampleDistributionPanel";
 import { TrainingCompletionCard } from "./training/TrainingCompletionCard";
+import { TrainingConfigurationPanel } from "./training/TrainingConfigurationPanel";
 import { TrainingDataStatsPanel } from "./training/TrainingDataStatsPanel";
 import { TrainingMonitorPanel } from "./training/TrainingMonitorPanel";
 import { useTrainingData, useTrainingJob } from "./training/hooks";
@@ -30,8 +32,6 @@ export function Stage3ModelTraining({
 	const API_BASE = "http://localhost:8000";
 
 	// Model configuration state
-	const [predictionStart, setPredictionStart] = useState<string>("");
-	const [predictionEnd, setPredictionEnd] = useState<string>("");
 	const [modelType, setModelType] = useState<ModelType>("nnPU");
 	const [priorMethod, setPriorMethod] = useState<PriorMethod>("median");
 	const [classPrior, setClassPrior] = useState<string>("");
@@ -43,6 +43,53 @@ export function Stage3ModelTraining({
 	const [epochs, setEpochs] = useState<number>(100);
 	const [batchSize, setBatchSize] = useState<number>(128);
 	const [seed, setSeed] = useState<number>(42);
+
+	// Prediction configuration state
+	const [selectedModelId, setSelectedModelId] = useState<string>("");
+	const [predictionTimeRange, setPredictionTimeRange] = useState({
+		startDate: new Date(),
+		endDate: new Date(),
+		startTime: "00:00",
+		endTime: "23:59",
+	});
+	const [predictionFloor, setPredictionFloor] = useState({
+		selectedBuildings: [] as string[],
+		selectedFloors: [] as string[],
+		selectedFloorsByBuilding: {} as Record<string, string[]>,
+	});
+
+	// Time Range & Floor Selection state
+	const [timeRangeMode, setTimeRangeMode] = useState<"original" | "custom">(
+		"original",
+	);
+	const [timeRange, setTimeRange] = useState({
+		startDate: new Date(),
+		endDate: new Date(),
+		startTime: "00:00",
+		endTime: "23:59",
+	});
+	const [floor, setFloor] = useState({
+		selectedBuildings: [] as string[],
+		selectedFloors: [] as string[],
+		selectedFloorsByBuilding: {} as Record<string, string[]>,
+	});
+	const [originalTimeRange, setOriginalTimeRange] = useState<{
+		startDate: Date;
+		endDate: Date;
+		startTime: string;
+		endTime: string;
+	} | null>(null);
+	const [originalFloor, setOriginalFloor] = useState<{
+		selectedBuildings: string[];
+		selectedFloors: string[];
+		selectedFloorsByBuilding?: Record<string, string[]>;
+	} | null>(null);
+
+	// Data split configuration state
+	const [dataSplitEnabled, setDataSplitEnabled] = useState<boolean>(true);
+	const [trainRatio, setTrainRatio] = useState<number>(0.6);
+	const [validationRatio, setValidationRatio] = useState<number>(0.2);
+	const [testRatio, setTestRatio] = useState<number>(0.2);
 
 	// Custom hooks for data and job management
 	const {
@@ -75,12 +122,120 @@ export function Stage3ModelTraining({
 		pollJobUntilDone,
 	} = useTrainingJob(API_BASE);
 
+	// Load original labeling time range and floor selection from experiment run
+	useEffect(() => {
+		const loadOriginalLabelingRange = async () => {
+			if (!selectedRunId) {
+				return;
+			}
+
+			try {
+				const response = await fetch(
+					`http://localhost:8000/api/v1/experiment-runs/${selectedRunId}`,
+				);
+				if (response.ok) {
+					const json = await response.json();
+					const params = json?.data?.filteringParameters;
+
+					if (params) {
+						// 設置原始時間範圍
+						const originalStart = new Date(params.start_date);
+						const originalEnd = new Date(params.end_date);
+
+						setOriginalTimeRange({
+							startDate: originalStart,
+							endDate: originalEnd,
+							startTime: params.start_time || "00:00",
+							endTime: params.end_time || "23:59",
+						});
+
+						// 設置原始樓層選擇
+						const originalFloorData = {
+							selectedBuildings: [] as string[],
+							selectedFloors: [] as string[],
+							selectedFloorsByBuilding:
+								params.selected_floors_by_building ||
+								({} as Record<string, string[]>),
+						};
+
+						// 從按建築分組的樓層數據中計算所有選中的樓層
+						if (params.selected_floors_by_building) {
+							const allSelectedFloors = Object.values(
+								params.selected_floors_by_building,
+							).flat() as string[];
+							originalFloorData.selectedFloors =
+								allSelectedFloors;
+							originalFloorData.selectedBuildings = Object.keys(
+								params.selected_floors_by_building,
+							);
+						}
+
+						setOriginalFloor(originalFloorData);
+
+						// 如果是原始模式，也同時設置當前值
+						if (timeRangeMode === "original") {
+							setTimeRange({
+								startDate: originalStart,
+								endDate: originalEnd,
+								startTime: params.start_time || "00:00",
+								endTime: params.end_time || "23:59",
+							});
+							setFloor({
+								...originalFloorData,
+								selectedFloorsByBuilding:
+									originalFloorData.selectedFloorsByBuilding ||
+									{},
+							});
+						}
+					}
+				}
+			} catch (error) {
+				console.error("Failed to load original labeling range:", error);
+			}
+		};
+
+		loadOriginalLabelingRange();
+	}, [selectedRunId, timeRangeMode]);
+
+	// Handlers for time range and floor changes
+	const handleTimeRangeChange = useCallback((key: string, value: any) => {
+		setTimeRange((prev) => ({
+			...prev,
+			[key]: value,
+		}));
+	}, []);
+
+	const handleFloorChange = useCallback((key: string, value: string[]) => {
+		setFloor((prev) => ({
+			...prev,
+			[key]: value,
+		}));
+	}, []);
+
+	const handleTimeRangeModeChange = useCallback(
+		(mode: "original" | "custom") => {
+			setTimeRangeMode(mode);
+
+			// 如果切換到原始模式且有原始數據，則使用原始數據
+			if (mode === "original" && originalTimeRange && originalFloor) {
+				setTimeRange(originalTimeRange);
+				setFloor({
+					...originalFloor,
+					selectedFloorsByBuilding:
+						originalFloor.selectedFloorsByBuilding || {},
+				});
+			}
+		},
+		[originalTimeRange, originalFloor],
+	);
+
 	const isConfigValid = useMemo(() => {
-		if (!predictionStart || !predictionEnd) {
+		// 檢查時間範圍是否有效
+		if (!timeRange.startDate || !timeRange.endDate) {
 			return false;
 		}
-		return new Date(predictionStart) <= new Date(predictionEnd);
-	}, [predictionStart, predictionEnd]);
+		return timeRange.startDate <= timeRange.endDate;
+	}, [timeRange.startDate, timeRange.endDate]);
 
 	const applyGoldenConfig = () => {
 		setModelType("nnPU");
@@ -93,6 +248,11 @@ export function Stage3ModelTraining({
 		setEpochs(100);
 		setBatchSize(128);
 		setSeed(42);
+		// 重置數據切分為推薦配置
+		setDataSplitEnabled(true);
+		setTrainRatio(0.6);
+		setValidationRatio(0.2);
+		setTestRatio(0.2);
 	};
 
 	const startTrainAndPredict = async () => {
@@ -116,8 +276,18 @@ export function Stage3ModelTraining({
 				seed,
 				feature_version: "fe_v1",
 			},
-			prediction_start_date: predictionStart,
-			prediction_end_date: predictionEnd,
+			prediction_start_date: timeRange.startDate
+				.toISOString()
+				.split("T")[0],
+			prediction_end_date: timeRange.endDate.toISOString().split("T")[0],
+			data_split_config: dataSplitEnabled
+				? {
+						enabled: dataSplitEnabled,
+						trainRatio,
+						validationRatio,
+						testRatio,
+					}
+				: undefined,
 		};
 
 		try {
@@ -138,16 +308,29 @@ export function Stage3ModelTraining({
 						const logEntry = {
 							epoch: data.epoch,
 							loss: data.loss,
-							accuracy: data.accuracy || 0.5 + 0.4 * (1 - Math.exp(-data.epoch / (epochs * 0.4))),
+							accuracy:
+								data.accuracy ||
+								0.5 +
+									0.4 *
+										(1 -
+											Math.exp(
+												-data.epoch / (epochs * 0.4),
+											)),
 						};
 
-						setTrainingLogs((prev) => [...prev.slice(-9), logEntry]);
+						setTrainingLogs((prev) => [
+							...prev.slice(-9),
+							logEntry,
+						]);
 						setCurrentEpoch(data.epoch);
 						setTrainingProgress((data.epoch / epochs) * 100);
 					}
 
 					// 處理訓練完成
-					if (data.progress === 100 || data.message?.includes("completed")) {
+					if (
+						data.progress === 100 ||
+						data.message?.includes("completed")
+					) {
 						setTrainingStage("completed");
 						ws.close();
 					}
@@ -166,7 +349,7 @@ export function Stage3ModelTraining({
 
 			// 發送訓練請求
 			const resp = await fetch(
-				`${API_BASE}/api/v1/models/train-and-predict`,
+				`${API_BASE}/api/v1/models/train-and-predict-v2`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -188,7 +371,6 @@ export function Stage3ModelTraining({
 			if (ws.readyState !== WebSocket.OPEN) {
 				pollJobUntilDone(jid, epochs, onTrainingCompleted);
 			}
-
 		} catch (err: any) {
 			setTrainingStage("ready");
 			setErrorMessage(err?.message || "Failed to start training job");
@@ -198,6 +380,53 @@ export function Stage3ModelTraining({
 	const handleViewResults = () => {
 		if (onTrainingCompleted) {
 			onTrainingCompleted();
+		}
+	};
+
+	const startPrediction = async () => {
+		if (!selectedModelId) {
+			setErrorMessage("Please select a trained model first");
+			return;
+		}
+
+		setErrorMessage("");
+
+		try {
+			const payload = {
+				model_id: selectedModelId,
+				prediction_start_date: predictionTimeRange.startDate
+					.toISOString()
+					.split("T")[0],
+				prediction_end_date: predictionTimeRange.endDate
+					.toISOString()
+					.split("T")[0],
+				time_range: {
+					start_time: predictionTimeRange.startTime,
+					end_time: predictionTimeRange.endTime,
+				},
+				floor_selection: predictionFloor,
+			};
+
+			const response = await fetch(
+				`${API_BASE}/api/v1/models/predict-only`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				},
+			);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(errorText || "Failed to start prediction");
+			}
+
+			const data = await response.json();
+			console.log("Prediction started:", data);
+
+			// 可以在這裡處理預測結果或顯示成功訊息
+		} catch (err: any) {
+			setErrorMessage(err?.message || "Failed to start prediction");
 		}
 	};
 
@@ -254,53 +483,149 @@ export function Stage3ModelTraining({
 				</Alert>
 			)}
 
-			{/* Main Content - Two Column Layout */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Left Panel: Configuration & Control */}
+			{/* Main Content - Responsive Layout */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+				{/* Left Panel: Training Configuration */}
 				<div className="space-y-6">
 					{/* Dataset Info */}
 					<TrainingDataStatsPanel
 						trainingDataStats={trainingDataStats}
 					/>
 
-					{/* Model Configuration */}
-					<ModelConfigurationPanel
-						predictionStart={predictionStart}
-						predictionEnd={predictionEnd}
-						onPredictionStartChange={setPredictionStart}
-						onPredictionEndChange={setPredictionEnd}
-						modelType={modelType}
-						priorMethod={priorMethod}
-						classPrior={classPrior}
-						hiddenUnits={hiddenUnits}
-						activation={activation}
-						lambdaReg={lambdaReg}
-						optimizer={optimizer}
-						learningRate={learningRate}
-						epochs={epochs}
-						batchSize={batchSize}
-						seed={seed}
-						onModelTypeChange={setModelType}
-						onPriorMethodChange={setPriorMethod}
-						onClassPriorChange={setClassPrior}
-						onHiddenUnitsChange={setHiddenUnits}
-						onActivationChange={setActivation}
-						onLambdaRegChange={setLambdaReg}
-						onOptimizerChange={setOptimizer}
-						onLearningRateChange={setLearningRate}
-						onEpochsChange={setEpochs}
-						onBatchSizeChange={setBatchSize}
-						onSeedChange={setSeed}
-						onApplyGoldenConfig={applyGoldenConfig}
-						onStartTraining={startTrainAndPredict}
-						onResetTraining={resetTrainingState}
+					{/* Data Split Configuration */}
+					<DataSplitConfigPanel
+						enabled={dataSplitEnabled}
+						trainRatio={trainRatio}
+						validationRatio={validationRatio}
+						testRatio={testRatio}
+						onEnabledChange={setDataSplitEnabled}
+						onTrainRatioChange={setTrainRatio}
+						onValidationRatioChange={setValidationRatio}
+						onTestRatioChange={setTestRatio}
+						totalPositiveSamples={
+							trainingDataStats?.positiveSamples || 0
+						}
+					/>
+
+					{/* Training Configuration */}
+					<TrainingConfigurationPanel
+						modelParams={{
+							modelType,
+							priorMethod,
+							classPrior,
+							hiddenUnits,
+							activation,
+							lambdaReg,
+							optimizer,
+							learningRate,
+							epochs,
+							batchSize,
+							seed,
+						}}
+						onModelParamsChange={(params) => {
+							if (params.modelType !== undefined) {
+								setModelType(params.modelType);
+							}
+							if (params.priorMethod !== undefined) {
+								setPriorMethod(params.priorMethod);
+							}
+							if (params.classPrior !== undefined) {
+								setClassPrior(params.classPrior);
+							}
+							if (params.hiddenUnits !== undefined) {
+								setHiddenUnits(params.hiddenUnits);
+							}
+							if (params.activation !== undefined) {
+								setActivation(params.activation);
+							}
+							if (params.lambdaReg !== undefined) {
+								setLambdaReg(params.lambdaReg);
+							}
+							if (params.optimizer !== undefined) {
+								setOptimizer(params.optimizer);
+							}
+							if (params.learningRate !== undefined) {
+								setLearningRate(params.learningRate);
+							}
+							if (params.epochs !== undefined) {
+								setEpochs(params.epochs);
+							}
+							if (params.batchSize !== undefined) {
+								setBatchSize(params.batchSize);
+							}
+							if (params.seed !== undefined) {
+								setSeed(params.seed);
+							}
+						}}
+						dataRangeConfig={{
+							mode: timeRangeMode,
+							timeRange,
+							floor,
+							originalTimeRange: originalTimeRange || undefined,
+							originalFloor: originalFloor || undefined,
+						}}
+						onDataRangeConfigChange={(config) => {
+							if (config.mode !== undefined) {
+								handleTimeRangeModeChange(config.mode);
+							}
+							if (config.timeRange !== undefined) {
+								setTimeRange(config.timeRange);
+							}
+							if (config.floor !== undefined) {
+								setFloor({
+									selectedBuildings:
+										config.floor.selectedBuildings,
+									selectedFloors: config.floor.selectedFloors,
+									selectedFloorsByBuilding:
+										config.floor.selectedFloorsByBuilding ||
+										{},
+								});
+							}
+						}}
+						actions={{
+							onApplyGoldenConfig: applyGoldenConfig,
+							onStartTraining: startTrainAndPredict,
+							onResetTraining: resetTrainingState,
+						}}
 						trainingStage={trainingStage}
 						isConfigValid={isConfigValid}
 					/>
 				</div>
 
-				{/* Right Panel: Visualization & Monitoring */}
-				<div className="space-y-6">{renderVisualizationPanel()}</div>
+				{/* Right Panel: Prediction Configuration & Visualization */}
+				<div className="space-y-6">
+					{/* Prediction Configuration */}
+					<PredictionConfigurationPanel
+						selectedRunId={selectedRunId}
+						config={{
+							modelId: selectedModelId,
+							timeRange: predictionTimeRange,
+							floor: predictionFloor,
+						}}
+						onConfigChange={(config) => {
+							if (config.modelId !== undefined) {
+								setSelectedModelId(config.modelId);
+							}
+							if (config.timeRange !== undefined) {
+								setPredictionTimeRange(config.timeRange);
+							}
+							if (config.floor !== undefined) {
+								setPredictionFloor({
+									selectedBuildings:
+										config.floor.selectedBuildings,
+									selectedFloors: config.floor.selectedFloors,
+									selectedFloorsByBuilding:
+										config.floor.selectedFloorsByBuilding ||
+										{},
+								});
+							}
+						}}
+						onStartPrediction={startPrediction}
+					/>
+
+					{/* Visualization Panel */}
+					{renderVisualizationPanel()}
+				</div>
 			</div>
 
 			{/* Training Completion Status */}

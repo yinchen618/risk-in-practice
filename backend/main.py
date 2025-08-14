@@ -76,7 +76,7 @@ def set_cron_enabled(enabled: bool):
 @app.on_event("startup")
 async def startup_event():
     await init_database()
-    
+
     # 只有在啟用 cron 時才啟動 cron 任務
     if ENABLE_CRON:
         print("啟動 cron 任務...")
@@ -87,7 +87,7 @@ async def startup_event():
 @app.get("/")
 async def root():
     return {
-        "message": "AI 學習平台後端服務運行中", 
+        "message": "AI 學習平台後端服務運行中",
         "status": "active",
         "modules": {
             "ammeter": "電表數據管理",
@@ -120,37 +120,37 @@ async def trigger_meter_fetch():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # 解析命令行參數
     parser = argparse.ArgumentParser(description="AI 學習平台後端服務")
     parser.add_argument(
-        "--enable-cron", 
-        action="store_true", 
+        "--enable-cron",
+        action="store_true",
         help="啟用 cron 任務（預設停用）"
     )
     parser.add_argument(
-        "--host", 
-        default="0.0.0.0", 
+        "--host",
+        default="0.0.0.0",
         help="服務器主機地址（預設: 0.0.0.0）"
     )
     parser.add_argument(
-        "--port", 
-        type=int, 
-        default=8000, 
+        "--port",
+        type=int,
+        default=8000,
         help="服務器端口（預設: 8000）"
     )
-    
+
     args = parser.parse_args()
-    
+
     # 設定全域變數
     set_cron_enabled(args.enable_cron)
-    
+
     print(f"啟動 AI 學習平台後端服務...")
     print(f"主機: {args.host}")
     print(f"端口: {args.port}")
     print(f"Cron 任務: {'啟用' if ENABLE_CRON else '停用'}")
     print(f"包含模組: 電表管理, AI 訓練, PU Learning, Testbed, Coding Assistant")
-    
+
     uvicorn.run(app, host=args.host, port=args.port)
 
 """

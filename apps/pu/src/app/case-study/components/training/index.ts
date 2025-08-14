@@ -1,5 +1,5 @@
 // Main component export
-export { Stage3ModelTraining } from "../Stage3ModelTraining_refactored";
+export { Stage3ModelTraining } from "../Stage3ModelTraining";
 
 // Sub-components export
 export { TrainingDataStatsPanel } from "./TrainingDataStatsPanel";
