@@ -76,6 +76,10 @@ class TrainingRequest(BaseModel):
     prediction_start_date: str
     prediction_end_date: str
     data_split_config: Optional[DataSplitConfig] = None
+    # 新增的 U 樣本生成配置
+    u_sample_time_range: Optional[Dict[str, str]] = None  # {"start_date": "2025-08-13", "end_date": "2025-08-14", "start_time": "00:00", "end_time": "23:59"}
+    u_sample_building_floors: Optional[Dict[str, List[str]]] = None  # {"Building A": ["2"], "Building B": ["1", "2"]}
+    u_sample_limit: Optional[int] = 5000
 
 class PULearningTrainer:
     """PU Learning 訓練器"""
@@ -143,34 +147,63 @@ class PULearningTrainer:
             # 更新狀態為運行中
             training_jobs[job_id]["status"] = "RUNNING"
             logger.info(f"📊 Job {job_id} status updated to RUNNING")
-            await self._broadcast_progress(job_id, 0, "Initializing training...")
+            await self._broadcast_progress(job_id, 0, "Initializing training...", {
+                "model_name": f"{request.model_params.model_type} Model"
+            })
 
             # 1. 數據準備階段
             logger.info(f"📂 Stage 1: Loading training data for job {job_id}")
-            await self._broadcast_progress(job_id, 5, "Loading training data...")
-            p_samples, u_samples = await self._load_training_data(request.experiment_run_id)
+            await self._broadcast_progress(job_id, 5, "Loading training data from database...")
+
+            # 檢查是否有 U 樣本生成配置
+            if (request.u_sample_time_range and
+                request.u_sample_building_floors and
+                request.u_sample_limit):
+                # 使用新的動態 U 樣本生成方法
+                logger.info("🆕 Using dynamic U sample generation from raw data")
+                await self._broadcast_progress(job_id, 7, "Loading P samples from anomaly events...")
+                p_samples, u_samples = await self._load_training_data_with_dynamic_u(
+                    job_id,
+                    request.experiment_run_id,
+                    request.u_sample_time_range,
+                    request.u_sample_building_floors,
+                    request.u_sample_limit
+                )
+            else:
+                # 使用舊的方法（從 anomaly_event 表）
+                logger.info("📋 Using traditional U sample loading from anomaly_event table")
+                await self._broadcast_progress(job_id, 7, "Loading P and U samples from anomaly events...")
+                p_samples, u_samples = await self._load_training_data(request.experiment_run_id)
+
             logger.info(f"📊 Loaded {len(p_samples)} positive samples, {len(u_samples)} unlabeled samples")
+            await self._broadcast_progress(job_id, 9, f"Data loaded: {len(p_samples)} P samples, {len(u_samples)} U samples", {
+                "p_sample_count": len(p_samples),
+                "u_sample_count": len(u_samples),
+                "model_name": f"{request.model_params.model_type} Model"
+            })
 
             if len(p_samples) == 0:
                 raise ValueError("No positive samples found for training")
 
             # 2. 特徵工程階段
             logger.info(f"🔧 Stage 2: Feature engineering for job {job_id}")
-            await self._broadcast_progress(job_id, 10, "Extracting features...")
+            await self._broadcast_progress(job_id, 10, "Starting feature extraction...")
             X_train, y_train, X_val, y_val, X_test, y_test, test_sample_ids = await self._prepare_features(
                 p_samples, u_samples, request.data_split_config
             )
             logger.info(f"📊 Training set shape: {X_train.shape if X_train is not None else 'None'}")
+            await self._broadcast_progress(job_id, 12, f"Features extracted: {X_train.shape} training samples")
 
             # 3. Prior 估計階段
             logger.info(f"🎯 Stage 3: Estimating class prior for job {job_id}")
-            await self._broadcast_progress(job_id, 15, "Estimating class prior...")
+            await self._broadcast_progress(job_id, 15, "Estimating class prior probability...")
             class_prior = await self._estimate_prior(request.model_params, len(p_samples), len(u_samples))
             logger.info(f"📈 Estimated class prior: {class_prior}")
+            await self._broadcast_progress(job_id, 17, f"Class prior estimated: {class_prior:.4f}")
 
             # 4. 模型訓練階段
             logger.info(f"🤖 Stage 4: Model training ({request.model_params.model_type}) for job {job_id}")
-            await self._broadcast_progress(job_id, 20, "Starting model training...")
+            await self._broadcast_progress(job_id, 20, f"Initializing {request.model_params.model_type} model training...")
 
             if request.model_params.model_type.lower() == 'upu':
                 logger.info(f"🔵 Training uPU model for job {job_id}")
@@ -184,24 +217,27 @@ class PULearningTrainer:
                 )
 
             logger.info(f"🎯 Model training completed for job {job_id}. Final metrics: {final_metrics}")
+            await self._broadcast_progress(job_id, 80, f"{request.model_params.model_type} model training completed successfully")
 
             # 5. 測試集評估（如果有）
             if X_test is not None and y_test is not None:
                 logger.info(f"🧪 Stage 5: Test set evaluation for job {job_id}")
-                await self._broadcast_progress(job_id, 85, "Evaluating on test set...")
+                await self._broadcast_progress(job_id, 85, f"Evaluating model performance on {len(y_test)} test samples...")
                 test_metrics = await self._evaluate_on_test_set(model, X_test, y_test)
                 final_metrics["test_metrics"] = test_metrics
                 final_metrics["test_sample_count"] = len(test_sample_ids) if test_sample_ids else 0
                 logger.info(f"📊 Test metrics: {test_metrics}")
+                await self._broadcast_progress(job_id, 88, f"Test evaluation completed. Accuracy: {test_metrics.get('test_accuracy', 0):.3f}")
 
             # 6. 模型保存階段
             logger.info(f"💾 Stage 6: Saving model for job {job_id}")
-            await self._broadcast_progress(job_id, 90, "Saving trained model...")
+            await self._broadcast_progress(job_id, 90, "Saving trained model to storage...")
             model_path = await self._save_model(
                 job_id, model, request.model_params, test_sample_ids,
                 request.experiment_run_id, request.data_split_config, final_metrics
             )
             logger.info(f"💾 Model saved to: {model_path}")
+            await self._broadcast_progress(job_id, 95, "Model saved successfully, finalizing training job...")
 
             # 7. 完成階段
             logger.info(f"🎉 Stage 7: Job completion for {job_id}")
@@ -214,7 +250,7 @@ class PULearningTrainer:
                 "test_sample_ids": test_sample_ids
             })
 
-            await self._broadcast_progress(job_id, 100, "Training completed successfully!", final_metrics)
+            await self._broadcast_progress(job_id, 100, "PU Learning model training completed successfully! Ready for prediction.", final_metrics)
             logger.info("✅" + "="*50)
             logger.info(f"🎊 TRAINING JOB {job_id} COMPLETED SUCCESSFULLY")
             logger.info("✅" + "="*50)
@@ -262,7 +298,7 @@ class PULearningTrainer:
                     "status": row.status
                 })
 
-            # 獲取未標記樣本
+            # 獲取未標記樣本 - 舊的實現（從 anomaly_event 表中獲取）
             u_query = text("""
                 SELECT "eventId", "meterId", "eventTimestamp", "detectionRule",
                        score, "dataWindow", status
@@ -290,6 +326,380 @@ class PULearningTrainer:
         logger.info(f"Loaded {len(p_samples)} P samples and {len(u_samples)} U samples")
         return p_samples, u_samples
 
+    async def _load_training_data_with_dynamic_u(
+        self,
+        job_id: str,
+        experiment_run_id: str,
+        u_sample_time_range: Dict[str, str],
+        u_sample_building_floors: Dict[str, List[str]],
+        u_sample_limit: int
+    ) -> Tuple[List[Dict], List[Dict]]:
+        """載入 P 樣本並動態生成 U 樣本"""
+        try:
+            # 1. 載入 P 樣本（從 anomaly_event 表）
+            from core.database import db_manager
+            from sqlalchemy import text
+
+            logger.info(f"📊 Loading P samples for experiment {experiment_run_id}")
+
+            async with db_manager.get_async_session() as session:
+                p_query = text("""
+                    SELECT "eventId", "meterId", "eventTimestamp", "detectionRule",
+                           score, "dataWindow", status
+                    FROM anomaly_event
+                    WHERE "experimentRunId" = :run_id
+                    AND status = 'CONFIRMED_POSITIVE'
+                """)
+                p_result = await session.execute(p_query, {"run_id": experiment_run_id})
+                p_rows = p_result.fetchall()
+
+                p_samples = []
+                for row in p_rows:
+                    p_samples.append({
+                        "eventId": row.eventId,
+                        "meterId": row.meterId,
+                        "eventTimestamp": row.eventTimestamp.isoformat() if row.eventTimestamp else "",
+                        "detectionRule": row.detectionRule,
+                        "score": float(row.score) if row.score else 0,
+                        "dataWindow": json.loads(row.dataWindow) if isinstance(row.dataWindow, str) else row.dataWindow,
+                        "status": row.status
+                    })
+
+            logger.info(f"📊 Loaded {len(p_samples)} P samples from anomaly_event table")
+            await self._broadcast_progress(job_id, 8, f"Loaded {len(p_samples)} positive samples from experiment data", {
+                "p_sample_count": len(p_samples)
+            })
+
+            # 2. 動態生成 U 樣本（從原始數據）
+            await self._broadcast_progress(job_id, 8.5, "Starting dynamic U sample generation from raw meter data...")
+            u_samples = await self._generate_u_samples_from_raw_data(
+                job_id,
+                experiment_run_id,
+                u_sample_time_range,
+                u_sample_building_floors,
+                u_sample_limit
+            )
+
+            logger.info(f"📊 Generated {len(u_samples)} U samples from raw data")
+            logger.info(f"🎯 Total training data: {len(p_samples)} P + {len(u_samples)} U = {len(p_samples) + len(u_samples)} samples")
+
+            return p_samples, u_samples
+
+        except Exception as e:
+            logger.error(f"Failed to load training data with dynamic U samples: {e}")
+            raise
+
+    async def _generate_u_samples_from_raw_data(
+        self,
+        job_id: str,
+        experiment_run_id: str,
+        time_range: Dict[str, str],
+        building_floors: Dict[str, List[str]],
+        limit: int = 5000
+    ) -> List[Dict]:
+        """
+        從原始電表數據動態生成 U 樣本
+
+        Args:
+            job_id: 訓練任務ID（用於WebSocket進度更新）
+            experiment_run_id: 實驗運行ID
+            time_range: 時間範圍配置 {"start_date": "2025-08-13", "end_date": "2025-08-14", "start_time": "00:00", "end_time": "23:59"}
+            building_floors: 建築樓層配置 {"Building A": ["2"], "Building B": ["1", "2"]}
+            limit: U 樣本數量限制
+
+        Returns:
+            List[Dict]: U 樣本列表，每個樣本包含 dataWindow
+        """
+        try:
+            from services.data_loader import DataLoaderService
+            from datetime import datetime, timedelta
+            import pandas as pd
+
+            logger.info("🎯" + "="*50)
+            logger.info("🔄 GENERATING U SAMPLES FROM RAW DATA")
+            logger.info(f"📅 Time Range: {time_range}")
+            logger.info(f"🏢 Building Floors: {building_floors}")
+            logger.info(f"📊 Target Samples: {limit}")
+            logger.info("🎯" + "="*50)
+
+            # 1. 解析時間範圍
+            await self._broadcast_progress(job_id, 8.6, "Parsing time range configuration...")
+            start_datetime = datetime.strptime(
+                f"{time_range['start_date']} {time_range['start_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            end_datetime = datetime.strptime(
+                f"{time_range['end_date']} {time_range['end_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+
+            # 2. 從 data_loader 載入該時間範圍和建築樓層的原始數據
+            await self._broadcast_progress(job_id, 8.7, f"Loading raw meter data from {time_range['start_date']} to {time_range['end_date']}...")
+            data_loader = DataLoaderService()
+
+            # 將時間格式轉換為 data_loader 期望的格式
+            start_time_str = start_datetime.isoformat()
+            end_time_str = end_datetime.isoformat()
+
+            # 獲取原始數據
+            raw_df = await data_loader.load_meter_data_by_time_range(
+                start_time=start_time_str,
+                end_time=end_time_str,
+                selected_floors_by_building=building_floors
+            )
+
+            if raw_df.empty:
+                logger.warning("⚠️ No raw data found for the specified time range and buildings")
+                await self._broadcast_progress(job_id, 8.8, "Warning: No raw meter data found for specified time range")
+                return []
+
+            logger.info(f"📊 Loaded raw data: {len(raw_df)} records from {raw_df['deviceNumber'].nunique()} devices")
+            await self._broadcast_progress(job_id, 8.8, f"Loaded {len(raw_df)} raw data records from {raw_df['deviceNumber'].nunique()} devices")
+
+            # 3. 獲取已知的 P 樣本位置，以便排除它們
+            await self._broadcast_progress(job_id, 8.85, "Identifying P sample positions to exclude...")
+            p_sample_positions = await self._get_p_sample_positions(experiment_run_id)
+            logger.info(f"📍 Excluding {len(p_sample_positions)} P sample positions")
+
+            # 4. 隨機選取錨點（排除已知的 P 樣本位置）
+            await self._broadcast_progress(job_id, 8.9, f"Selecting {limit} anchor points for U sample generation...")
+            anchor_points = await self._select_anchor_points(
+                raw_df, p_sample_positions, limit
+            )
+
+            if not anchor_points:
+                logger.warning("⚠️ No valid anchor points found")
+                await self._broadcast_progress(job_id, 8.95, "Warning: No valid anchor points found for U sample generation")
+                return []
+
+            logger.info(f"🎯 Selected {len(anchor_points)} anchor points")
+            await self._broadcast_progress(job_id, 8.95, f"Selected {len(anchor_points)} anchor points, generating data windows...")
+
+            # 5. 為每個錨點生成 dataWindow
+            u_samples = []
+            total_anchors = len(anchor_points)
+
+            for i, anchor in enumerate(anchor_points):
+                try:
+                    data_window = await self._generate_data_window_for_anchor(anchor, raw_df)
+
+                    # 構建 U 樣本對象
+                    u_sample = {
+                        "eventId": f"u_sample_{experiment_run_id}_{i}",
+                        "meterId": anchor["deviceNumber"],
+                        "eventTimestamp": anchor["timestamp"].isoformat(),
+                        "detectionRule": "dynamic_u_sample",
+                        "score": 0.0,  # U 樣本沒有異常分數
+                        "dataWindow": data_window,
+                        "status": "DYNAMIC_U_SAMPLE"
+                    }
+                    u_samples.append(u_sample)
+
+                    # 發送進度更新 - 增加更新頻率
+                    if (i + 1) % 10 == 0 or i == total_anchors - 1:  # 改為每10個樣本更新一次
+                        progress_pct = 8.95 + (i + 1) / total_anchors * 0.05  # 從 8.95% 到 9%
+                        u_sample_progress = ((i + 1) / total_anchors) * 100
+                        await self._broadcast_progress(
+                            job_id,
+                            progress_pct,
+                            f"Generated {i + 1}/{total_anchors} U samples with data windows",
+                            {
+                                "u_sample_count": len(u_samples),
+                                "u_sample_progress": u_sample_progress
+                            }
+                        )
+                        logger.info(f"✅ Generated {i + 1}/{total_anchors} U samples")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to generate dataWindow for anchor {i}: {e}")
+                    continue
+
+            logger.info("✅" + "="*50)
+            logger.info(f"🎊 U SAMPLE GENERATION COMPLETED")
+            logger.info(f"📊 Generated {len(u_samples)} U samples from {len(anchor_points)} anchor points")
+            logger.info("✅" + "="*50)
+
+            await self._broadcast_progress(job_id, 9, f"U sample generation completed: {len(u_samples)} samples ready", {
+                "u_sample_count": len(u_samples),
+                "u_sample_progress": 100.0
+            })
+            return u_samples
+
+        except Exception as e:
+            logger.error(f"💥 Failed to generate U samples from raw data: {e}")
+            import traceback
+            logger.error(f"📍 Traceback: {traceback.format_exc()}")
+            return []
+
+    async def _get_p_sample_positions(self, experiment_run_id: str) -> List[Tuple[str, datetime]]:
+        """獲取已知 P 樣本的位置（設備ID + 時間戳），用於排除"""
+        from core.database import db_manager
+        from sqlalchemy import text
+
+        positions = []
+        try:
+            async with db_manager.get_async_session() as session:
+                query = text("""
+                    SELECT "meterId", "eventTimestamp"
+                    FROM anomaly_event
+                    WHERE "experimentRunId" = :run_id
+                    AND status = 'CONFIRMED_POSITIVE'
+                """)
+                result = await session.execute(query, {"run_id": experiment_run_id})
+                rows = result.fetchall()
+
+                for row in rows:
+                    if row.eventTimestamp:
+                        positions.append((row.meterId, row.eventTimestamp))
+
+        except Exception as e:
+            logger.error(f"Failed to get P sample positions: {e}")
+
+        return positions
+
+    async def _select_anchor_points(
+        self,
+        raw_df: pd.DataFrame,
+        p_sample_positions: List[Tuple[str, datetime]],
+        limit: int
+    ) -> List[Dict]:
+        """從原始數據中選取錨點，排除已知的 P 樣本位置"""
+        try:
+            import pandas as pd
+            import numpy as np
+
+            # 確保時間戳是 datetime 類型
+            if 'timestamp' in raw_df.columns:
+                raw_df['timestamp'] = pd.to_datetime(raw_df['timestamp'])
+            elif 'lastUpdated' in raw_df.columns:
+                raw_df = raw_df.rename(columns={'lastUpdated': 'timestamp'})
+                raw_df['timestamp'] = pd.to_datetime(raw_df['timestamp'])
+            else:
+                logger.error("No timestamp column found in raw data")
+                return []
+
+            # 建立 P 樣本位置的快速查找集合
+            p_positions_set = set()
+            for meter_id, timestamp in p_sample_positions:
+                # 建立一個容錯的時間窗口（前後1分鐘）
+                p_positions_set.add((meter_id, timestamp))
+
+            # 過濾出非 P 樣本的數據點
+            valid_anchors = []
+            for _, row in raw_df.iterrows():
+                meter_id = row['deviceNumber']
+                timestamp = row['timestamp']
+
+                # 檢查是否與任何 P 樣本位置衝突（使用時間窗口）
+                is_p_sample = False
+                for p_meter, p_time in p_sample_positions:
+                    if (meter_id == p_meter and
+                        abs((timestamp - p_time).total_seconds()) < 60):  # 1分鐘容錯
+                        is_p_sample = True
+                        break
+
+                if not is_p_sample:
+                    valid_anchors.append({
+                        "deviceNumber": meter_id,
+                        "timestamp": timestamp,
+                        "power": row.get('power', 0)
+                    })
+
+            logger.info(f"📊 Valid anchor candidates: {len(valid_anchors)} (after excluding P samples)")
+
+            # 隨機選取指定數量的錨點
+            if len(valid_anchors) > limit:
+                selected_indices = np.random.choice(len(valid_anchors), limit, replace=False)
+                selected_anchors = [valid_anchors[i] for i in selected_indices]
+            else:
+                selected_anchors = valid_anchors
+
+            logger.info(f"🎯 Selected {len(selected_anchors)} anchor points")
+            return selected_anchors
+
+        except Exception as e:
+            logger.error(f"Failed to select anchor points: {e}")
+            return []
+
+    async def _generate_data_window_for_anchor(
+        self,
+        anchor: Dict,
+        raw_df: pd.DataFrame
+    ) -> Dict[str, Any]:
+        """為錨點生成 dataWindow，邏輯與現有的事件 dataWindow 生成完全一致"""
+        try:
+            from datetime import timedelta
+            import pandas as pd
+
+            anchor_time = anchor["timestamp"]
+            meter_id = anchor["deviceNumber"]
+
+            # 篩選該電表的數據
+            meter_df = raw_df[raw_df['deviceNumber'] == meter_id].copy()
+            if meter_df.empty:
+                logger.warning(f"No data found for meter {meter_id}")
+                return self._create_empty_data_window(anchor)
+
+            # 確保時間戳列正確
+            time_col = 'timestamp' if 'timestamp' in meter_df.columns else 'lastUpdated'
+            meter_df[time_col] = pd.to_datetime(meter_df[time_col])
+            meter_df = meter_df.sort_values(time_col)
+
+            # 定義時間窗口：錨點前後各 15 分鐘
+            window_start = anchor_time - timedelta(minutes=15)
+            window_end = anchor_time + timedelta(minutes=15)
+
+            # 篩選時間窗口內的數據
+            window_df = meter_df[
+                (meter_df[time_col] >= window_start) &
+                (meter_df[time_col] <= window_end)
+            ]
+
+            # 找到最接近錨點時間的數據點
+            time_diffs = abs(meter_df[time_col] - anchor_time)
+            closest_idx = time_diffs.idxmin()
+            anchor_power_value = meter_df.loc[closest_idx, 'power'] if not meter_df.empty else 0
+
+            # 構建時序數據列表
+            time_series = []
+            for _, row in window_df.iterrows():
+                time_series.append({
+                    "timestamp": row[time_col].isoformat(),
+                    "power": float(row['power']) if pd.notna(row['power']) else 0.0
+                })
+
+            # 構建 dataWindow 對象（與現有格式完全一致）
+            data_window = {
+                "eventTimestamp": anchor_time.isoformat(),
+                "eventPowerValue": float(anchor_power_value) if pd.notna(anchor_power_value) else 0.0,
+                "windowStart": window_start.isoformat(),
+                "windowEnd": window_end.isoformat(),
+                "timeSeries": time_series,
+                "totalDataPoints": len(time_series),
+                "detectionRule": "dynamic_u_sample",
+                "anomalyScore": 0.0
+            }
+
+            return data_window
+
+        except Exception as e:
+            logger.error(f"Failed to generate dataWindow for anchor: {e}")
+            return self._create_empty_data_window(anchor)
+
+    def _create_empty_data_window(self, anchor: Dict) -> Dict[str, Any]:
+        """創建空的 dataWindow 作為後備"""
+        return {
+            "eventTimestamp": anchor["timestamp"].isoformat(),
+            "eventPowerValue": 0.0,
+            "windowStart": anchor["timestamp"].isoformat(),
+            "windowEnd": anchor["timestamp"].isoformat(),
+            "timeSeries": [],
+            "totalDataPoints": 0,
+            "detectionRule": "dynamic_u_sample",
+            "anomalyScore": 0.0,
+            "error": "Failed to generate data window"
+        }
+
     async def _prepare_features(self, p_samples: List[Dict], u_samples: List[Dict],
                                data_split_config: Optional[DataSplitConfig] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[List[str]]]:
         """準備特徵和標籤，支持數據切分功能"""
@@ -304,8 +714,28 @@ class PULearningTrainer:
         # 標準化特徵
         feature_matrix_scaled = feature_engineering.transform_features(feature_matrix)
 
+        # 處理 NaN 值
+        if np.isnan(feature_matrix_scaled).any():
+            logger.warning("⚠️ Found NaN values in feature matrix, filling with 0")
+            feature_matrix_scaled = np.nan_to_num(feature_matrix_scaled, nan=0.0)
+            logger.info(f"✅ NaN values handled. Feature matrix shape: {feature_matrix_scaled.shape}")
+
         # 準備標籤：P=1, U=0
         labels = np.array([1] * len(p_samples) + [0] * len(u_samples))
+
+        # 添加數據診斷日誌
+        logger.info(f"📊 Data distribution:")
+        logger.info(f"   P samples: {len(p_samples)}")
+        logger.info(f"   U samples: {len(u_samples)}")
+        logger.info(f"   Total samples: {len(labels)}")
+        logger.info(f"   Class 1 (P): {np.sum(labels == 1)}")
+        logger.info(f"   Class 0 (U): {np.sum(labels == 0)}")
+
+        # 檢查是否有足夠的數據進行訓練
+        if len(p_samples) == 0:
+            raise ValueError("沒有找到正樣本 (P samples)。請確保有 status='CONFIRMED_POSITIVE' 的數據。")
+        if len(u_samples) == 0:
+            raise ValueError("沒有找到未標記樣本 (U samples)。請確保有 status='UNREVIEWED' 或 'REJECTED_NORMAL' 的數據。")
 
         X_test = None
         y_test = None
@@ -421,10 +851,12 @@ class PULearningTrainer:
                 "loss": float(loss)
             })
 
-            await self._broadcast_progress(
-                job_id, progress, f"Training epoch {epoch + 1}/{model_config.epochs}",
-                {"epoch": epoch + 1, "loss": loss}
-            )
+            # 每10個epoch或最後一個epoch發送詳細進度
+            if (epoch + 1) % 10 == 0 or epoch == model_config.epochs - 1:
+                await self._broadcast_progress(
+                    job_id, progress, f"uPU training progress: epoch {epoch + 1}/{model_config.epochs}, loss: {loss:.4f}",
+                    {"epoch": epoch + 1, "loss": loss, "model_type": "uPU"}
+                )
 
         # 實際訓練模型
         model.fit(X_train, y_train)
@@ -473,10 +905,12 @@ class PULearningTrainer:
                 "loss": float(loss)
             })
 
-            await self._broadcast_progress(
-                job_id, progress, f"Training epoch {epoch + 1}/{model_config.epochs}",
-                {"epoch": epoch + 1, "loss": loss}
-            )
+            # 每10個epoch或最後一個epoch發送詳細進度
+            if (epoch + 1) % 10 == 0 or epoch == model_config.epochs - 1:
+                await self._broadcast_progress(
+                    job_id, progress, f"nnPU training progress: epoch {epoch + 1}/{model_config.epochs}, loss: {loss:.4f}",
+                    {"epoch": epoch + 1, "loss": loss, "model_type": "nnPU"}
+                )
 
         # 實際訓練模型
         model.fit(X_train, y_train)
@@ -595,6 +1029,8 @@ class PULearningTrainer:
                 await websocket.send_text(json.dumps(progress_data))
                 success_count += 1
                 logger.debug(f"✅ Progress sent to WebSocket connection successfully")
+                # 強制立即發送，避免緩衝
+                await asyncio.sleep(0.001)  # 1ms 延遲確保訊息立即發送
             except Exception as e:
                 error_count += 1
                 logger.warning(f"❌ Failed to send progress to WebSocket: {e}")

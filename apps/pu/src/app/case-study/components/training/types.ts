@@ -1,4 +1,4 @@
-export type TrainingStage = "ready" | "training" | "completed";
+export type TrainingStage = "ready" | "training" | "completed" | "failed";
 
 export type ModelType = "uPU" | "nnPU";
 
@@ -61,4 +61,13 @@ export interface TrainingPayload {
 	prediction_start_date: string;
 	prediction_end_date: string;
 	data_split_config?: DataSplitConfig;
+	// 新增的 U 樣本生成配置
+	u_sample_time_range?: {
+		start_date: string;
+		end_date: string;
+		start_time: string;
+		end_time: string;
+	};
+	u_sample_building_floors?: Record<string, string[]>;
+	u_sample_limit?: number;
 }

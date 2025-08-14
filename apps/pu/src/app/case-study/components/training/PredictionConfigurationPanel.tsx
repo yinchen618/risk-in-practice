@@ -53,6 +53,7 @@ interface PredictionConfigurationPanelProps {
 	onConfigChange: (config: Partial<PredictionConfig>) => void;
 	onStartPrediction: () => void;
 	isLoading?: boolean;
+	trainingStage?: "ready" | "training" | "completed" | "failed";
 }
 
 // 根據 meter.csv 分析的樓層資料
@@ -83,19 +84,21 @@ export function PredictionConfigurationPanel({
 	onConfigChange,
 	onStartPrediction,
 	isLoading = false,
+	trainingStage = "ready",
 }: PredictionConfigurationPanelProps) {
 	const [availableModels, setAvailableModels] = useState<TrainedModel[]>([]);
 	const [loadingModels, setLoadingModels] = useState(false);
 
-	// 載入可用的訓練模型
+	// 載入可用的訓練模型 - 只在非訓練狀態下進行
 	useEffect(() => {
 		const loadAvailableModels = async () => {
-			if (!selectedRunId) {
+			if (!selectedRunId || trainingStage === "training") {
 				return;
 			}
 
 			setLoadingModels(true);
 			try {
+				console.log("Loading available models for experiment:", selectedRunId);
 				const response = await fetch(
 					`http://localhost:8000/api/v1/models/experiment/${selectedRunId}`,
 				);
@@ -117,7 +120,7 @@ export function PredictionConfigurationPanel({
 		};
 
 		loadAvailableModels();
-	}, [selectedRunId, config.modelId, onConfigChange]);
+	}, [selectedRunId, config.modelId, onConfigChange, trainingStage]);
 
 	// Handler for building selection
 	const handleBuildingChange = useCallback(

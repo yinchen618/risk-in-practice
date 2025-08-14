@@ -10,7 +10,7 @@ type ModelType = "uPU" | "nnPU";
 type PriorMethod = "mean" | "median" | "kmm" | "en" | "custom";
 type Activation = "relu" | "tanh";
 type Optimizer = "adam" | "sgd";
-type TrainingStage = "ready" | "training" | "completed";
+type TrainingStage = "ready" | "training" | "completed" | "failed";
 type TimeRangeMode = "original" | "custom";
 
 // 時間範圍參數
@@ -124,7 +124,9 @@ export function TrainingConfigurationPanel({
 						<Play className="h-4 w-4 mr-2" />
 						{trainingStage === "training"
 							? "Training..."
-							: "Start Training"}
+							: trainingStage === "failed"
+								? "Retry Training"
+								: "Start Training"}
 					</Button>
 					<Button
 						onClick={actions.onResetTraining}

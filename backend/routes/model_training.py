@@ -3,12 +3,14 @@
 """
 
 import logging
+import json
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from services.pu_training import trainer, TrainingRequest, add_websocket_connection, remove_websocket_connection, websocket_connections
+from services.pu_training import trainer, TrainingRequest, add_websocket_connection, remove_websocket_connection
+from services import pu_training
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +140,7 @@ async def training_progress_websocket(websocket: WebSocket):
     logger.info("✅ WebSocket connection accepted")
 
     await add_websocket_connection(websocket)
-    logger.info(f"📊 Total WebSocket connections: {len(websocket_connections)}")
+    logger.info(f"📊 Total WebSocket connections: {len(pu_training.websocket_connections)}")
 
     try:
         logger.info("🌐 WebSocket connection established for training progress")
@@ -184,7 +186,7 @@ async def training_progress_websocket(websocket: WebSocket):
         logger.error(f"💥 WebSocket error: {e}")
     finally:
         await remove_websocket_connection(websocket)
-        logger.info(f"🗑️  WebSocket connection removed. Remaining connections: {len(websocket_connections)}")
+        logger.info("� WebSocket connection removed successfully")
 
 # ========== 輔助函數 ==========
 

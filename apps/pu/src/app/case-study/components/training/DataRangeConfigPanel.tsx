@@ -189,7 +189,25 @@ export function DataRangeConfigPanel({
 								{originalTimeRange.endDate.toLocaleDateString()}{" "}
 								{originalTimeRange.endTime}
 							</div>
-							{originalFloor?.selectedFloors &&
+							{originalFloor?.selectedFloorsByBuilding &&
+							Object.keys(originalFloor.selectedFloorsByBuilding)
+								.length > 0 ? (
+								<div>
+									Buildings & Floors:{" "}
+									{Object.entries(
+										originalFloor.selectedFloorsByBuilding,
+									)
+										.filter(
+											([_, floors]) => floors.length > 0,
+										)
+										.map(
+											([building, floors]) =>
+												`${building}: ${floors.map((f) => `${f}F`).join(", ")}`,
+										)
+										.join(" | ")}
+								</div>
+							) : (
+								originalFloor?.selectedFloors &&
 								originalFloor.selectedFloors.length > 0 && (
 									<div>
 										Floors:{" "}
@@ -197,7 +215,8 @@ export function DataRangeConfigPanel({
 											.map((f) => `${f}F`)
 											.join(", ")}
 									</div>
-								)}
+								)
+							)}
 						</div>
 					</div>
 				</div>

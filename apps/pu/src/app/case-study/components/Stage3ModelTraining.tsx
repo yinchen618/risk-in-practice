@@ -2,8 +2,9 @@
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar, ListChecks, Zap } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataSplitConfigPanel } from "./training/DataSplitConfigPanel";
 import { PredictionConfigurationPanel } from "./training/PredictionConfigurationPanel";
 import { SampleDistributionPanel } from "./training/SampleDistributionPanel";
@@ -43,6 +44,24 @@ export function Stage3ModelTraining({
 	const [epochs, setEpochs] = useState<number>(100);
 	const [batchSize, setBatchSize] = useState<number>(128);
 	const [seed, setSeed] = useState<number>(42);
+
+	// WebSocket logs state
+	const [wsLogs, setWsLogs] = useState<string[]>([]);
+	const wsLogsRef = useRef<HTMLTextAreaElement>(null);
+
+	// Training data tracking state
+	const [pSampleCount, setPSampleCount] = useState<number | undefined>(
+		undefined,
+	);
+	const [uSampleCount, setUSampleCount] = useState<number | undefined>(
+		undefined,
+	);
+	const [uSampleProgress, setUSampleProgress] = useState<number | undefined>(
+		undefined,
+	);
+	const [currentModelName, setCurrentModelName] = useState<
+		string | undefined
+	>(undefined);
 
 	// Prediction configuration state
 	const [selectedModelId, setSelectedModelId] = useState<string>("");
@@ -121,6 +140,13 @@ export function Stage3ModelTraining({
 		resetTrainingState,
 		pollJobUntilDone,
 	} = useTrainingJob(API_BASE);
+
+	// Auto-scroll logs to bottom
+	useEffect(() => {
+		if (wsLogsRef.current) {
+			wsLogsRef.current.scrollTop = wsLogsRef.current.scrollHeight;
+		}
+	}, [wsLogs]);
 
 	// Load original labeling time range and floor selection from experiment run
 	useEffect(() => {
@@ -257,8 +283,8 @@ export function Stage3ModelTraining({
 
 	const startTrainAndPredict = async () => {
 		setErrorMessage("");
-		resetTrainingState();
-		setTrainingStage("training");
+		resetTrainingStateWithLogs(); // 使用我們的完整重置函數
+		setTrainingStage("training"); // 在重置之後設置訓練狀態
 
 		const payload: TrainingPayload = {
 			experiment_run_id: selectedRunId,
@@ -288,23 +314,88 @@ export function Stage3ModelTraining({
 						testRatio,
 					}
 				: undefined,
+			// 新增的 U 樣本生成配置
+			u_sample_time_range: {
+				start_date: timeRange.startDate.toISOString().split("T")[0],
+				end_date: timeRange.endDate.toISOString().split("T")[0],
+				start_time: timeRange.startTime,
+				end_time: timeRange.endTime,
+			},
+			u_sample_building_floors: floor.selectedFloorsByBuilding,
+			u_sample_limit: 5000,
 		};
 
 		try {
+			// 清空之前的日誌
+			setWsLogs([
+				`[${new Date().toLocaleTimeString()}] Starting training job... 🚀`,
+			]);
+
 			// 建立 WebSocket 連接用於即時監控
 			const wsUrl = `${API_BASE.replace("http", "ws")}/api/v1/models/training-progress`;
+			console.log("Attempting to connect to WebSocket:", wsUrl);
+			setWsLogs((prev) => [
+				...prev,
+				`[${new Date().toLocaleTimeString()}] Connecting to WebSocket: ${wsUrl}`,
+			]);
+			
 			const ws = new WebSocket(wsUrl);
 
 			ws.onopen = () => {
 				console.log("WebSocket connected for training progress");
+				setWsLogs((prev) => [
+					...prev,
+					`[${new Date().toLocaleTimeString()}] ✅ Connected to training progress WebSocket 🔗`,
+				]);
 			};
 
 			ws.onmessage = (event) => {
 				try {
 					const data = JSON.parse(event.data);
-					console.log("Training progress update:", data);
+					console.log("📨 Training progress update received:", data);
 
-					if (data.job_id && data.epoch && data.loss) {
+					// Add log to textarea
+					const timestamp = new Date().toLocaleTimeString();
+					const logMessage = `[${timestamp}] ${data.message || "Training update received"}`;
+					setWsLogs((prev) => [...prev, logMessage]);
+
+					// Handle sample count updates
+					if (data.p_sample_count !== undefined) {
+						console.log(
+							"Updating P sample count:",
+							data.p_sample_count,
+						);
+						setPSampleCount(data.p_sample_count);
+					}
+					if (data.u_sample_count !== undefined) {
+						console.log(
+							"Updating U sample count:",
+							data.u_sample_count,
+						);
+						setUSampleCount(data.u_sample_count);
+					}
+					if (data.u_sample_progress !== undefined) {
+						console.log(
+							"Updating U sample progress:",
+							data.u_sample_progress,
+						);
+						setUSampleProgress(data.u_sample_progress);
+					}
+					if (data.model_name !== undefined) {
+						console.log("Updating model name:", data.model_name);
+						setCurrentModelName(data.model_name);
+					}
+
+					// Handle training progress updates from backend
+					if (data.progress !== undefined && data.progress >= 0) {
+						console.log("📊 Updating training progress:", data.progress);
+						setTrainingProgress(data.progress);
+					}
+
+					// Handle epoch and loss updates for training logs
+					if (data.epoch !== undefined && data.loss !== undefined) {
+						console.log("📈 Updating epoch and loss:", data.epoch, data.loss);
+						
 						const logEntry = {
 							epoch: data.epoch,
 							loss: data.loss,
@@ -323,31 +414,118 @@ export function Stage3ModelTraining({
 							logEntry,
 						]);
 						setCurrentEpoch(data.epoch);
-						setTrainingProgress((data.epoch / epochs) * 100);
+						
+						// Update training progress based on epoch if no explicit progress provided
+						if (data.progress === undefined) {
+							const epochProgress = (data.epoch / epochs) * 100;
+							console.log("📊 Calculated epoch progress:", epochProgress);
+							setTrainingProgress(epochProgress);
+						}
 					}
 
-					// 處理訓練完成
+					// Handle training completion or failure
+					// 只有在整個流程完成（包括 U 樣本產生和模型訓練）時才關閉 WebSocket
 					if (
 						data.progress === 100 ||
-						data.message?.includes("completed")
+						(data.message?.includes("completed") && 
+						 (data.message?.includes("Training completed") || 
+						  data.message?.includes("All processes completed")))
 					) {
 						setTrainingStage("completed");
+						setWsLogs((prev) => [
+							...prev,
+							`[${new Date().toLocaleTimeString()}] Training completed successfully! 🎉`,
+						]);
 						ws.close();
+					} else if (
+						data.progress === -1 ||
+						data.message?.includes("failed") ||
+						data.message?.includes("Training failed")
+					) {
+						setTrainingStage("failed");
+						setErrorMessage(data.message || "Training failed");
+						setWsLogs((prev) => [
+							...prev,
+							`[${new Date().toLocaleTimeString()}] Training failed: ${data.message || "Unknown error"} ❌`,
+						]);
+						ws.close();
+					}
+					// U 樣本產生完成不關閉 WebSocket，繼續等待訓練階段
+					else if (data.message?.includes("U sample generation completed")) {
+						setWsLogs((prev) => [
+							...prev,
+							`[${new Date().toLocaleTimeString()}] U sample generation completed, starting model training... ⏳`,
+						]);
 					}
 				} catch (err) {
 					console.error("Failed to parse WebSocket message:", err);
+					setWsLogs((prev) => [
+						...prev,
+						`[${new Date().toLocaleTimeString()}] Error parsing WebSocket message`,
+					]);
 				}
 			};
 
 			ws.onerror = (error) => {
 				console.error("WebSocket error:", error);
+				setWsLogs((prev) => [
+					...prev,
+					`[${new Date().toLocaleTimeString()}] ❌ WebSocket error occurred`,
+				]);
 			};
 
-			ws.onclose = () => {
-				console.log("WebSocket connection closed");
+			ws.onclose = (event) => {
+				console.log("WebSocket connection closed. Code:", event.code, "Reason:", event.reason);
+				setWsLogs((prev) => [
+					...prev,
+					`[${new Date().toLocaleTimeString()}] 🔌 WebSocket connection closed (Code: ${event.code})`,
+				]);
 			};
+
+			// 等待 WebSocket 連接建立再發送訓練請求
+			const waitForWebSocketConnection = () => {
+				return new Promise<void>((resolve, reject) => {
+					if (ws.readyState === WebSocket.OPEN) {
+						resolve();
+					} else {
+						const timeout = setTimeout(() => {
+							reject(new Error("WebSocket connection timeout"));
+						}, 5000); // 5秒超時
+
+						ws.addEventListener('open', () => {
+							clearTimeout(timeout);
+							resolve();
+						});
+
+						ws.addEventListener('error', () => {
+							clearTimeout(timeout);
+							reject(new Error("WebSocket connection failed"));
+						});
+					}
+				});
+			};
+
+			try {
+				// 等待 WebSocket 連接建立
+				await waitForWebSocketConnection();
+				setWsLogs((prev) => [
+					...prev,
+					`[${new Date().toLocaleTimeString()}] � WebSocket ready, sending training request...`,
+				]);
+			} catch (wsError) {
+				console.warn("WebSocket connection failed, proceeding with polling fallback:", wsError);
+				setWsLogs((prev) => [
+					...prev,
+					`[${new Date().toLocaleTimeString()}] ⚠️ WebSocket failed, using polling fallback`,
+				]);
+			}
 
 			// 發送訓練請求
+			setWsLogs((prev) => [
+				...prev,
+				`[${new Date().toLocaleTimeString()}] 📤 Sending training request to backend...`,
+			]);
+
 			const resp = await fetch(
 				`${API_BASE}/api/v1/models/train-and-predict-v2`,
 				{
@@ -367,6 +545,11 @@ export function Stage3ModelTraining({
 			setJobId(jid);
 			setJobStatus("RUNNING");
 
+			setWsLogs((prev) => [
+				...prev,
+				`[${new Date().toLocaleTimeString()}] Training job started with ID: ${jid}`,
+			]);
+
 			// 如果 WebSocket 失敗，使用輪詢作為後備
 			if (ws.readyState !== WebSocket.OPEN) {
 				pollJobUntilDone(jid, epochs, onTrainingCompleted);
@@ -374,7 +557,20 @@ export function Stage3ModelTraining({
 		} catch (err: any) {
 			setTrainingStage("ready");
 			setErrorMessage(err?.message || "Failed to start training job");
+			setWsLogs((prev) => [
+				...prev,
+				`[${new Date().toLocaleTimeString()}] Error: ${err?.message || "Failed to start training job"} ❌`,
+			]);
 		}
+	};
+
+	const resetTrainingStateWithLogs = () => {
+		resetTrainingState();
+		setWsLogs([]);
+		setPSampleCount(undefined);
+		setUSampleCount(undefined);
+		setUSampleProgress(undefined);
+		setCurrentModelName(undefined);
 	};
 
 	const handleViewResults = () => {
@@ -433,13 +629,37 @@ export function Stage3ModelTraining({
 	const renderVisualizationPanel = () => {
 		if (trainingStage === "training" || trainingStage === "completed") {
 			return (
-				<TrainingMonitorPanel
-					trainingStage={trainingStage}
-					trainingProgress={trainingProgress}
-					currentEpoch={currentEpoch}
-					totalEpochs={epochs}
-					trainingLogs={trainingLogs}
-				/>
+				<div className="space-y-4">
+					<TrainingMonitorPanel
+						trainingStage={trainingStage}
+						trainingProgress={trainingProgress}
+						currentEpoch={currentEpoch}
+						totalEpochs={epochs}
+						trainingLogs={trainingLogs}
+						pSampleCount={pSampleCount}
+						uSampleCount={uSampleCount}
+						uSampleProgress={uSampleProgress}
+						modelName={currentModelName}
+					/>
+
+					{/* WebSocket Logs Panel */}
+					<Card>
+						<CardHeader>
+							<CardTitle className="text-sm font-medium text-slate-700">
+								Training Logs
+							</CardTitle>
+						</CardHeader>
+						<div className="p-4 pt-0">
+							<Textarea
+								ref={wsLogsRef}
+								value={wsLogs.join("\n")}
+								readOnly
+								className="h-64 text-xs font-mono bg-slate-50 border resize-none"
+								placeholder="Training logs will appear here..."
+							/>
+						</div>
+					</Card>
+				</div>
 			);
 		}
 
@@ -585,7 +805,7 @@ export function Stage3ModelTraining({
 						actions={{
 							onApplyGoldenConfig: applyGoldenConfig,
 							onStartTraining: startTrainAndPredict,
-							onResetTraining: resetTrainingState,
+							onResetTraining: resetTrainingStateWithLogs,
 						}}
 						trainingStage={trainingStage}
 						isConfigValid={isConfigValid}
@@ -597,6 +817,7 @@ export function Stage3ModelTraining({
 					{/* Prediction Configuration */}
 					<PredictionConfigurationPanel
 						selectedRunId={selectedRunId}
+						trainingStage={trainingStage}
 						config={{
 							modelId: selectedModelId,
 							timeRange: predictionTimeRange,
@@ -628,14 +849,57 @@ export function Stage3ModelTraining({
 				</div>
 			</div>
 
-			{/* Training Completion Status */}
+			{/* Training Completion or Failure Status */}
 			{trainingStage === "completed" && (
 				<TrainingCompletionCard
 					modelId={modelId}
 					resultsMeta={resultsMeta}
 					onViewResults={handleViewResults}
-					onResetTraining={resetTrainingState}
+					onResetTraining={resetTrainingStateWithLogs}
 				/>
+			)}
+
+			{/* Training Failure Status */}
+			{trainingStage === "failed" && (
+				<div className="bg-red-50 border border-red-200 rounded-lg p-4">
+					<div className="flex items-center">
+						<div className="flex-shrink-0">
+							<svg
+								className="h-5 w-5 text-red-400"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<title>Error</title>
+								<path
+									fillRule="evenodd"
+									d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+									clipRule="evenodd"
+								/>
+							</svg>
+						</div>
+						<div className="ml-3">
+							<h3 className="text-sm font-medium text-red-800">
+								Training Failed
+							</h3>
+							<div className="mt-2 text-sm text-red-700">
+								<p>
+									{errorMessage ||
+										"An error occurred during training. Please check your data and configuration."}
+								</p>
+							</div>
+							<div className="mt-3">
+								<button
+									type="button"
+									onClick={resetTrainingStateWithLogs}
+									className="text-sm bg-red-100 text-red-800 rounded px-3 py-1 hover:bg-red-200"
+								>
+									Reset and Try Again
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
 			)}
 		</div>
 	);

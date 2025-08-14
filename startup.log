@@ -1,0 +1,420 @@
+nohup: 忽略輸入
+/home/infowin/Git-projects/pu-in-practice/main.py:20: DeprecationWarning: connections() is deprecated and will be removed; use net_connections() instead
+  for conn in proc.connections():
+🎯============================================================
+🚀 PU-in-Practice 專案啟動器
+📅 2025-08-15 00:04:28
+🎯============================================================
+
+📋 Step 1: 清理端口 8000
+🔍 檢查端口 8000 上的進程...
+✅ 端口 8000 沒有被佔用
+
+⏳ 等待端口完全釋放...
+
+📋 Step 2: 啟動後端服務
+📂 專案根目錄: /home/infowin/Git-projects/pu-in-practice
+📂 後端目錄: /home/infowin/Git-projects/pu-in-practice/backend
+📄 後端主檔案: /home/infowin/Git-projects/pu-in-practice/backend/main.py
+🚀 啟動後端服務...
+==================================================
+🆔 後端服務 PID: 3865893
+📋 服務輸出:
+--------------------------------------------------
+/home/infowin/.local/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_type" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+/home/infowin/.local/lib/python3.10/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_params" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+2025-08-15 00:04:35,194 - INFO - ✅ PU Learning 引擎載入成功
+INFO:     Started server process [3865893]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+啟動 AI 學習平台後端服務...
+主機: 0.0.0.0
+端口: 8000
+Cron 任務: 停用
+包含模組: 電表管理, AI 訓練, PU Learning, Testbed, Coding Assistant
+PostgreSQL 資料表已建立
+Cron 任務已停用
+INFO:     127.0.0.1:60782 - "GET / HTTP/1.1" 200 OK
+2025-08-15 00:04:41,770 - INFO - ============================================================
+2025-08-15 00:04:41,770 - INFO - 🚀 TRAINING API CALLED - /train-and-predict
+2025-08-15 00:04:41,770 - INFO - 📊 Experiment Run ID: bc37eb3c-aff3-4c05-a2ad-6e272887f5b4
+2025-08-15 00:04:41,770 - INFO - 🔧 Model Type: uPU
+2025-08-15 00:04:41,770 - INFO - ⚙️  Model Config: {'model_type': 'uPU', 'prior_method': 'median', 'class_prior': None, 'hidden_units': 100, 'activation': 'relu', 'lambda_reg': 0.005, 'optimizer': 'adam', 'learning_rate': 0.005, 'epochs': 10, 'batch_size': 32, 'seed': 42, 'feature_version': 'fe_v1'}
+2025-08-15 00:04:41,770 - INFO - 📅 Prediction Period: 2025-08-13 to 2025-08-14
+2025-08-15 00:04:41,770 - INFO - ============================================================
+2025-08-15 00:04:41,770 - INFO - 🎯 Starting async training job...
+2025-08-15 00:04:41,770 - INFO - 🎯==================================================
+2025-08-15 00:04:41,770 - INFO - 🚀 PU LEARNING TRAINER - START_TRAINING_JOB
+2025-08-15 00:04:41,770 - INFO - 📋 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,770 - INFO - 🔬 Experiment Run ID: bc37eb3c-aff3-4c05-a2ad-6e272887f5b4
+2025-08-15 00:04:41,770 - INFO - 🤖 Model Type: uPU
+2025-08-15 00:04:41,771 - INFO - 📊 Epochs: 10
+2025-08-15 00:04:41,771 - INFO - 🧠 Hidden Units: 100
+2025-08-15 00:04:41,771 - INFO - 🎯==================================================
+2025-08-15 00:04:41,771 - INFO - 🎬 Creating async task for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,771 - INFO - ✅ Async task created successfully for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,771 - INFO - 🎯 Training job 9055e039-2dcc-4f1b-b779-23c3d8a30209 started for experiment bc37eb3c-aff3-4c05-a2ad-6e272887f5b4
+2025-08-15 00:04:41,771 - INFO - ✅ Training job created successfully with ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,771 - INFO - 📤 Returning response: {'success': True, 'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'message': 'Training job started successfully. Use job_id 9055e039-2dcc-4f1b-b779-23c3d8a30209 to monitor progress.'}
+INFO:     127.0.0.1:60798 - "POST /api/v1/models/train-and-predict-v2 HTTP/1.1" 200 OK
+2025-08-15 00:04:41,771 - INFO - 🔥==================================================
+2025-08-15 00:04:41,771 - INFO - 🏃 STARTING TRAINING JOB EXECUTION
+2025-08-15 00:04:41,772 - INFO - 📋 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,772 - INFO - 🔬 Experiment: bc37eb3c-aff3-4c05-a2ad-6e272887f5b4
+2025-08-15 00:04:41,772 - INFO - 🔥==================================================
+2025-08-15 00:04:41,772 - INFO - 📊 Job 9055e039-2dcc-4f1b-b779-23c3d8a30209 status updated to RUNNING
+2025-08-15 00:04:41,772 - INFO - 📡========================================
+2025-08-15 00:04:41,772 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:41,772 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,772 - INFO - 📊 Progress: 0%
+2025-08-15 00:04:41,772 - INFO - 💬 Message: Initializing training...
+2025-08-15 00:04:41,772 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:41,772 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 0, 'message': 'Initializing training...', 'timestamp': '2025-08-14T16:04:41.772256'}
+2025-08-15 00:04:41,772 - INFO - 📡========================================
+2025-08-15 00:04:41,772 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:41,772 - INFO - 📂 Stage 1: Loading training data for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,772 - INFO - 📡========================================
+2025-08-15 00:04:41,772 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:41,773 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,773 - INFO - 📊 Progress: 5%
+2025-08-15 00:04:41,773 - INFO - 💬 Message: Loading training data from database...
+2025-08-15 00:04:41,773 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:41,773 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 5, 'message': 'Loading training data from database...', 'timestamp': '2025-08-14T16:04:41.772906'}
+2025-08-15 00:04:41,773 - INFO - 📡========================================
+2025-08-15 00:04:41,773 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:41,773 - INFO - 🆕 Using dynamic U sample generation from raw data
+2025-08-15 00:04:41,773 - INFO - 📡========================================
+2025-08-15 00:04:41,773 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:41,773 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:41,773 - INFO - 📊 Progress: 7%
+2025-08-15 00:04:41,773 - INFO - 💬 Message: Loading P samples from anomaly events...
+2025-08-15 00:04:41,773 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:41,773 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 7, 'message': 'Loading P samples from anomaly events...', 'timestamp': '2025-08-14T16:04:41.773522'}
+2025-08-15 00:04:41,773 - INFO - 📡========================================
+2025-08-15 00:04:41,774 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:41,774 - INFO - 📊 Loading P samples for experiment bc37eb3c-aff3-4c05-a2ad-6e272887f5b4
+INFO:     127.0.0.1:60802 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+2025-08-15 00:04:42,516 - INFO - 📊 Loaded 141 P samples from anomaly_event table
+2025-08-15 00:04:42,517 - INFO - 📡========================================
+2025-08-15 00:04:42,517 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:42,517 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:42,517 - INFO - 📊 Progress: 8%
+2025-08-15 00:04:42,518 - INFO - 💬 Message: Loaded 141 positive samples from experiment data
+2025-08-15 00:04:42,518 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:42,518 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8, 'message': 'Loaded 141 positive samples from experiment data', 'timestamp': '2025-08-14T16:04:42.517238'}
+2025-08-15 00:04:42,518 - INFO - 📡========================================
+2025-08-15 00:04:42,518 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:42,519 - INFO - 📡========================================
+2025-08-15 00:04:42,519 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:42,519 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:42,519 - INFO - 📊 Progress: 8.5%
+2025-08-15 00:04:42,519 - INFO - 💬 Message: Starting dynamic U sample generation from raw meter data...
+2025-08-15 00:04:42,519 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:42,520 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.5, 'message': 'Starting dynamic U sample generation from raw meter data...', 'timestamp': '2025-08-14T16:04:42.518998'}
+2025-08-15 00:04:42,520 - INFO - 📡========================================
+2025-08-15 00:04:42,520 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:42,520 - INFO - 🎯==================================================
+2025-08-15 00:04:42,520 - INFO - 🔄 GENERATING U SAMPLES FROM RAW DATA
+2025-08-15 00:04:42,520 - INFO - 📅 Time Range: {'start_date': '2025-08-13', 'end_date': '2025-08-14', 'start_time': '00:00', 'end_time': '23:59'}
+2025-08-15 00:04:42,521 - INFO - 🏢 Building Floors: {'Building A': ['2']}
+2025-08-15 00:04:42,521 - INFO - 📊 Target Samples: 100
+2025-08-15 00:04:42,521 - INFO - 🎯==================================================
+2025-08-15 00:04:42,521 - INFO - 📡========================================
+2025-08-15 00:04:42,521 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:42,522 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:42,522 - INFO - 📊 Progress: 8.6%
+2025-08-15 00:04:42,522 - INFO - 💬 Message: Parsing time range configuration...
+2025-08-15 00:04:42,522 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:42,522 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.6, 'message': 'Parsing time range configuration...', 'timestamp': '2025-08-14T16:04:42.521587'}
+2025-08-15 00:04:42,523 - INFO - 📡========================================
+2025-08-15 00:04:42,523 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:42,525 - INFO - 📡========================================
+2025-08-15 00:04:42,526 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:42,526 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:42,526 - INFO - 📊 Progress: 8.7%
+2025-08-15 00:04:42,526 - INFO - 💬 Message: Loading raw meter data from 2025-08-13 to 2025-08-14...
+2025-08-15 00:04:42,526 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:42,527 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.7, 'message': 'Loading raw meter data from 2025-08-13 to 2025-08-14...', 'timestamp': '2025-08-14T16:04:42.525544'}
+2025-08-15 00:04:42,527 - INFO - 📡========================================
+2025-08-15 00:04:42,527 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:42,528 - INFO - [DATA_LOADER] load_meter_data_by_time_range 被調用
+2025-08-15 00:04:42,528 - INFO -   - start_time: 2025-08-13T00:00:00
+2025-08-15 00:04:42,528 - INFO -   - end_time: 2025-08-14T23:59:00
+2025-08-15 00:04:42,528 - INFO -   - meter_id: None
+2025-08-15 00:04:42,528 - INFO -   - selected_floors_by_building: {'Building A': ['2']}
+2025-08-15 00:04:42,529 - INFO - [DATA_LOADER] 解析後的時間範圍: 2025-08-13 00:00:00 到 2025-08-14 23:59:00
+2025-08-15 00:04:42,529 - INFO - [DATA_LOADER] 使用按建築分組的樓層過濾: {'Building A': ['2']}
+2025-08-15 00:04:42,529 - INFO - [DATA_LOADER] 過濾後匹配的設備數量: 24
+INFO:     127.0.0.1:60808 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60810 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60824 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:48568 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+2025-08-15 00:04:50,815 - INFO - [DATA_LOADER] 從資料庫查詢到 7289 筆記錄
+2025-08-15 00:04:50,872 - INFO - [DATA_LOADER] 載入完成，共 7289 筆數據
+2025-08-15 00:04:50,873 - INFO - [DATA_LOADER] 設備數量: 14
+2025-08-15 00:04:50,873 - INFO - [DATA_LOADER] 時間範圍: 2025-08-13 00:00:23.195403 到 2025-08-13 16:46:28.115102
+2025-08-15 00:04:50,873 - INFO - [DATA_LOADER] 欄位: ['deviceNumber', 'timestamp', 'power', 'kWh', 'voltage', 'current', 'currents', 'battery', 'switchState', 'networkState']
+2025-08-15 00:04:50,943 - INFO - 📊 Loaded raw data: 7289 records from 14 devices
+2025-08-15 00:04:50,944 - INFO - 📡========================================
+2025-08-15 00:04:50,945 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:50,945 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:50,945 - INFO - 📊 Progress: 8.8%
+2025-08-15 00:04:50,945 - INFO - 💬 Message: Loaded 7289 raw data records from 14 devices
+2025-08-15 00:04:50,945 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:50,945 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.8, 'message': 'Loaded 7289 raw data records from 14 devices', 'timestamp': '2025-08-14T16:04:50.944794'}
+2025-08-15 00:04:50,945 - INFO - 📡========================================
+2025-08-15 00:04:50,945 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:50,946 - INFO - 📡========================================
+2025-08-15 00:04:50,946 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:50,946 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:50,946 - INFO - 📊 Progress: 8.85%
+2025-08-15 00:04:50,946 - INFO - 💬 Message: Identifying P sample positions to exclude...
+2025-08-15 00:04:50,946 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:50,946 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.85, 'message': 'Identifying P sample positions to exclude...', 'timestamp': '2025-08-14T16:04:50.946088'}
+2025-08-15 00:04:50,946 - INFO - 📡========================================
+2025-08-15 00:04:50,946 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:51,254 - INFO - 📍 Excluding 141 P sample positions
+2025-08-15 00:04:51,254 - INFO - 📡========================================
+2025-08-15 00:04:51,255 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:51,255 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:51,255 - INFO - 📊 Progress: 8.9%
+2025-08-15 00:04:51,256 - INFO - 💬 Message: Selecting 100 anchor points for U sample generation...
+2025-08-15 00:04:51,256 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:51,256 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.9, 'message': 'Selecting 100 anchor points for U sample generation...', 'timestamp': '2025-08-14T16:04:51.254726'}
+2025-08-15 00:04:51,256 - INFO - 📡========================================
+2025-08-15 00:04:51,257 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:51,776 - INFO - 📊 Valid anchor candidates: 7267 (after excluding P samples)
+2025-08-15 00:04:51,776 - INFO - 🎯 Selected 100 anchor points
+2025-08-15 00:04:51,778 - INFO - 🎯 Selected 100 anchor points
+2025-08-15 00:04:51,778 - INFO - 📡========================================
+2025-08-15 00:04:51,778 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:51,778 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:51,778 - INFO - 📊 Progress: 8.95%
+2025-08-15 00:04:51,778 - INFO - 💬 Message: Selected 100 anchor points, generating data windows...
+2025-08-15 00:04:51,778 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:51,778 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.95, 'message': 'Selected 100 anchor points, generating data windows...', 'timestamp': '2025-08-14T16:04:51.778211'}
+2025-08-15 00:04:51,778 - INFO - 📡========================================
+2025-08-15 00:04:51,778 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:51,955 - INFO - 📡========================================
+2025-08-15 00:04:51,955 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:51,955 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:51,955 - INFO - 📊 Progress: 8.975%
+2025-08-15 00:04:51,955 - INFO - 💬 Message: Generated 50/100 U samples with data windows
+2025-08-15 00:04:51,955 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:51,955 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 8.975, 'message': 'Generated 50/100 U samples with data windows', 'timestamp': '2025-08-14T16:04:51.955201'}
+2025-08-15 00:04:51,955 - INFO - 📡========================================
+2025-08-15 00:04:51,955 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:51,955 - INFO - ✅ Generated 50/100 U samples
+2025-08-15 00:04:52,212 - INFO - 📡========================================
+2025-08-15 00:04:52,212 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,212 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,212 - INFO - 📊 Progress: 9.0%
+2025-08-15 00:04:52,212 - INFO - 💬 Message: Generated 100/100 U samples with data windows
+2025-08-15 00:04:52,213 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,213 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 9.0, 'message': 'Generated 100/100 U samples with data windows', 'timestamp': '2025-08-14T16:04:52.212645'}
+2025-08-15 00:04:52,213 - INFO - 📡========================================
+2025-08-15 00:04:52,213 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,213 - INFO - ✅ Generated 100/100 U samples
+2025-08-15 00:04:52,213 - INFO - ✅==================================================
+2025-08-15 00:04:52,213 - INFO - 🎊 U SAMPLE GENERATION COMPLETED
+2025-08-15 00:04:52,213 - INFO - 📊 Generated 100 U samples from 100 anchor points
+2025-08-15 00:04:52,213 - INFO - ✅==================================================
+2025-08-15 00:04:52,213 - INFO - 📡========================================
+2025-08-15 00:04:52,213 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,213 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,213 - INFO - 📊 Progress: 9%
+2025-08-15 00:04:52,213 - INFO - 💬 Message: U sample generation completed: 100 samples ready
+2025-08-15 00:04:52,213 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,213 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 9, 'message': 'U sample generation completed: 100 samples ready', 'timestamp': '2025-08-14T16:04:52.213478'}
+2025-08-15 00:04:52,213 - INFO - 📡========================================
+2025-08-15 00:04:52,213 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,214 - INFO - 📊 Generated 100 U samples from raw data
+2025-08-15 00:04:52,214 - INFO - 🎯 Total training data: 141 P + 100 U = 241 samples
+2025-08-15 00:04:52,214 - INFO - 📊 Loaded 141 positive samples, 100 unlabeled samples
+2025-08-15 00:04:52,214 - INFO - 📡========================================
+2025-08-15 00:04:52,214 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,214 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,214 - INFO - 📊 Progress: 9%
+2025-08-15 00:04:52,214 - INFO - 💬 Message: Data loaded: 141 P samples, 100 U samples
+2025-08-15 00:04:52,214 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,215 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 9, 'message': 'Data loaded: 141 P samples, 100 U samples', 'timestamp': '2025-08-14T16:04:52.214712'}
+2025-08-15 00:04:52,215 - INFO - 📡========================================
+2025-08-15 00:04:52,215 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,215 - INFO - 🔧 Stage 2: Feature engineering for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,215 - INFO - 📡========================================
+2025-08-15 00:04:52,215 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,215 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,215 - INFO - 📊 Progress: 10%
+2025-08-15 00:04:52,215 - INFO - 💬 Message: Starting feature extraction...
+2025-08-15 00:04:52,215 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,215 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 10, 'message': 'Starting feature extraction...', 'timestamp': '2025-08-14T16:04:52.215252'}
+2025-08-15 00:04:52,215 - INFO - 📡========================================
+2025-08-15 00:04:52,215 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,536 - INFO - Generated feature matrix: (241, 17)
+2025-08-15 00:04:52,536 - WARNING - Scaler not fitted. Fitting with provided data.
+2025-08-15 00:04:52,536 - INFO - Feature scaler fitted successfully
+2025-08-15 00:04:52,537 - WARNING - ⚠️ Found NaN values in feature matrix, filling with 0
+2025-08-15 00:04:52,537 - INFO - ✅ NaN values handled. Feature matrix shape: (241, 17)
+2025-08-15 00:04:52,537 - INFO - 📊 Data distribution:
+2025-08-15 00:04:52,537 - INFO -    P samples: 141
+2025-08-15 00:04:52,537 - INFO -    U samples: 100
+2025-08-15 00:04:52,537 - INFO -    Total samples: 241
+2025-08-15 00:04:52,537 - INFO -    Class 1 (P): 141
+2025-08-15 00:04:52,537 - INFO -    Class 0 (U): 100
+2025-08-15 00:04:52,538 - INFO - Data split - Train: (144, 17), Val: (48, 17), Test: (49, 17)
+2025-08-15 00:04:52,538 - INFO - P samples - Train: 84, Val: 28, Test: 29
+2025-08-15 00:04:52,538 - INFO - 📊 Training set shape: (144, 17)
+2025-08-15 00:04:52,538 - INFO - 📡========================================
+2025-08-15 00:04:52,538 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,538 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,538 - INFO - 📊 Progress: 12%
+2025-08-15 00:04:52,538 - INFO - 💬 Message: Features extracted: (144, 17) training samples
+2025-08-15 00:04:52,538 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,538 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 12, 'message': 'Features extracted: (144, 17) training samples', 'timestamp': '2025-08-14T16:04:52.538289'}
+2025-08-15 00:04:52,538 - INFO - 📡========================================
+2025-08-15 00:04:52,538 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,538 - INFO - 🎯 Stage 3: Estimating class prior for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,538 - INFO - 📡========================================
+2025-08-15 00:04:52,538 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,538 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,538 - INFO - 📊 Progress: 15%
+2025-08-15 00:04:52,538 - INFO - 💬 Message: Estimating class prior probability...
+2025-08-15 00:04:52,538 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,538 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 15, 'message': 'Estimating class prior probability...', 'timestamp': '2025-08-14T16:04:52.538621'}
+2025-08-15 00:04:52,538 - INFO - 📡========================================
+2025-08-15 00:04:52,538 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,538 - INFO - 📈 Estimated class prior: 0.1
+2025-08-15 00:04:52,538 - INFO - 📡========================================
+2025-08-15 00:04:52,538 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,539 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,539 - INFO - 📊 Progress: 17%
+2025-08-15 00:04:52,539 - INFO - 💬 Message: Class prior estimated: 0.1000
+2025-08-15 00:04:52,539 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,539 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 17, 'message': 'Class prior estimated: 0.1000', 'timestamp': '2025-08-14T16:04:52.538960'}
+2025-08-15 00:04:52,539 - INFO - 📡========================================
+2025-08-15 00:04:52,539 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,539 - INFO - 🤖 Stage 4: Model training (uPU) for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,539 - INFO - 📡========================================
+2025-08-15 00:04:52,539 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:52,539 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,539 - INFO - 📊 Progress: 20%
+2025-08-15 00:04:52,539 - INFO - 💬 Message: Initializing uPU model training...
+2025-08-15 00:04:52,539 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:52,539 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 20, 'message': 'Initializing uPU model training...', 'timestamp': '2025-08-14T16:04:52.539336'}
+2025-08-15 00:04:52,539 - INFO - 📡========================================
+2025-08-15 00:04:52,539 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:52,539 - INFO - 🔵 Training uPU model for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:52,539 - INFO - Training uPU model...
+INFO:     127.0.0.1:48582 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+2025-08-15 00:04:53,041 - INFO - 📡========================================
+2025-08-15 00:04:53,041 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:53,041 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,041 - INFO - 📊 Progress: 74.0%
+2025-08-15 00:04:53,042 - INFO - 💬 Message: uPU training progress: epoch 10/10, loss: 0.0514
+2025-08-15 00:04:53,042 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:53,042 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 74.0, 'message': 'uPU training progress: epoch 10/10, loss: 0.0514', 'timestamp': '2025-08-14T16:04:53.040981', 'epoch': 10, 'loss': 0.051422693229685415, 'model_type': 'uPU'}
+2025-08-15 00:04:53,042 - INFO - 📡========================================
+2025-08-15 00:04:53,043 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:53,072 - INFO - uPU model trained. Metrics: {'accuracy': 0.8958333333333334, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356}
+2025-08-15 00:04:53,072 - INFO - 🎯 Model training completed for job 9055e039-2dcc-4f1b-b779-23c3d8a30209. Final metrics: {'accuracy': 0.8958333333333334, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356}
+2025-08-15 00:04:53,073 - INFO - 📡========================================
+2025-08-15 00:04:53,073 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:53,073 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,073 - INFO - 📊 Progress: 80%
+2025-08-15 00:04:53,073 - INFO - 💬 Message: uPU model training completed successfully
+2025-08-15 00:04:53,073 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:53,073 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 80, 'message': 'uPU model training completed successfully', 'timestamp': '2025-08-14T16:04:53.073038'}
+2025-08-15 00:04:53,074 - INFO - 📡========================================
+2025-08-15 00:04:53,074 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:53,074 - INFO - 🧪 Stage 5: Test set evaluation for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,074 - INFO - 📡========================================
+2025-08-15 00:04:53,074 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:53,074 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,074 - INFO - 📊 Progress: 85%
+2025-08-15 00:04:53,074 - INFO - 💬 Message: Evaluating model performance on 49 test samples...
+2025-08-15 00:04:53,074 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:53,075 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 85, 'message': 'Evaluating model performance on 49 test samples...', 'timestamp': '2025-08-14T16:04:53.074425'}
+2025-08-15 00:04:53,075 - INFO - 📡========================================
+2025-08-15 00:04:53,075 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:53,084 - INFO - Test set evaluation: {'test_accuracy': 0.9387755102040817, 'test_precision': 0.90625, 'test_recall': 1.0, 'test_f1': 0.9508196721311475}
+2025-08-15 00:04:53,084 - INFO - 📊 Test metrics: {'test_accuracy': 0.9387755102040817, 'test_precision': 0.90625, 'test_recall': 1.0, 'test_f1': 0.9508196721311475}
+2025-08-15 00:04:53,084 - INFO - 📡========================================
+2025-08-15 00:04:53,084 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:53,084 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,084 - INFO - 📊 Progress: 88%
+2025-08-15 00:04:53,084 - INFO - 💬 Message: Test evaluation completed. Accuracy: 0.939
+2025-08-15 00:04:53,084 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:53,084 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 88, 'message': 'Test evaluation completed. Accuracy: 0.939', 'timestamp': '2025-08-14T16:04:53.084323'}
+2025-08-15 00:04:53,084 - INFO - 📡========================================
+2025-08-15 00:04:53,085 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:53,085 - INFO - 💾 Stage 6: Saving model for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,085 - INFO - 📡========================================
+2025-08-15 00:04:53,085 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:53,085 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:53,085 - INFO - 📊 Progress: 90%
+2025-08-15 00:04:53,085 - INFO - 💬 Message: Saving trained model to storage...
+2025-08-15 00:04:53,085 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:53,085 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 90, 'message': 'Saving trained model to storage...', 'timestamp': '2025-08-14T16:04:53.085219'}
+2025-08-15 00:04:53,085 - INFO - 📡========================================
+2025-08-15 00:04:53,085 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:53,087 - INFO - Model saved to /tmp/pu_models/model_9055e039-2dcc-4f1b-b779-23c3d8a30209_20250814_160453.pkl
+2025-08-15 00:04:54,441 - INFO - Model metadata saved to database for job 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:54,441 - INFO - 💾 Model saved to: /tmp/pu_models/model_9055e039-2dcc-4f1b-b779-23c3d8a30209_20250814_160453.pkl
+2025-08-15 00:04:54,441 - INFO - 📡========================================
+2025-08-15 00:04:54,441 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:54,441 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:54,441 - INFO - 📊 Progress: 95%
+2025-08-15 00:04:54,441 - INFO - 💬 Message: Model saved successfully, finalizing training job...
+2025-08-15 00:04:54,442 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:54,442 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 95, 'message': 'Model saved successfully, finalizing training job...', 'timestamp': '2025-08-14T16:04:54.441411'}
+2025-08-15 00:04:54,442 - INFO - 📡========================================
+2025-08-15 00:04:54,442 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:54,442 - INFO - 🎉 Stage 7: Job completion for 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:54,442 - INFO - 📡========================================
+2025-08-15 00:04:54,442 - INFO - 📡 BROADCASTING PROGRESS
+2025-08-15 00:04:54,442 - INFO - 🆔 Job ID: 9055e039-2dcc-4f1b-b779-23c3d8a30209
+2025-08-15 00:04:54,442 - INFO - 📊 Progress: 100%
+2025-08-15 00:04:54,443 - INFO - 💬 Message: PU Learning model training completed successfully! Ready for prediction.
+2025-08-15 00:04:54,443 - INFO - 🔌 WebSocket Connections: 0
+2025-08-15 00:04:54,443 - INFO - 📋 Progress Data: {'job_id': '9055e039-2dcc-4f1b-b779-23c3d8a30209', 'progress': 100, 'message': 'PU Learning model training completed successfully! Ready for prediction.', 'timestamp': '2025-08-14T16:04:54.442523', 'accuracy': 0.8958333333333334, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'test_metrics': {'test_accuracy': 0.9387755102040817, 'test_precision': 0.90625, 'test_recall': 1.0, 'test_f1': 0.9508196721311475}, 'test_sample_count': 49}
+2025-08-15 00:04:54,443 - INFO - 📡========================================
+2025-08-15 00:04:54,443 - INFO - 📊 Broadcast Results: 0 successful, 0 failed
+2025-08-15 00:04:54,443 - INFO - ✅==================================================
+2025-08-15 00:04:54,443 - INFO - 🎊 TRAINING JOB 9055e039-2dcc-4f1b-b779-23c3d8a30209 COMPLETED SUCCESSFULLY
+2025-08-15 00:04:54,443 - INFO - ✅==================================================
+INFO:     127.0.0.1:48588 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:48596 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:48602 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44892 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44898 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44904 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44906 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44918 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34298 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34310 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34316 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34318 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34334 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38538 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38546 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38558 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38574 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38586 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36382 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36396 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36410 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36422 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:36434 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53472 - "GET /api/v1/models/jobs/9055e039-2dcc-4f1b-b779-23c3d8a30209 HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3865893]
+❌ 後端服務異常結束，退出碼: -15
