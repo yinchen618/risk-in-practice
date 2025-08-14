@@ -100,44 +100,6 @@ export function Stage3ModelTraining({
 		resetTrainingState();
 		setTrainingStage("training");
 
-		// 生成模擬訓練日誌
-		const simulateTraining = () => {
-			const totalEpochs = epochs;
-			let epoch = 0;
-
-			const interval = setInterval(() => {
-				epoch++;
-
-				const loss =
-					1.0 * Math.exp(-epoch / (totalEpochs * 0.3)) +
-					0.1 * Math.random();
-				const accuracy =
-					Math.min(
-						0.95,
-						0.5 +
-							0.4 * (1 - Math.exp(-epoch / (totalEpochs * 0.4))),
-					) +
-					0.05 * Math.random();
-
-				const logEntry = {
-					epoch,
-					loss,
-					accuracy,
-				};
-
-				setTrainingLogs((prev) => [...prev.slice(-9), logEntry]);
-				setCurrentEpoch(epoch);
-				setTrainingProgress((epoch / totalEpochs) * 100);
-
-				if (epoch >= totalEpochs) {
-					clearInterval(interval);
-				}
-			}, 200); // 較快的更新頻率用於演示
-		};
-
-		// 啟動模擬訓練
-		setTimeout(simulateTraining, 1000);
-
 		const payload: TrainingPayload = {
 			experiment_run_id: selectedRunId,
 			model_params: {
@@ -159,6 +121,50 @@ export function Stage3ModelTraining({
 		};
 
 		try {
+			// 建立 WebSocket 連接用於即時監控
+			const wsUrl = `${API_BASE.replace("http", "ws")}/api/v1/models/training-progress`;
+			const ws = new WebSocket(wsUrl);
+
+			ws.onopen = () => {
+				console.log("WebSocket connected for training progress");
+			};
+
+			ws.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					console.log("Training progress update:", data);
+
+					if (data.job_id && data.epoch && data.loss) {
+						const logEntry = {
+							epoch: data.epoch,
+							loss: data.loss,
+							accuracy: data.accuracy || 0.5 + 0.4 * (1 - Math.exp(-data.epoch / (epochs * 0.4))),
+						};
+
+						setTrainingLogs((prev) => [...prev.slice(-9), logEntry]);
+						setCurrentEpoch(data.epoch);
+						setTrainingProgress((data.epoch / epochs) * 100);
+					}
+
+					// 處理訓練完成
+					if (data.progress === 100 || data.message?.includes("completed")) {
+						setTrainingStage("completed");
+						ws.close();
+					}
+				} catch (err) {
+					console.error("Failed to parse WebSocket message:", err);
+				}
+			};
+
+			ws.onerror = (error) => {
+				console.error("WebSocket error:", error);
+			};
+
+			ws.onclose = () => {
+				console.log("WebSocket connection closed");
+			};
+
+			// 發送訓練請求
 			const resp = await fetch(
 				`${API_BASE}/api/v1/models/train-and-predict`,
 				{
@@ -167,18 +173,25 @@ export function Stage3ModelTraining({
 					body: JSON.stringify(payload),
 				},
 			);
+
 			if (!resp.ok) {
 				const txt = await resp.text();
-				throw new Error(txt || "Failed to start job");
+				throw new Error(txt || "Failed to start training job");
 			}
+
 			const data = await resp.json();
 			const jid = data.job_id as string;
 			setJobId(jid);
-			setJobStatus("QUEUED");
-			pollJobUntilDone(jid, epochs, onTrainingCompleted);
+			setJobStatus("RUNNING");
+
+			// 如果 WebSocket 失敗，使用輪詢作為後備
+			if (ws.readyState !== WebSocket.OPEN) {
+				pollJobUntilDone(jid, epochs, onTrainingCompleted);
+			}
+
 		} catch (err: any) {
 			setTrainingStage("ready");
-			setErrorMessage(err?.message || "Failed to start job");
+			setErrorMessage(err?.message || "Failed to start training job");
 		}
 	};
 

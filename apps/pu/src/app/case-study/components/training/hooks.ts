@@ -60,7 +60,7 @@ export function useTrainingData(
 		setIsLoadingVisualization(true);
 		try {
 			const response = await fetch(
-				`${apiBase}/api/v1/experiment-runs/${selectedRunId}/sample-distribution`,
+				`${apiBase}/api/v1/experiment-runs/${selectedRunId}/training-data-preview`,
 				{ cache: "no-store" },
 			);
 			if (response.ok) {
@@ -72,12 +72,18 @@ export function useTrainingData(
 					x: 0.3 + Math.random() * 0.4,
 					y: 0.3 + Math.random() * 0.4,
 					id: `P_${i + 1}`,
+					category: "P",
+					meterId: `meter_${Math.floor(Math.random() * 9999)}`,
+					score: 0.7 + Math.random() * 0.3,
 				}));
 
 				const uSamples = Array.from({ length: 200 }, (_, i) => ({
 					x: Math.random(),
 					y: Math.random(),
 					id: `U_${i + 1}`,
+					category: "U",
+					meterId: `meter_${Math.floor(Math.random() * 9999)}`,
+					score: Math.random(),
 				}));
 
 				setSampleDistribution({ pSamples, uSamples });
@@ -89,12 +95,18 @@ export function useTrainingData(
 				x: 0.3 + Math.random() * 0.4,
 				y: 0.3 + Math.random() * 0.4,
 				id: `P_${i + 1}`,
+				category: "P",
+				meterId: `meter_${Math.floor(Math.random() * 9999)}`,
+				score: 0.7 + Math.random() * 0.3,
 			}));
 
 			const uSamples = Array.from({ length: 200 }, (_, i) => ({
 				x: Math.random(),
 				y: Math.random(),
 				id: `U_${i + 1}`,
+				category: "U",
+				meterId: `meter_${Math.floor(Math.random() * 9999)}`,
+				score: Math.random(),
 			}));
 
 			setSampleDistribution({ pSamples, uSamples });

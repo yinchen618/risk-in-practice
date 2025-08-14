@@ -9,6 +9,9 @@ interface SamplePoint {
 	x: number;
 	y: number;
 	id: string;
+	category?: "P" | "U";
+	meterId?: string;
+	score?: number;
 }
 
 interface SampleDistribution {

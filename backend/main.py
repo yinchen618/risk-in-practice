@@ -9,6 +9,7 @@ from routes.casestudy import router as casestudy_router
 from routes.candidates import router as candidates_router
 from routes.experiment_runs import router as experiment_runs_router
 from routes.models import router as models_router
+from routes.model_training import router as model_training_router
 from ai_api import router as ai_router
 import asyncio
 import argparse
@@ -45,6 +46,8 @@ app.include_router(candidates_router)
 app.include_router(experiment_runs_router)
 # 包含新的模型訓練 API
 app.include_router(models_router)
+# 包含 PU Learning 模型訓練 API
+app.include_router(model_training_router)
 
 # 導入並包含完整的 coding 應用程式
 import sys

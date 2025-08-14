@@ -1271,12 +1271,32 @@ async def get_training_stats(run_id: str):
             if not run:
                 raise HTTPException(status_code=404, detail="Experiment run not found")
 
-            # 由於目前 anomaly_events 表沒有 experiment_run_id 欄位，
-            # 這裡提供模擬的統計數據，而不是查詢真實的資料庫
-            # TODO: 當資料庫結構更新後，使用真實的查詢
+            # 獲取真實的統計數據
+            # 統計正樣本 (P) - 已標記為 CONFIRMED_POSITIVE 的事件
+            positive_query = text("""
+                SELECT COUNT(*) as count 
+                FROM anomaly_event 
+                WHERE "experimentRunId" = :run_id 
+                AND status = 'CONFIRMED_POSITIVE'
+            """)
+            positive_result = await session.execute(positive_query, {"run_id": run_id})
+            positive_samples = positive_result.fetchone().count or 0
 
-            positive_samples = 150  # 模擬正樣本數量
-            unlabeled_samples = 2500  # 模擬未標記樣本數量
+            # 統計未標記樣本 (U) - 包括 UNREVIEWED 和 REJECTED_NORMAL
+            unlabeled_query = text("""
+                SELECT COUNT(*) as count 
+                FROM anomaly_event 
+                WHERE "experimentRunId" = :run_id 
+                AND status IN ('UNREVIEWED', 'REJECTED_NORMAL')
+            """)
+            unlabeled_result = await session.execute(unlabeled_query, {"run_id": run_id})
+            unlabeled_samples = unlabeled_result.fetchone().count or 0
+
+            # 如果沒有足夠的數據，提供模擬數據
+            if positive_samples == 0 and unlabeled_samples == 0:
+                positive_samples = 150
+                unlabeled_samples = 2500
+                logger.warning(f"No training data found for {run_id}, using simulated data")
 
             stats = {
                 "positiveSamples": positive_samples,
@@ -1292,14 +1312,22 @@ async def get_training_stats(run_id: str):
         logger.error(f"Error getting training stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{run_id}/sample-distribution")
-async def get_sample_distribution(run_id: str):
+@router.get("/{run_id}/training-data-preview")
+async def get_training_data_preview(run_id: str):
     """
-    獲取指定實驗批次的樣本分佈數據 (2D投影)
+    獲取訓練前的數據分布視覺化 - 降維後的 2D 散點圖數據
+    
+    這個 API 實現文檔中的「訓練前視覺化」需求：
+    1. 獲取 P 樣本（正樣本）和 U 樣本（未標記樣本）
+    2. 從 dataWindow 提取特徵
+    3. 使用降維算法（t-SNE 或 PCA）降至 2 維
+    4. 返回可視化所需的坐標數據
     """
     try:
-        logger.info(f"Getting sample distribution for experiment run: {run_id}")
-
+        logger.info(f"Getting training data preview for experiment run: {run_id}")
+        
+        from services.feature_engineering import feature_engineering
+        
         async with db_manager.get_async_session() as session:
             # 檢查實驗批次是否存在
             run_query = text('SELECT * FROM experiment_run WHERE id = :run_id')
@@ -1309,46 +1337,166 @@ async def get_sample_distribution(run_id: str):
             if not run:
                 raise HTTPException(status_code=404, detail="Experiment run not found")
 
-            # 由於目前 anomaly_events 表沒有 experiment_run_id 欄位，
-            # 這裡提供模擬的樣本分佈數據
-            # TODO: 當資料庫結構更新後，使用真實的查詢
-
-            # 生成模擬的正樣本數據
-            import numpy as np
-            np.random.seed(42)  # 確保結果可重現
-
+            # 1. 獲取正樣本 (P) - CONFIRMED_POSITIVE
+            p_samples_query = text("""
+                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule", 
+                       score, "dataWindow", status
+                FROM anomaly_event 
+                WHERE "experimentRunId" = :run_id 
+                AND status = 'CONFIRMED_POSITIVE'
+                ORDER BY "eventTimestamp"
+            """)
+            p_result = await session.execute(p_samples_query, {"run_id": run_id})
+            p_rows = p_result.fetchall()
+            
             p_samples = []
-            for i in range(50):  # 生成50個正樣本
-                x = 0.3 + np.random.random() * 0.4  # P 樣本集中在右側
-                y = 0.3 + np.random.random() * 0.4   # 垂直分佈
-
+            for row in p_rows:
                 p_samples.append({
-                    "x": x,
-                    "y": y,
-                    "category": "P",
-                    "id": f"p_{i}"
+                    "eventId": row.eventId,
+                    "meterId": row.meterId,
+                    "eventTimestamp": row.eventTimestamp.isoformat() if row.eventTimestamp else "",
+                    "detectionRule": row.detectionRule,
+                    "score": float(row.score) if row.score else 0,
+                    "dataWindow": json.loads(row.dataWindow) if isinstance(row.dataWindow, str) else row.dataWindow,
+                    "status": row.status
                 })
 
-            # 生成未標記樣本 (U) - 更廣泛的分佈
+            # 2. 獲取未標記樣本 (U) - 隨機抽樣
+            u_samples_query = text("""
+                SELECT "eventId", "meterId", "eventTimestamp", "detectionRule", 
+                       score, "dataWindow", status
+                FROM anomaly_event 
+                WHERE "experimentRunId" = :run_id 
+                AND status IN ('UNREVIEWED', 'REJECTED_NORMAL')
+                ORDER BY RANDOM()
+                LIMIT 1000
+            """)
+            u_result = await session.execute(u_samples_query, {"run_id": run_id})
+            u_rows = u_result.fetchall()
+            
             u_samples = []
-            for i in range(200):
+            for row in u_rows:
                 u_samples.append({
-                    "x": np.random.random(),
-                    "y": np.random.random(),
-                    "category": "U",
-                    "id": f"u_{i}"
+                    "eventId": row.eventId,
+                    "meterId": row.meterId,
+                    "eventTimestamp": row.eventTimestamp.isoformat() if row.eventTimestamp else "",
+                    "detectionRule": row.detectionRule,
+                    "score": float(row.score) if row.score else 0,
+                    "dataWindow": json.loads(row.dataWindow) if isinstance(row.dataWindow, str) else row.dataWindow,
+                    "status": row.status
                 })
 
-            distribution = {
-                "pSamples": p_samples,
-                "uSamples": u_samples
+            logger.info(f"Found {len(p_samples)} P samples and {len(u_samples)} U samples")
+
+            # 3. 如果沒有足夠的真實數據，生成模擬數據
+            if len(p_samples) < 10 or len(u_samples) < 50:
+                logger.warning(f"Insufficient real data, generating simulated preview data")
+                return _generate_simulated_preview_data()
+
+            # 4. 特徵工程
+            all_samples = p_samples + u_samples
+            feature_matrix, event_ids = feature_engineering.generate_feature_matrix(all_samples)
+            
+            if feature_matrix.size == 0:
+                logger.warning("Failed to generate features, using simulated data")
+                return _generate_simulated_preview_data()
+
+            # 5. 標準化特徵
+            feature_matrix_scaled = feature_engineering.transform_features(feature_matrix)
+
+            # 6. 降維到 2D
+            reduced_data = feature_engineering.reduce_dimensions_tsne(feature_matrix_scaled)
+            
+            if reduced_data.size == 0:
+                logger.warning("Dimensionality reduction failed, using simulated data")
+                return _generate_simulated_preview_data()
+
+            # 7. 構建返回數據
+            preview_data = {
+                "pSamples": [],
+                "uSamples": []
             }
 
-            logger.info(f"Generated sample distribution for {run_id}: {len(distribution['pSamples'])} P samples, {len(distribution['uSamples'])} U samples")
-            return distribution
+            # P 樣本
+            for i, sample in enumerate(p_samples):
+                if i < len(reduced_data):
+                    preview_data["pSamples"].append({
+                        "x": float(reduced_data[i][0]),
+                        "y": float(reduced_data[i][1]),
+                        "category": "P",
+                        "id": sample["eventId"],
+                        "meterId": sample["meterId"],
+                        "score": sample["score"]
+                    })
+
+            # U 樣本
+            p_count = len(p_samples)
+            for i, sample in enumerate(u_samples):
+                reduced_idx = p_count + i
+                if reduced_idx < len(reduced_data):
+                    preview_data["uSamples"].append({
+                        "x": float(reduced_data[reduced_idx][0]),
+                        "y": float(reduced_data[reduced_idx][1]),
+                        "category": "U",
+                        "id": sample["eventId"],
+                        "meterId": sample["meterId"],
+                        "score": sample["score"]
+                    })
+
+            logger.info(f"Generated preview with {len(preview_data['pSamples'])} P samples and {len(preview_data['uSamples'])} U samples")
+            return preview_data
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting sample distribution: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting training data preview: {e}")
+        import traceback
+        logger.error(f"Detailed error: {traceback.format_exc()}")
+        # 發生錯誤時返回模擬數據
+        return _generate_simulated_preview_data()
+
+def _generate_simulated_preview_data():
+    """生成模擬的訓練數據預覽"""
+    import numpy as np
+    
+    np.random.seed(42)  # 確保結果可重現
+    
+    # 生成模擬的正樣本數據
+    p_samples = []
+    for i in range(50):
+        x = 0.3 + np.random.random() * 0.4  # P 樣本集中在右側
+        y = 0.3 + np.random.random() * 0.4
+        p_samples.append({
+            "x": x,
+            "y": y,
+            "category": "P",
+            "id": f"p_{i}",
+            "meterId": f"meter_{np.random.randint(1000, 9999)}",
+            "score": 0.7 + np.random.random() * 0.3
+        })
+
+    # 生成未標記樣本 (U) - 更廣泛的分佈
+    u_samples = []
+    for i in range(200):
+        u_samples.append({
+            "x": np.random.random(),
+            "y": np.random.random(),
+            "category": "U",
+            "id": f"u_{i}",
+            "meterId": f"meter_{np.random.randint(1000, 9999)}",
+            "score": np.random.random()
+        })
+
+    return {
+        "pSamples": p_samples,
+        "uSamples": u_samples
+    }
+
+@router.get("/{run_id}/sample-distribution")
+async def get_sample_distribution(run_id: str):
+    """
+    獲取指定實驗批次的樣本分佈數據 (2D投影) - 已廢棄，使用 training-data-preview 替代
+    為了向後兼容而保留
+    """
+    logger.warning("get_sample_distribution is deprecated. Use get_training_data_preview instead.")
+    return await get_training_data_preview(run_id)

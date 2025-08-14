@@ -2,7 +2,7 @@ export type TrainingStage = "ready" | "training" | "completed";
 
 export type ModelType = "uPU" | "nnPU";
 
-export type PriorMethod = "mean" | "median";
+export type PriorMethod = "mean" | "median" | "kmm" | "en" | "custom";
 
 export type Activation = "relu" | "tanh";
 
@@ -17,6 +17,9 @@ export interface SamplePoint {
 	x: number;
 	y: number;
 	id: string;
+	category?: "P" | "U";
+	meterId?: string;
+	score?: number;
 }
 
 export interface SampleDistribution {
