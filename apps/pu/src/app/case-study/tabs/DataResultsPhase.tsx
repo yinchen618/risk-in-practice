@@ -15,6 +15,7 @@ type ViewMode = "overview" | "labeling" | "training" | "evaluation";
 
 interface DataResultsPhaseProps {
 	stageParam?: string | null;
+	runParam?: string | null;
 }
 
 const tabs = [
@@ -68,20 +69,50 @@ const viewModeToStage = (viewMode: ViewMode): string => {
 	}
 };
 
-export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
+export function DataResultsPhase({
+	stageParam,
+	runParam,
+}: DataResultsPhaseProps) {
 	const router = useRouter();
 	const [viewMode, setViewMode] = useState<ViewMode>(() =>
 		stageToViewMode(stageParam),
 	);
+
+	// Run 狀態管理 - 提前定義以供URL同步使用
+	const [selectedRunId, setSelectedRunId] = useState<string | null>(() => {
+		// 從URL參數初始化selectedRunId
+		return runParam || null;
+	});
+	const [experimentRuns, setExperimentRuns] = useState<
+		{ id: string; name: string; status: string }[]
+	>([]);
+	const [isCreatingRun, setIsCreatingRun] = useState(false);
+	const [isLoadingRuns, setIsLoadingRuns] = useState(false);
 
 	// 處理 viewMode 改變並同步到 URL
 	const handleViewModeChange = useCallback(
 		(newViewMode: ViewMode) => {
 			setViewMode(newViewMode);
 			const stage = viewModeToStage(newViewMode);
-			router.push(`/case-study?tab=data-results&stage=${stage}`);
+			const runQuery = selectedRunId ? `&run=${selectedRunId}` : "";
+			router.push(
+				`/case-study?tab=data-results&stage=${stage}${runQuery}`,
+			);
 		},
-		[router],
+		[router, selectedRunId],
+	);
+
+	// 處理 selectedRunId 改變並同步到 URL
+	const handleSelectedRunIdChange = useCallback(
+		(newRunId: string | null) => {
+			setSelectedRunId(newRunId);
+			const stage = viewModeToStage(viewMode);
+			const runQuery = newRunId ? `&run=${newRunId}` : "";
+			router.push(
+				`/case-study?tab=data-results&stage=${stage}${runQuery}`,
+			);
+		},
+		[router, viewMode],
 	);
 
 	// 當 stageParam 改變時同步 viewMode
@@ -92,6 +123,13 @@ export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
 		}
 	}, [stageParam, viewMode]);
 
+	// 當 runParam 改變時同步 selectedRunId
+	useEffect(() => {
+		if (runParam && runParam !== selectedRunId) {
+			setSelectedRunId(runParam);
+		}
+	}, [runParam, selectedRunId]);
+
 	// 載入實驗運行清單
 	useEffect(() => {
 		const loadRuns = async () => {
@@ -100,6 +138,13 @@ export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
 				const runs = await datasetService.loadExperimentRuns();
 				setExperimentRuns(runs);
 				console.log("Loaded experiment runs:", runs);
+
+				// 如果URL中有runParam，並且該run存在於載入的runs中，確保它被選中
+				if (runParam && runs.some((run) => run.id === runParam)) {
+					if (selectedRunId !== runParam) {
+						setSelectedRunId(runParam);
+					}
+				}
 			} catch (error) {
 				console.error("Failed to load experiment runs:", error);
 			} finally {
@@ -108,15 +153,7 @@ export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
 		};
 
 		loadRuns();
-	}, []);
-
-	// Run 狀態管理
-	const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-	const [experimentRuns, setExperimentRuns] = useState<
-		{ id: string; name: string; status: string }[]
-	>([]);
-	const [isCreatingRun, setIsCreatingRun] = useState(false);
-	const [isLoadingRuns, setIsLoadingRuns] = useState(false);
+	}, [runParam, selectedRunId]);
 
 	// 候選事件和標註統計
 	const [candidateCount, setCandidateCount] = useState(0);
@@ -347,7 +384,7 @@ export function DataResultsPhase({ stageParam }: DataResultsPhaseProps) {
 			{/* 資料集選擇器、管理和詳細資訊 */}
 			<DatasetPanel
 				selectedRunId={selectedRunId}
-				setSelectedRunId={setSelectedRunId}
+				setSelectedRunId={handleSelectedRunIdChange}
 				experimentRuns={experimentRuns}
 				isLoadingRuns={isLoadingRuns}
 				isCreatingRun={isCreatingRun}

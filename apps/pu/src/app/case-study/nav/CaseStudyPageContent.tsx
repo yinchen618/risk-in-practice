@@ -32,7 +32,10 @@ export default function CaseStudyPageContent() {
 				{activeTab === "problem-approach" && <ProblemApproachPhase />}
 				{activeTab === "implementation" && <ImplementationPhase />}
 				{activeTab === "data-results" && (
-					<DataResultsPhase stageParam={searchParams.get("stage")} />
+					<DataResultsPhase
+						stageParam={searchParams.get("stage")}
+						runParam={searchParams.get("run")}
+					/>
 				)}
 
 				<BottomNavigation />

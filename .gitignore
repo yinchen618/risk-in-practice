@@ -45,3 +45,8 @@ dist/
 
 .vercel
 __pycache__/
+
+coding_backend.log
+backend.log
+server.log
+uvicorn.log
