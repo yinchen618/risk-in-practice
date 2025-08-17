@@ -151,6 +151,7 @@ export function WebSocketTrainingCommunication({
 
 		ws.onmessage = (event) => {
 			const data = JSON.parse(event.data);
+			console.log("WebSocket received data:", data);
 
 			// Add to logs
 			setLogs((prev) => [...prev, data.message || JSON.stringify(data)]);
@@ -234,9 +235,17 @@ export function WebSocketTrainingCommunication({
 
 			// Handle hyperparameters updates
 			if (data.hyperparameters !== undefined) {
+				console.log(
+					"WebSocket received hyperparameters:",
+					data.hyperparameters,
+				);
 				onHyperparametersUpdateRef.current?.({
 					hyperparameters: data.hyperparameters,
 				});
+				console.log(
+					"Called onHyperparametersUpdate with:",
+					data.hyperparameters,
+				);
 			}
 
 			// Handle stage updates

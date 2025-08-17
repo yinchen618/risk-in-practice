@@ -372,6 +372,28 @@ export function Stage3ExperimentWorkbench({
 			u_sample_limit: 5000,
 		};
 
+		console.log("ERM Baseline training payload:", trainingPayload);
+
+		// 立即設置 hyperparameters（不等 WebSocket）
+		setTrainingMonitor((prev) => ({
+			...prev,
+			hyperparameters: {
+				model_type: trainingPayload.model_params.model_type,
+				prior_method: trainingPayload.model_params.prior_method,
+				class_prior:
+					trainingPayload.model_params.class_prior || undefined,
+				hidden_units: trainingPayload.model_params.hidden_units,
+				activation: trainingPayload.model_params.activation,
+				lambda_reg: trainingPayload.model_params.lambda_reg,
+				optimizer: trainingPayload.model_params.optimizer,
+				learning_rate: trainingPayload.model_params.learning_rate,
+				epochs: trainingPayload.model_params.epochs,
+				batch_size: trainingPayload.model_params.batch_size,
+				seed: trainingPayload.model_params.seed,
+				feature_version: trainingPayload.model_params.feature_version,
+			},
+		}));
+
 		const response = await fetch(
 			`${API_BASE}/api/v1/models/train-and-predict-v2`,
 			{
@@ -996,6 +1018,21 @@ export function Stage3ExperimentWorkbench({
 						)}
 
 					{/* Training Monitor */}
+					{(() => {
+						console.log(
+							"Stage3ExperimentWorkbench - trainingMonitor:",
+							{
+								hyperparameters:
+									trainingMonitor.hyperparameters,
+								logs: trainingMonitor.logs,
+								logsLength: trainingMonitor.logs.length,
+								hasHyperparameters:
+									!!trainingMonitor.hyperparameters,
+								hasLogs: trainingMonitor.logs.length > 0,
+							},
+						);
+						return null;
+					})()}
 					<TrainingMonitorPanel
 						trainingStage={trainingStage}
 						trainingProgress={trainingMonitor.progress}
@@ -1023,12 +1060,20 @@ export function Stage3ExperimentWorkbench({
 						selectedRunId={selectedRunId}
 						isTraining={trainingStage === "training"}
 						onTrainingProgressUpdate={(data) => {
+							console.log(
+								"Stage3ExperimentWorkbench received training progress:",
+								data,
+							);
 							setTrainingMonitor((prev) => ({
 								...prev,
 								progress: data.progress,
 								currentEpoch: data.currentEpoch,
 								logs: data.logs,
 							}));
+							console.log(
+								"Updated training logs, count:",
+								data.logs.length,
+							);
 						}}
 						onSampleCountUpdate={(data) => {
 							setTrainingMonitor((prev) => ({
@@ -1047,10 +1092,18 @@ export function Stage3ExperimentWorkbench({
 							}));
 						}}
 						onHyperparametersUpdate={(data) => {
+							console.log(
+								"Stage3ExperimentWorkbench received hyperparameters update:",
+								data,
+							);
 							setTrainingMonitor((prev) => ({
 								...prev,
 								hyperparameters: data.hyperparameters,
 							}));
+							console.log(
+								"Updated trainingMonitor.hyperparameters to:",
+								data.hyperparameters,
+							);
 						}}
 						onStageUpdate={(data) => {
 							setTrainingMonitor((prev) => ({
