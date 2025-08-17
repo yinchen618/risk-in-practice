@@ -45,7 +45,7 @@ async def start_training_and_prediction(request: TrainingRequest):
     """
     try:
         logger.info("="*60)
-        logger.info("🚀 TRAINING API CALLED - /train-and-predict")
+        logger.info("🚀 TRAINING API CALLED - /train-and-predict-v2")
         logger.info(f"📊 Experiment Run ID: {request.experiment_run_id}")
         logger.info(f"🔧 Model Type: {request.model_params.model_type}")
         logger.info(f"⚙️  Model Config: {request.model_params.dict()}")

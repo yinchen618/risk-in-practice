@@ -468,247 +468,261 @@ export function TimeRangeFilter({
 					</div>
 				</div>
 
-				{/* Meter Data Statistics Section */}
-				<h5 className="font-semibold text-slate-800 mb-4 mt-4 flex items-center">
-					<Play className="h-5 w-5 mr-2 text-blue-600" />
-					Meter Data Statistics
-				</h5>
+				<div className="hidden">
+					{/* Meter Data Statistics Section */}
+					<h5 className="font-semibold text-slate-800 mb-4 mt-4 flex items-center">
+						<Play className="h-5 w-5 mr-2 text-blue-600" />
+						Meter Data Statistics
+					</h5>
 
-				<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-					{/* Button Section - Left Side */}
-					<div className="lg:col-span-1">
-						<div className="bg-white p-4 rounded-lg border border-slate-200 h-full flex flex-col justify-center">
-							<Button
-								onClick={handleCountMeterData}
-								disabled={isCountingMeterData}
-								size="lg"
-								variant="outline"
-								className="w-full text-blue-700 border-blue-300 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50"
-							>
-								{isCountingMeterData ? (
-									<>
-										<Loader2 className="h-5 w-5 mr-2 animate-spin" />
-										Querying...
-									</>
-								) : (
-									<>
-										<Play className="h-5 w-5 mr-2" />
-										Calculate Data Count
-									</>
+					<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+						{/* Button Section - Left Side */}
+						<div className="lg:col-span-1">
+							<div className="bg-white p-4 rounded-lg border border-slate-200 h-full flex flex-col justify-center">
+								<Button
+									onClick={handleCountMeterData}
+									disabled={isCountingMeterData}
+									size="lg"
+									variant="outline"
+									className="w-full text-blue-700 border-blue-300 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50"
+								>
+									{isCountingMeterData ? (
+										<>
+											<Loader2 className="h-5 w-5 mr-2 animate-spin" />
+											Querying...
+										</>
+									) : (
+										<>
+											<Play className="h-5 w-5 mr-2" />
+											Calculate Data Count
+										</>
+									)}
+								</Button>
+
+								{!meterDataCount && !isCountingMeterData && (
+									<p className="text-sm text-slate-500 text-center mt-3">
+										Click to view meter data statistics for
+										the selected time range and filters
+									</p>
 								)}
-							</Button>
+							</div>
+						</div>
 
-							{!meterDataCount && !isCountingMeterData && (
-								<p className="text-sm text-slate-500 text-center mt-3">
-									Click to view meter data statistics for the
-									selected time range and filters
-								</p>
+						{/* Results Section - Right Side */}
+						<div className="lg:col-span-4">
+							{meterDataCount ? (
+								<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+									{/* 多一欄選哪些樓層的 */}
+									<div className="bg-white p-4 rounded-lg border border-slate-200">
+										<div className="flex items-center mb-2">
+											<Building2 className="h-4 w-4 mr-2 text-emerald-600" />
+											<div className="font-medium text-slate-800">
+												Selected Floors
+											</div>
+										</div>
+										<div className="text-sm text-slate-600 space-y-1">
+											{meterDataCount?.filter_info
+												?.selected_floors_by_building &&
+											Object.keys(
+												meterDataCount.filter_info
+													.selected_floors_by_building,
+											).length > 0 ? (
+												<div className="space-y-1">
+													{Object.entries(
+														meterDataCount
+															.filter_info
+															.selected_floors_by_building,
+													)
+														.filter(
+															([, floors]) =>
+																floors.length >
+																0,
+														)
+														.map(
+															([
+																buildingId,
+																floors,
+															]) => {
+																const building =
+																	BUILDINGS_WITH_FLOORS.find(
+																		(b) =>
+																			b.id ===
+																			buildingId,
+																	);
+																const floorNames =
+																	floors
+																		.map(
+																			(
+																				floorId,
+																			) =>
+																				ALL_FLOORS.find(
+																					(
+																						f,
+																					) =>
+																						f.id ===
+																						floorId,
+																				)
+																					?.name ||
+																				floorId,
+																		)
+																		.join(
+																			", ",
+																		);
+																return (
+																	<div
+																		key={
+																			buildingId
+																		}
+																		className="text-blue-700"
+																	>
+																		<span className="font-medium">
+																			{building?.name ||
+																				buildingId}
+																			:
+																		</span>{" "}
+																		{
+																			floorNames
+																		}
+																	</div>
+																);
+															},
+														)}
+												</div>
+											) : (
+												<div className="text-slate-400">
+													No floors selected
+												</div>
+											)}
+										</div>
+									</div>
+
+									<div className="bg-white p-4 rounded-lg border border-slate-200">
+										<div className="flex items-center mb-2">
+											<Calendar className="h-4 w-4 mr-2 text-blue-600" />
+											<div className="font-medium text-slate-800">
+												Time Range
+											</div>
+										</div>
+										<div className="text-sm text-slate-600 space-y-1">
+											<div>
+												<span className="font-medium">
+													Start:
+												</span>{" "}
+												{new Date(
+													meterDataCount.time_range
+														?.start,
+												).toLocaleString("zh-TW")}
+											</div>
+											<div>
+												<span className="font-medium">
+													End:
+												</span>{" "}
+												{new Date(
+													meterDataCount.time_range
+														?.end,
+												).toLocaleString("zh-TW")}
+											</div>
+										</div>
+									</div>
+
+									<div className="bg-white p-4 rounded-lg border border-slate-200">
+										<div className="flex items-center mb-2">
+											<Building2 className="h-4 w-4 mr-2 text-emerald-600" />
+											<div className="font-medium text-slate-800">
+												Data Overview
+											</div>
+										</div>
+										<div className="text-sm text-slate-600 space-y-1">
+											<div>
+												<span className="font-medium">
+													Records:
+												</span>{" "}
+												<span className="font-semibold text-blue-700">
+													{meterDataCount.total_records?.toLocaleString()}
+												</span>
+											</div>
+											<div>
+												<span className="font-medium">
+													Devices:
+												</span>{" "}
+												<span className="font-semibold text-emerald-700">
+													{
+														meterDataCount.unique_devices
+													}
+												</span>
+											</div>
+											<div>
+												<span className="font-medium">
+													Days:
+												</span>{" "}
+												<span className="font-semibold text-orange-700">
+													{
+														meterDataCount
+															.time_range
+															?.span_days
+													}
+												</span>
+											</div>
+										</div>
+									</div>
+
+									<div className="bg-white p-4 rounded-lg border border-slate-200">
+										<div className="flex items-center mb-2">
+											<Loader2 className="h-4 w-4 mr-2 text-purple-600" />
+											<div className="font-medium text-slate-800">
+												Averages
+											</div>
+										</div>
+										<div className="text-sm text-slate-600 space-y-1">
+											<div>
+												<span className="font-medium">
+													Per Device:
+												</span>{" "}
+												<span className="font-semibold text-purple-700">
+													{
+														meterDataCount.avg_records_per_device
+													}
+												</span>
+											</div>
+											<div>
+												<span className="font-medium">
+													Per Day:
+												</span>{" "}
+												<span className="font-semibold text-indigo-700">
+													{
+														meterDataCount.records_per_day
+													}
+												</span>
+											</div>
+											<div>
+												<span className="font-medium">
+													Per Hour:
+												</span>{" "}
+												<span className="font-semibold text-pink-700">
+													{Math.round(
+														meterDataCount.records_per_day /
+															24,
+													)}
+												</span>
+											</div>
+										</div>
+									</div>
+								</div>
+							) : (
+								<div className="bg-white p-8 rounded-lg border border-slate-200 border-dashed">
+									<div className="text-center text-slate-400">
+										<Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+										<p className="text-lg font-medium">
+											No Data Available
+										</p>
+										<p className="text-sm">
+											Click "Calculate Data Count" to view
+											statistics
+										</p>
+									</div>
+								</div>
 							)}
 						</div>
-					</div>
-
-					{/* Results Section - Right Side */}
-					<div className="lg:col-span-4">
-						{meterDataCount ? (
-							<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-								{/* 多一欄選哪些樓層的 */}
-								<div className="bg-white p-4 rounded-lg border border-slate-200">
-									<div className="flex items-center mb-2">
-										<Building2 className="h-4 w-4 mr-2 text-emerald-600" />
-										<div className="font-medium text-slate-800">
-											Selected Floors
-										</div>
-									</div>
-									<div className="text-sm text-slate-600 space-y-1">
-										{meterDataCount?.filter_info
-											?.selected_floors_by_building &&
-										Object.keys(
-											meterDataCount.filter_info
-												.selected_floors_by_building,
-										).length > 0 ? (
-											<div className="space-y-1">
-												{Object.entries(
-													meterDataCount.filter_info
-														.selected_floors_by_building,
-												)
-													.filter(
-														([, floors]) =>
-															floors.length > 0,
-													)
-													.map(
-														([
-															buildingId,
-															floors,
-														]) => {
-															const building =
-																BUILDINGS_WITH_FLOORS.find(
-																	(b) =>
-																		b.id ===
-																		buildingId,
-																);
-															const floorNames =
-																floors
-																	.map(
-																		(
-																			floorId,
-																		) =>
-																			ALL_FLOORS.find(
-																				(
-																					f,
-																				) =>
-																					f.id ===
-																					floorId,
-																			)
-																				?.name ||
-																			floorId,
-																	)
-																	.join(", ");
-															return (
-																<div
-																	key={
-																		buildingId
-																	}
-																	className="text-blue-700"
-																>
-																	<span className="font-medium">
-																		{building?.name ||
-																			buildingId}
-																		:
-																	</span>{" "}
-																	{floorNames}
-																</div>
-															);
-														},
-													)}
-											</div>
-										) : (
-											<div className="text-slate-400">
-												No floors selected
-											</div>
-										)}
-									</div>
-								</div>
-
-								<div className="bg-white p-4 rounded-lg border border-slate-200">
-									<div className="flex items-center mb-2">
-										<Calendar className="h-4 w-4 mr-2 text-blue-600" />
-										<div className="font-medium text-slate-800">
-											Time Range
-										</div>
-									</div>
-									<div className="text-sm text-slate-600 space-y-1">
-										<div>
-											<span className="font-medium">
-												Start:
-											</span>{" "}
-											{new Date(
-												meterDataCount.time_range
-													?.start,
-											).toLocaleString("zh-TW")}
-										</div>
-										<div>
-											<span className="font-medium">
-												End:
-											</span>{" "}
-											{new Date(
-												meterDataCount.time_range?.end,
-											).toLocaleString("zh-TW")}
-										</div>
-									</div>
-								</div>
-
-								<div className="bg-white p-4 rounded-lg border border-slate-200">
-									<div className="flex items-center mb-2">
-										<Building2 className="h-4 w-4 mr-2 text-emerald-600" />
-										<div className="font-medium text-slate-800">
-											Data Overview
-										</div>
-									</div>
-									<div className="text-sm text-slate-600 space-y-1">
-										<div>
-											<span className="font-medium">
-												Records:
-											</span>{" "}
-											<span className="font-semibold text-blue-700">
-												{meterDataCount.total_records?.toLocaleString()}
-											</span>
-										</div>
-										<div>
-											<span className="font-medium">
-												Devices:
-											</span>{" "}
-											<span className="font-semibold text-emerald-700">
-												{meterDataCount.unique_devices}
-											</span>
-										</div>
-										<div>
-											<span className="font-medium">
-												Days:
-											</span>{" "}
-											<span className="font-semibold text-orange-700">
-												{
-													meterDataCount.time_range
-														?.span_days
-												}
-											</span>
-										</div>
-									</div>
-								</div>
-
-								<div className="bg-white p-4 rounded-lg border border-slate-200">
-									<div className="flex items-center mb-2">
-										<Loader2 className="h-4 w-4 mr-2 text-purple-600" />
-										<div className="font-medium text-slate-800">
-											Averages
-										</div>
-									</div>
-									<div className="text-sm text-slate-600 space-y-1">
-										<div>
-											<span className="font-medium">
-												Per Device:
-											</span>{" "}
-											<span className="font-semibold text-purple-700">
-												{
-													meterDataCount.avg_records_per_device
-												}
-											</span>
-										</div>
-										<div>
-											<span className="font-medium">
-												Per Day:
-											</span>{" "}
-											<span className="font-semibold text-indigo-700">
-												{meterDataCount.records_per_day}
-											</span>
-										</div>
-										<div>
-											<span className="font-medium">
-												Per Hour:
-											</span>{" "}
-											<span className="font-semibold text-pink-700">
-												{Math.round(
-													meterDataCount.records_per_day /
-														24,
-												)}
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-						) : (
-							<div className="bg-white p-8 rounded-lg border border-slate-200 border-dashed">
-								<div className="text-center text-slate-400">
-									<Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-									<p className="text-lg font-medium">
-										No Data Available
-									</p>
-									<p className="text-sm">
-										Click "Calculate Data Count" to view
-										statistics
-									</p>
-								</div>
-							</div>
-						)}
 					</div>
 				</div>
 			</div>

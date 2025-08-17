@@ -129,30 +129,6 @@ async def train_model(
         logger.error(f"啟動模型訓練失敗: {e}")
         raise HTTPException(status_code=500, detail=f"啟動訓練失敗: {str(e)}")
 
-
-@router.post("/train-and-predict")
-async def train_and_predict(request: TrainAndPredictRequest, background_tasks: BackgroundTasks):
-    """
-    單一入口：以 ExperimentRun 標註批次為訓練集，訓練 PU 模型，並在指定 ammeter_log 區間做預測。
-    - 訓練樣本來源 = ExperimentRun（Stage 2 標註）
-    - 預測資料 = ammeter_log 指定區間
-    """
-    try:
-        job_id = str(uuid.uuid4())
-        job_tasks[job_id] = {
-            'status': 'QUEUED',
-            'progress': 0.0,
-            'message': 'Queued',
-            'result': None,
-            'error': None,
-        }
-
-        background_tasks.add_task(_train_and_predict_bg, job_id, request.dict())
-        return {"job_id": job_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/jobs/{job_id}")
 async def get_job_status(job_id: str):
     task = job_tasks.get(job_id)
@@ -518,19 +494,66 @@ async def get_all_models():
         raise HTTPException(status_code=500, detail=f"獲取模型列表失敗: {str(e)}")
 
 @router.get("/experiment/{experiment_run_id}", response_model=ModelResultsResponse)
-async def get_models_by_experiment(experiment_run_id: str):
+async def get_all_models_by_experiment(experiment_run_id: str):
+    """獲取特定實驗的所有已訓練模型（不分情境類型）"""
+    try:
+        from database import db_manager
+
+        # 獲取該實驗的所有模型，不限制 scenario_type
+        models = await db_manager.get_all_trained_models_by_experiment(experiment_run_id)
+        
+        logger.info(f"🔍 獲取實驗 {experiment_run_id} 的所有模型: {len(models)} 個")
+
+        models_list = []
+        for model in models:
+            # model.model_config 是字典，需要用字典方式訪問
+            model_config = model.model_config or {}
+            model_type = model_config.get('model_type', 'Unknown')
+
+            model_data = {
+                'id': model.id,
+                'scenario_type': model.scenario_type,
+                'model_name': f"{model_type}_{model.id[:8]}",  # 生成模型名稱
+                'model_type': model_type,
+                'status': model.status,
+                'created_at': model.created_at.isoformat() if model.created_at else None,
+                'updated_at': model.completed_at.isoformat() if model.completed_at else None,
+                'metrics': model.training_metrics,
+                'training_params': model.model_config
+            }
+            models_list.append(model_data)
+            
+        logger.info(f"🔍 轉換後的模型列表: {models_list}")
+
+        return ModelResultsResponse(
+            success=True,
+            data={'models': models_list, 'total': len(models_list)},
+            message=f"成功獲取實驗 {experiment_run_id} 的 {len(models_list)} 個模型"
+        )
+
+    except Exception as e:
+        logger.error(f"獲取實驗所有模型失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"獲取實驗模型列表失敗: {str(e)}")
+
+@router.get("/experiment/{experiment_run_id}/{scenario_type}", response_model=ModelResultsResponse)
+async def get_models_by_experiment(experiment_run_id: str, scenario_type: str):
     """獲取特定實驗的所有已訓練模型"""
     try:
         from database import db_manager
 
-        models = await db_manager.get_trained_models_by_experiment(experiment_run_id)
+        models = await db_manager.get_trained_models_by_experiment(experiment_run_id, scenario_type)
 
         models_list = []
         for model in models:
+            # model.model_config 是字典，需要用字典方式訪問
+            model_config = model.model_config or {}
+            model_type = model_config.get('model_type', 'Unknown')
+
             model_data = {
                 'id': model.id,
-                'model_name': f"{model.model_type}_{model.id[:8]}",  # 生成模型名稱
-                'model_type': model.model_type,
+                'scenario_type': model.scenario_type,
+                'model_name': f"{model_type}_{model.id[:8]}",  # 生成模型名稱
+                'model_type': model_type,
                 'status': model.status,
                 'created_at': model.created_at.isoformat() if model.created_at else None,
                 'updated_at': model.completed_at.isoformat() if model.completed_at else None,

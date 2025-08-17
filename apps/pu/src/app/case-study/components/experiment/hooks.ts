@@ -32,23 +32,11 @@ export function useTrainingData(
 				`${apiBase}/api/v1/experiment-runs/${selectedRunId}/training-stats`,
 				{ cache: "no-store" },
 			);
-			if (response.ok) {
-				const stats = await response.json();
-				setTrainingDataStats(stats);
-			} else {
-				// 模擬數據作為後備
-				setTrainingDataStats({
-					positiveSamples: 141,
-					unlabeledSamples: 1500000,
-				});
-			}
+			const stats = await response.json();
+			console.log("training data stats:", stats);
+			setTrainingDataStats(stats);
 		} catch (error) {
 			console.error("Failed to load training data stats:", error);
-			// 模擬數據作為後備
-			setTrainingDataStats({
-				positiveSamples: 141,
-				unlabeledSamples: 1500000,
-			});
 		}
 	}, [selectedRunId, apiBase]);
 

@@ -372,40 +372,6 @@ export async function calculateCandidatesForRun(
 // =============================================================================
 
 /**
- * 開始模型訓練和預測任務
- */
-export async function startTrainAndPredict(payload: {
-	experiment_run_id: string;
-	model_params: {
-		model_type: string;
-		prior_method: string;
-		class_prior: number | null;
-		hidden_units: number;
-		activation: string;
-		lambda_reg: number;
-		optimizer: string;
-		learning_rate: number;
-		epochs: number;
-		batch_size: number;
-		seed: number;
-		feature_version: string;
-	};
-	prediction_start_date: string;
-	prediction_end_date: string;
-}): Promise<any> {
-	const resp = await fetch(`${API_BASE}/api/v1/models/train-and-predict`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(payload),
-	});
-	if (!resp.ok) {
-		const errText = await resp.text();
-		throw new Error(`Training failed: ${errText}`);
-	}
-	return resp.json();
-}
-
-/**
  * 輪詢訓練任務狀態
  */
 export async function pollJobStatus(jid: string): Promise<{

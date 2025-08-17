@@ -113,12 +113,20 @@ export function DataSourceConfigurationPanel({
 						</SelectTrigger>
 						<SelectContent>
 							{(() => {
+								console.log(
+									"🎯 DataSource: trainedModels received:",
+									trainedModels,
+								);
+
 								const ermBaselineModels = trainedModels.filter(
 									(model) =>
-										model.scenario === "ERM_BASELINE",
+										model.scenario_type === "ERM_BASELINE",
 								);
 
 								if (ermBaselineModels.length === 0) {
+									console.log(
+										"🎯 DataSource: No ERM_BASELINE models found",
+									);
 									return (
 										<SelectItem value="no-data" disabled>
 											No data available
@@ -126,10 +134,15 @@ export function DataSourceConfigurationPanel({
 									);
 								}
 
+								console.log(
+									"🎯 DataSource: Rendering options for models:",
+									ermBaselineModels,
+								);
 								return ermBaselineModels.map((model) => (
 									<SelectItem key={model.id} value={model.id}>
-										{model.name} (F1:{" "}
-										{model.metrics.testF1.toFixed(2)})
+										{model.model_name} (F1:{" "}
+										{model.metrics?.f1?.toFixed(2) || "N/A"}
+										)
 									</SelectItem>
 								));
 							})()}

@@ -77,6 +77,7 @@ class TrainingRequest(BaseModel):
     prediction_start_date: str
     prediction_end_date: str
     data_split_config: Optional[DataSplitConfig] = None
+    scenario_type: Optional[str] = None  # 'ERM_BASELINE' or 'DOMAIN_ADAPTATION'
     # 新增的 U 樣本生成配置
     u_sample_time_range: Optional[Dict[str, str]] = None  # {"start_date": "2025-08-13", "end_date": "2025-08-14", "start_time": "00:00", "end_time": "23:59"}
     u_sample_building_floors: Optional[Dict[str, List[str]]] = None  # {"Building A": ["2"], "Building B": ["1", "2"]}
@@ -330,7 +331,7 @@ class PULearningTrainer:
             })
             model_path = await self._save_model(
                 job_id, model, request.model_params, test_sample_ids,
-                request.experiment_run_id, request.data_split_config, final_metrics
+                request.experiment_run_id, request.data_split_config, final_metrics, request.scenario_type
             )
             logger.info(f"💾 Model saved to: {model_path}")
             await self._broadcast_progress(job_id, 95, "Model saved successfully, finalizing training job...", {
@@ -1084,7 +1085,7 @@ class PULearningTrainer:
             logger.error(f"Error evaluating on validation set: {e}")
             return {"validation_error": str(e)}
 
-    async def _save_model(self, job_id: str, model: Any, model_config: ModelConfig, test_sample_ids: Optional[List[str]] = None, experiment_run_id: str = None, data_split_config: Optional[DataSplitConfig] = None, metrics: Dict = None) -> str:
+    async def _save_model(self, job_id: str, model: Any, model_config: ModelConfig, test_sample_ids: Optional[List[str]] = None, experiment_run_id: str = None, data_split_config: Optional[DataSplitConfig] = None, metrics: Dict = None, scenario_type: str = None) -> str:
         """保存訓練好的模型"""
         model_filename = f"model_{job_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pkl"
         model_path = os.path.join(self.models_dir, model_filename)
@@ -1108,7 +1109,7 @@ class PULearningTrainer:
             db_model_data = {
                 "name": f"{model_config.model_type} Model - {job_id[:8]}",
                 "experiment_run_id": experiment_run_id or "unknown",
-                "scenario_type": model_config.model_type,  # 使用 scenario_type 而不是 model_type
+                "scenario_type": scenario_type or "ERM_BASELINE",  # 使用傳入的 scenario_type
                 "model_path": model_path,
                 "model_config": model_config.dict(),
                 "data_source_config": data_split_config.dict() if data_split_config else {},

@@ -273,16 +273,11 @@ export function Stage3ExperimentWorkbench({
 				// Only load ERM baseline models for generalization challenge
 				const models =
 					await trainedModelsApi.getTrainedModelsByScenario(
+						selectedRunId,
 						"ERM_BASELINE",
 					);
-				// Filter models that belong to current experiment run
-				const filteredModels = models.filter(
-					(model) =>
-						model.id.includes(selectedRunId) ||
-						model.experimentRunId === selectedRunId,
-				);
 
-				setTrainedModels(filteredModels);
+				setTrainedModels(models);
 			} catch (error) {
 				console.error("Failed to load trained models:", error);
 				toast.error("Failed to load trained models.");
@@ -353,6 +348,7 @@ export function Stage3ExperimentWorkbench({
 		// Build training payload compatible with Stage3ModelTraining format
 		const trainingPayload = {
 			experiment_run_id: selectedRunId,
+			scenario_type: "ERM_BASELINE", // 添加情境類型
 			model_params: buildModelConfig().model_params,
 			// For ERM Baseline: prediction range uses same source as P samples
 			prediction_start_date:
@@ -453,35 +449,40 @@ export function Stage3ExperimentWorkbench({
 		resetTrainingMonitor();
 
 		const trainingPayload = {
-			experimentRunId: selectedRunId,
-			scenarioType: "DOMAIN_ADAPTATION",
-			dataSourceConfig: {
-				positiveSamples: {
-					sourceType: "ExperimentRun",
-					experimentRunId: selectedRunId,
-				},
-				unlabeledSamples: {
-					sourceType: "Custom",
-					location:
-						Object.keys(
-							experimentConfig.unlabeledSource
-								.selectedFloorsByBuilding,
-						)[0] || "",
-					timeRange: `${experimentConfig.unlabeledSource.timeRange.startDate} to ${experimentConfig.unlabeledSource.timeRange.endDate}`,
-					floors: Object.values(
-						experimentConfig.unlabeledSource
-							.selectedFloorsByBuilding,
-					).flat(),
-				},
+			experiment_run_id: selectedRunId,
+			scenario_type: "DOMAIN_ADAPTATION",
+			model_params: buildModelConfig().model_params,
+			// For Domain Adaptation: prediction range might be different
+			prediction_start_date:
+				experimentConfig.unlabeledSource.timeRange.startDate,
+			prediction_end_date:
+				experimentConfig.unlabeledSource.timeRange.endDate,
+			data_split_config: buildModelConfig().validation_config,
+			// For Domain Adaptation: U samples use target domain configuration
+			u_sample_time_range: {
+				start_date:
+					experimentConfig.unlabeledSource.timeRange.startDate,
+				end_date: experimentConfig.unlabeledSource.timeRange.endDate,
+				start_time:
+					experimentConfig.unlabeledSource.timeRange.startTime ||
+					"00:00",
+				end_time:
+					experimentConfig.unlabeledSource.timeRange.endTime ||
+					"23:59",
 			},
-			modelConfig: buildModelConfig(),
+			u_sample_building_floors:
+				experimentConfig.unlabeledSource.selectedFloorsByBuilding,
+			u_sample_limit: 5000,
 		};
 
-		const response = await fetch(`${API_BASE}/api/v1/trained-models`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(trainingPayload),
-		});
+		const response = await fetch(
+			`${API_BASE}/api/v1/models/train-and-predict-v2`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(trainingPayload),
+			},
+		);
 
 		if (!response.ok) {
 			throw new Error(
@@ -492,8 +493,8 @@ export function Stage3ExperimentWorkbench({
 		const result = await response.json();
 		console.log("Domain Adaptation training started:", result);
 
-		// Start polling for completion
-		pollForCompletion(result.trainedModelId);
+		// Don't poll for completion, rely on WebSocket for progress updates
+		// The WebSocket will handle completion notifications
 	};
 
 	// Helper function to build model configuration
@@ -554,68 +555,6 @@ export function Stage3ExperimentWorkbench({
 			currentSubstage: undefined,
 		});
 		setValidationResults({});
-	};
-
-	// Helper function to poll for training completion
-	const pollForCompletion = (jobId: string) => {
-		const pollInterval = setInterval(async () => {
-			try {
-				const statusResponse = await fetch(
-					`${API_BASE}/api/v1/models/jobs/${jobId}`,
-				);
-				if (statusResponse.ok) {
-					const statusData = await statusResponse.json();
-					const jobStatus = statusData.data;
-
-					if (jobStatus.status === "COMPLETED") {
-						setTrainingStage("completed");
-						clearInterval(pollInterval);
-
-						setExperimentState((prev) => ({
-							...prev,
-							currentModelId: jobStatus.model_path || jobId,
-						}));
-
-						if (experimentConfig && jobStatus.metrics) {
-							const newResult: ExperimentResult = {
-								id: `exp_${Date.now()}`,
-								timestamp: new Date().toISOString(),
-								experimentType,
-								config: experimentConfig,
-								metrics: {
-									validationF1:
-										jobStatus.metrics.validation_f1 || 0,
-									testF1: jobStatus.metrics.test_f1 || 0,
-									testPrecision:
-										jobStatus.metrics.test_precision || 0,
-									testRecall:
-										jobStatus.metrics.test_recall || 0,
-								},
-								status: "completed",
-							};
-
-							setExperimentState((prev) => ({
-								...prev,
-								results: [...prev.results, newResult],
-								selectedForDetail: newResult.id,
-							}));
-						}
-
-						toast.success(
-							`${scenarioType} completed successfully!`,
-						);
-					} else if (jobStatus.status === "FAILED") {
-						setTrainingStage("ready");
-						clearInterval(pollInterval);
-						toast.error(
-							`${scenarioType} failed: ${jobStatus.error || "Unknown error"}`,
-						);
-					}
-				}
-			} catch (error) {
-				console.error("Error polling training status:", error);
-			}
-		}, 3000);
 	};
 
 	// Helper function to poll for evaluation completion
@@ -916,49 +855,57 @@ export function Stage3ExperimentWorkbench({
 											}
 										/>
 
-										<Separator />
+										{/* Data Split Strategy - Only show for scenarios that need training */}
+										{scenarioType !==
+											"GENERALIZATION_CHALLENGE" && (
+											<>
+												<Separator />
+												<DataSplitStrategyPanel
+													splitStrategy={
+														experimentConfig.splitStrategy
+													}
+													onChange={(splitStrategy) =>
+														setExperimentConfig(
+															(
+																prev: ExperimentConfig | null,
+															) =>
+																prev
+																	? {
+																			...prev,
+																			splitStrategy,
+																		}
+																	: null,
+														)
+													}
+												/>
+											</>
+										)}
 
-										{/* Data Split Strategy */}
-										<DataSplitStrategyPanel
-											splitStrategy={
-												experimentConfig.splitStrategy
-											}
-											onChange={(splitStrategy) =>
-												setExperimentConfig(
-													(
-														prev: ExperimentConfig | null,
-													) =>
-														prev
-															? {
-																	...prev,
-																	splitStrategy,
-																}
-															: null,
-												)
-											}
-										/>
-
-										<Separator />
-
-										{/* Model Parameters */}
-										<ModelParametersPanel
-											modelParams={
-												experimentConfig.modelParams
-											}
-											onChange={(modelParams) =>
-												setExperimentConfig(
-													(
-														prev: ExperimentConfig | null,
-													) =>
-														prev
-															? {
-																	...prev,
-																	modelParams,
-																}
-															: null,
-												)
-											}
-										/>
+										{/* Model Parameters - Only show for scenarios that need training */}
+										{scenarioType !==
+											"GENERALIZATION_CHALLENGE" && (
+											<>
+												<Separator />
+												<ModelParametersPanel
+													modelParams={
+														experimentConfig.modelParams
+													}
+													onChange={(modelParams) =>
+														setExperimentConfig(
+															(
+																prev: ExperimentConfig | null,
+															) =>
+																prev
+																	? {
+																			...prev,
+																			modelParams,
+																		}
+																	: null,
+														)
+													}
+												/>
+											</>
+										)}
 
 										<Separator />
 

@@ -293,14 +293,37 @@ class DatabaseManager:
                 return True
             return False
 
-    async def get_trained_models_by_experiment(self, experiment_run_id: str) -> List['TrainedModel']:
+    async def get_trained_models_by_experiment(self, experiment_run_id: str, scenario_type: str) -> List['TrainedModel']:
         """獲取特定實驗的所有訓練模型"""
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 async with self.session_factory() as session:
                     result = await session.execute(
-                        select(TrainedModel).where(TrainedModel.experiment_run_id == experiment_run_id)
+                        select(TrainedModel).where(
+                            TrainedModel.experiment_run_id == experiment_run_id,
+                            TrainedModel.scenario_type == scenario_type
+                        )
+                    )
+                    return result.scalars().all()
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    # 最後一次嘗試失敗，拋出異常
+                    raise e
+                # 等待一秒後重試
+                import asyncio
+                await asyncio.sleep(1)
+
+    async def get_all_trained_models_by_experiment(self, experiment_run_id: str) -> List['TrainedModel']:
+        """獲取特定實驗的所有訓練模型（不分情境類型）"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    result = await session.execute(
+                        select(TrainedModel).where(
+                            TrainedModel.experiment_run_id == experiment_run_id
+                        )
                     )
                     return result.scalars().all()
             except Exception as e:
@@ -382,7 +405,7 @@ class TrainedModel(Base):
     experiment_run_id = Column(String, nullable=False)
 
     # 訓練情境相關（使用實際資料庫欄位名稱）
-    scenario_type = Column('scenario_type', String, nullable=False) # e.g., 'ERM_BASELINE', 'uPU', 'nnPU'
+    scenario_type = Column('scenario_type', String, nullable=False) # 'ERM_BASELINE' or 'DOMAIN_ADAPTATION'
     data_source_config = Column('data_source_config', JSON) # Source data and split configuration
     model_config = Column('model_config', JSON)  # Model hyperparameters
 

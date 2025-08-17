@@ -21,13 +21,47 @@ export const trainedModelsApi = {
 		}
 	},
 
-	// 根據scenario獲取已訓練的模型
+	// 根據experiment run ID獲取已訓練的模型
+	async getTrainedModelsByExperiment(
+		runId: string,
+	): Promise<TrainedModel[]> {
+		try {
+			console.log("🌐 API: Fetching models for experiment run ID:", runId);
+			const url = `${API_BASE}/api/v1/models/experiment/${runId}`;
+			console.log("🌐 API: Request URL:", url);
+			
+			const response = await fetch(url);
+			console.log("🌐 API: Response status:", response.status);
+			console.log("🌐 API: Response ok:", response.ok);
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error("🌐 API: Error response:", errorText);
+				throw new Error(
+					`Failed to fetch trained models by experiment: ${response.statusText}`,
+				);
+			}
+			
+			const data = await response.json();
+			console.log("🌐 API: Raw response data:", data);
+			console.log("🌐 API: Models array:", data.data?.models);
+			console.log("🌐 API: Models count:", data.data?.models?.length || 0);
+			
+			return data.data?.models || [];
+		} catch (error) {
+			console.error("🌐 API: Error fetching trained models by experiment:", error);
+			return [];
+		}
+	},
+
+	// 根據scenario獲取已訓練的模型 (保留向後兼容)
 	async getTrainedModelsByScenario(
+		runId: string,
 		scenario: string,
 	): Promise<TrainedModel[]> {
 		try {
 			const response = await fetch(
-				`${API_BASE}/api/v1/models/experiment/${scenario}`,
+				`${API_BASE}/api/v1/models/experiment/${runId}/${scenario}`,
 			);
 			if (!response.ok) {
 				throw new Error(
@@ -35,7 +69,7 @@ export const trainedModelsApi = {
 				);
 			}
 			const data = await response.json();
-			return data.models || [];
+			return data.data?.models || [];
 		} catch (error) {
 			console.error("Error fetching trained models by scenario:", error);
 			return [];
