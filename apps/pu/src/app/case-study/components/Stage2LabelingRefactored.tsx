@@ -10,7 +10,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { ArrowRight, CheckCircle, Loader2, Play, Users } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AnomalyLabelingSystem } from "./AnomalyLabelingSystem";
 
@@ -38,6 +38,12 @@ export default function Stage2LabelingRefactored({
 }: Stage2LabelingProps) {
 	const [isCompleting, setIsCompleting] = useState(false);
 	const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+	// localCompleted mirrors the prop so UI can update immediately after completion
+	const [localCompleted, setLocalCompleted] = useState(isCompleted);
+
+	useEffect(() => {
+		setLocalCompleted(isCompleted);
+	}, [isCompleted]);
 
 	// Define completion thresholds
 	const WARNING_THRESHOLD = 0.2; // 20%
@@ -85,6 +91,8 @@ export default function Stage2LabelingRefactored({
 		setIsCompleting(true);
 		try {
 			await onUpdateRunStatus(selectedRunId, "COMPLETED");
+			// Immediately reflect completion in this component
+			setLocalCompleted(true);
 			toast.success("Dataset marked as COMPLETED!");
 		} catch (error) {
 			console.error("Failed to mark dataset as complete", error);
@@ -146,9 +154,7 @@ export default function Stage2LabelingRefactored({
 
 	return (
 		<>
-			<Card
-				className={`border rounded-xl ${isCompleted ? "border-green-200 bg-green-50" : "border-blue-200"}`}
-			>
+			<Card className={"border rounded-xl border-blue-200"}>
 				<CardHeader>
 					<CardTitle className="flex items-center justify-between gap-3 text-xl text-slate-900">
 						<div className="flex items-center">
@@ -188,7 +194,7 @@ export default function Stage2LabelingRefactored({
 
 							{/* Mark as Complete Button */}
 							<div className="relative group">
-								{isCompleted ? (
+								{localCompleted ? (
 									<div className="flex items-center gap-2 px-3 py-2 bg-green-100 rounded-lg border border-green-200">
 										<CheckCircle className="h-4 w-4 text-green-600" />
 										<span className="text-sm font-semibold text-green-700">
@@ -240,37 +246,6 @@ export default function Stage2LabelingRefactored({
 				</Card>
 			) : (
 				<>
-					{/* Completion Summary - show when completed */}
-					{isCompleted && (
-						<Card className="bg-green-50 border-green-200">
-							<CardContent className="p-4">
-								<div className="flex items-center gap-3">
-									<CheckCircle className="h-6 w-6 text-green-600" />
-									<div className="flex-1">
-										<h3 className="font-semibold text-green-900">
-											Dataset Successfully Completed
-										</h3>
-										<p className="text-sm text-green-700 mt-1">
-											This dataset has been marked as
-											completed with {totalLabeled}{" "}
-											labeled events ({labeledPositive}{" "}
-											positive, {labeledNormal} normal
-											samples). You can now proceed to
-											Stage 3 for model training.
-										</p>
-									</div>
-									<Button
-										onClick={onProceedToTraining}
-										className="bg-green-600 hover:bg-green-700 text-white"
-									>
-										Proceed to Training
-										<ArrowRight className="h-4 w-4 ml-2" />
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
-					)}
-
 					{/* Labeling Interface */}
 					<Card>
 						<CardContent className="p-6">

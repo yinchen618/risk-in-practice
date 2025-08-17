@@ -1,4 +1,4 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// ...existing code... (Alert UI is provided by PendingChangesList)
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -15,9 +15,10 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Info, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { PendingChangesList } from "../../components/PendingChangesList";
 
 interface DatasetManagerProps {
 	selectedRunId: string | null;
@@ -121,76 +122,64 @@ export function DatasetManager({
 	}, []);
 
 	return (
-		<div className="flex items-center gap-3">
-			{/* Manage Dataset Dropdown */}
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						variant="outline"
-						disabled={isLoadingRuns}
-						className="gap-2 whitespace-nowrap"
-					>
-						Manage dataset
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem
-						onClick={handleCreateRun}
-						disabled={isCreatingRun}
-					>
-						{isCreatingRun ? (
-							<span className="flex items-center gap-2">
-								<Loader2 className="h-4 w-4 animate-spin" />
-								Creating...
-							</span>
-						) : (
-							<span>Create new dataset</span>
-						)}
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onClick={handleSaveParameters}
-						disabled={!selectedRunId}
-					>
-						Save parameters
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onClick={handleRenameRun}
-						disabled={!selectedRunId}
-					>
-						Rename dataset...
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onClick={handleDeleteRun}
-						disabled={!selectedRunId}
-						className="text-red-600"
-					>
-						Delete dataset...
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-
-			{/* Pending Changes Alert */}
-			{showPendingChanges && pendingDiffs.length > 0 && (
-				<Alert className="bg-yellow-50 border-yellow-200 flex-1 max-w-md">
-					<Info className="h-4 w-4 text-yellow-600" />
-					<AlertDescription>
-						<strong className="text-yellow-800">
-							Pending Changes:
-						</strong>
-						<div className="mt-1 text-yellow-700 text-xs">
-							{pendingDiffs.length} parameter
-							{pendingDiffs.length !== 1 ? "s" : ""} changed
-						</div>
+		<>
+			<div className="flex items-center gap-3">
+				{/* Manage Dataset Dropdown */}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
 						<Button
-							onClick={handleSaveParameters}
-							size="sm"
-							className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs"
+							variant="outline"
+							disabled={isLoadingRuns}
+							className="gap-2 whitespace-nowrap"
 						>
-							Save Changes
+							Manage dataset
 						</Button>
-					</AlertDescription>
-				</Alert>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem
+							onClick={handleCreateRun}
+							disabled={isCreatingRun}
+						>
+							{isCreatingRun ? (
+								<span className="flex items-center gap-2">
+									<Loader2 className="h-4 w-4 animate-spin" />
+									Creating...
+								</span>
+							) : (
+								<span>Create new dataset</span>
+							)}
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={handleSaveParameters}
+							disabled={!selectedRunId}
+						>
+							Save parameters
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							onClick={handleRenameRun}
+							disabled={!selectedRunId}
+						>
+							Rename dataset...
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={handleDeleteRun}
+							disabled={!selectedRunId}
+							className="text-red-600"
+						>
+							Delete dataset...
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+
+			{showPendingChanges && pendingDiffs.length > 0 && (
+				<PendingChangesList
+					pendingDiffs={pendingDiffs}
+					onSave={handleSaveParameters}
+					theme="yellow"
+					className="mt-2"
+				/>
 			)}
 
 			{/* Delete Confirmation Dialog */}
@@ -228,6 +217,6 @@ export function DatasetManager({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</>
 	);
 }

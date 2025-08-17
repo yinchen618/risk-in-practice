@@ -10,6 +10,7 @@
 		"format": "biome format . --write",
 		"studio": "cd packages/database && dotenv -c -e ../../.env -- prisma studio",
 		"migrate": "cd packages/database && dotenv -c -e ../../.env -- prisma migrate dev",
+		"migrate:deploy": "cd packages/database && dotenv -c -e ../../.env -- prisma migrate deploy",
 		"install-web": "cd apps/web && pnpm install",
 		"install-api": "cd packages/api && pnpm install",
 		"install-database": "cd packages/database && pnpm install"

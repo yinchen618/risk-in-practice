@@ -5,6 +5,7 @@ import { useState } from "react";
 import { DataResultsPhase } from "../tabs/DataResultsPhase";
 import { ImplementationPhase } from "../tabs/ImplementationPhase";
 import { ProblemApproachPhase } from "../tabs/ProblemApproachPhase";
+import { ResearchNotes } from "../tabs/ResearchNotes";
 import { BottomNavigation } from "./BottomNavigation";
 import TabNavigation from "./TabNavigation";
 import type { TabKey } from "./TabNavigation";
@@ -37,6 +38,7 @@ export default function CaseStudyPageContent() {
 						runParam={searchParams.get("run")}
 					/>
 				)}
+				{activeTab === "research-notes" && <ResearchNotes />}
 
 				<BottomNavigation />
 			</div>

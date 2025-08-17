@@ -52,3 +52,6 @@ server.log
 uvicorn.log
 trained_models/
 *.broken
+
+*backup*
+*.log

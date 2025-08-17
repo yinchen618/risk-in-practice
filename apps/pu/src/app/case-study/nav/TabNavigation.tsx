@@ -1,10 +1,14 @@
 "use client";
 
-import { FlaskConical, Target, TrendingUp } from "lucide-react";
+import { BookOpenText, FlaskConical, Target, TrendingUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 
-export type TabKey = "problem-approach" | "implementation" | "data-results";
+export type TabKey =
+	| "problem-approach"
+	| "implementation"
+	| "data-results"
+	| "research-notes";
 
 interface TabNavigationProps {
 	activeTab: TabKey;
@@ -30,6 +34,11 @@ const tabs: {
 		key: "data-results",
 		label: "Data & Results",
 		icon: TrendingUp,
+	},
+	{
+		key: "research-notes",
+		label: "Research Notes",
+		icon: BookOpenText,
 	},
 ];
 

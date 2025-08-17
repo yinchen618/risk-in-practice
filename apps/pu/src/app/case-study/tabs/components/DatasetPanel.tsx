@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import * as datasetService from "../../services/datasetService";
 import type { FilterParams } from "../../types";
-import { DatasetInfo } from "./DatasetInfo";
 import { DatasetManager } from "./DatasetManager";
 import { RunSelector } from "./RunSelector";
 
@@ -141,12 +140,12 @@ export function DatasetPanel({
 			</div>
 
 			{/* 資料集詳細資訊 */}
-			<DatasetInfo
+			{/* <DatasetInfo
 				selectedRunId={selectedRunId}
 				experimentRuns={experimentRuns}
 				filterParams={filterParams}
 				showFilterParams={showFilterParams}
-			/>
+			/> */}
 		</div>
 	);
 }

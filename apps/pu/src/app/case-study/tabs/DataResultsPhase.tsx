@@ -1,17 +1,36 @@
 "use client";
 
 import { DatasetPanel } from "@/app/case-study/tabs/components/DatasetPanel";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import dynamic from "next/dynamic";
+import { useQueryState } from "nuqs";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Stage1Automation } from "../components/Stage1AutomationRefactored";
-import Stage2LabelingRefactored from "../components/Stage2LabelingRefactored";
-import { Stage3ModelTraining } from "../components/Stage3ModelTraining";
-import { Stage4ModelEvaluation } from "../components/Stage4ModelEvaluation";
 import * as datasetService from "../services/datasetService";
 import type { FilterParams } from "../types";
 
-type ViewMode = "overview" | "labeling" | "training" | "evaluation";
+// 動態載入較重的分頁，避免切換時阻塞 UI
+const Stage3ExperimentWorkbench = dynamic(
+	() =>
+		import("../components/Stage3ExperimentWorkbench").then(
+			(m) => m.Stage3ExperimentWorkbench,
+		),
+	{ ssr: false },
+);
+const Stage1Automation = dynamic(
+	() =>
+		import("../components/Stage1AutomationRefactored").then(
+			(m) => m.Stage1Automation,
+		),
+	{ ssr: false },
+);
+const Stage2LabelingRefactored = dynamic(
+	() => import("../components/Stage2LabelingRefactored"),
+	{ ssr: false },
+);
+
+type ViewMode = "overview" | "labeling" | "training";
 
 interface DataResultsPhaseProps {
 	stageParam?: string | null;
@@ -29,11 +48,7 @@ const tabs = [
 	},
 	{
 		key: "training" as const,
-		title: "3 Model Training",
-	},
-	{
-		key: "evaluation" as const,
-		title: "4 Evaluation & Insights",
+		title: "3 Training & Analysis Workbench",
 	},
 ];
 
@@ -44,10 +59,8 @@ const stageToViewMode = (stage: string | null | undefined): ViewMode => {
 			return "overview";
 		case "2":
 			return "labeling";
-		case "3":
+		case "3": // Redirect Stage 4 to Stage 3 (Training & Analysis Workbench)
 			return "training";
-		case "4":
-			return "evaluation";
 		default:
 			return "overview";
 	}
@@ -62,8 +75,6 @@ const viewModeToStage = (viewMode: ViewMode): string => {
 			return "2";
 		case "training":
 			return "3";
-		case "evaluation":
-			return "4";
 		default:
 			return "1";
 	}
@@ -73,10 +84,16 @@ export function DataResultsPhase({
 	stageParam,
 	runParam,
 }: DataResultsPhaseProps) {
-	const router = useRouter();
+	// 以 nuqs 維持 URL 狀態，避免觸發整頁導航
+	const [stageQuery, setStageQuery] = useQueryState("stage");
+	const [runQuery, setRunQuery] = useQueryState("run");
+
 	const [viewMode, setViewMode] = useState<ViewMode>(() =>
-		stageToViewMode(stageParam),
+		stageToViewMode(stageQuery ?? stageParam),
 	);
+
+	// 新增：分頁載入狀態
+	const [isTabLoading, setIsTabLoading] = useState(false);
 
 	// Run 狀態管理 - 提前定義以供URL同步使用
 	const [selectedRunId, setSelectedRunId] = useState<string | null>(() => {
@@ -89,78 +106,9 @@ export function DataResultsPhase({
 	const [isCreatingRun, setIsCreatingRun] = useState(false);
 	const [isLoadingRuns, setIsLoadingRuns] = useState(false);
 
-	// 處理 viewMode 改變並同步到 URL
-	const handleViewModeChange = useCallback(
-		(newViewMode: ViewMode) => {
-			setViewMode(newViewMode);
-			const stage = viewModeToStage(newViewMode);
-			const runQuery = selectedRunId ? `&run=${selectedRunId}` : "";
-			router.push(
-				`/case-study?tab=data-results&stage=${stage}${runQuery}`,
-			);
-		},
-		[router, selectedRunId],
-	);
+	const [isPending, startTransition] = useTransition();
 
-	// 處理 selectedRunId 改變並同步到 URL
-	const handleSelectedRunIdChange = useCallback(
-		(newRunId: string | null) => {
-			setSelectedRunId(newRunId);
-			const stage = viewModeToStage(viewMode);
-			const runQuery = newRunId ? `&run=${newRunId}` : "";
-			router.push(
-				`/case-study?tab=data-results&stage=${stage}${runQuery}`,
-			);
-		},
-		[router, viewMode],
-	);
-
-	// 當 stageParam 改變時同步 viewMode
-	useEffect(() => {
-		const newViewMode = stageToViewMode(stageParam);
-		if (newViewMode !== viewMode) {
-			setViewMode(newViewMode);
-		}
-	}, [stageParam, viewMode]);
-
-	// 當 runParam 改變時同步 selectedRunId
-	useEffect(() => {
-		if (runParam && runParam !== selectedRunId) {
-			setSelectedRunId(runParam);
-		}
-	}, [runParam, selectedRunId]);
-
-	// 載入實驗運行清單
-	useEffect(() => {
-		const loadRuns = async () => {
-			setIsLoadingRuns(true);
-			try {
-				const runs = await datasetService.loadExperimentRuns();
-				setExperimentRuns(runs);
-				console.log("Loaded experiment runs:", runs);
-
-				// 如果URL中有runParam，並且該run存在於載入的runs中，確保它被選中
-				if (runParam && runs.some((run) => run.id === runParam)) {
-					if (selectedRunId !== runParam) {
-						setSelectedRunId(runParam);
-					}
-				}
-			} catch (error) {
-				console.error("Failed to load experiment runs:", error);
-			} finally {
-				setIsLoadingRuns(false);
-			}
-		};
-
-		loadRuns();
-	}, [runParam, selectedRunId]);
-
-	// 候選事件和標註統計
-	const [candidateCount, setCandidateCount] = useState(0);
-	const [labeledPositive, setLabeledPositive] = useState(0);
-	const [labeledNormal, setLabeledNormal] = useState(0);
-
-	// 載入候選統計資料
+	// 載入候選統計資料 (提前宣告以供其他 hook 使用，例如在切換 view 時重新載入統計)
 	const loadCandidateStats = useCallback(async (runId: string) => {
 		try {
 			const response = await fetch(
@@ -178,6 +126,115 @@ export function DataResultsPhase({
 			console.error("Failed to load candidate stats:", error);
 		}
 	}, []);
+
+	// 處理 viewMode 改變並同步到 URL（使用 nuqs，避免觸發 RSC 重新載入）
+	const handleViewModeChange = useCallback(
+		(newViewMode: ViewMode) => {
+			if (newViewMode !== viewMode) {
+				setIsTabLoading(true);
+				startTransition(() => {
+					setViewMode(newViewMode);
+					setStageQuery(viewModeToStage(newViewMode));
+				});
+				// 如果切換到標註頁 (labeling)，立即重新載入 runs 以反映後端狀態變更
+				if (newViewMode === "labeling") {
+					(async () => {
+						setIsLoadingRuns(true);
+						try {
+							const updated =
+								await datasetService.loadExperimentRuns();
+							setExperimentRuns(updated);
+							// 如果目前有選中的 run，重新載入其統計資料
+							if (selectedRunId) {
+								await loadCandidateStats(selectedRunId);
+							}
+						} catch (e) {
+							console.error(
+								"Failed to refresh experiment runs on view change:",
+								e,
+							);
+						} finally {
+							setIsLoadingRuns(false);
+						}
+					})();
+				}
+				setTimeout(() => {
+					setIsTabLoading(false);
+				}, 300);
+			}
+		},
+		[setStageQuery, viewMode, selectedRunId, loadCandidateStats],
+	);
+
+	// 處理 selectedRunId 改變並同步到 URL（使用 nuqs）
+	const handleSelectedRunIdChange = useCallback(
+		(newRunId: string | null) => {
+			setSelectedRunId(newRunId);
+			startTransition(() => {
+				setRunQuery(newRunId ?? null);
+			});
+		},
+		[setRunQuery],
+	);
+
+	// 當 stageQuery 或 stageParam 改變時，同步 viewMode（優先使用 stageQuery）
+	useEffect(() => {
+		const newStage = stageQuery ?? stageParam;
+		const newViewMode = stageToViewMode(newStage);
+		if (newViewMode !== viewMode) {
+			if (!isTabLoading) {
+				setIsTabLoading(true);
+				setViewMode(newViewMode);
+				setTimeout(() => {
+					setIsTabLoading(false);
+				}, 300);
+			} else {
+				setViewMode(newViewMode);
+			}
+		}
+	}, [stageQuery, stageParam, viewMode, isTabLoading]);
+
+	// 當 runQuery 或 runParam 改變時同步 selectedRunId（優先使用 runQuery）
+	useEffect(() => {
+		const nextRunId = runQuery ?? runParam ?? null;
+		if (nextRunId !== selectedRunId) {
+			setSelectedRunId(nextRunId);
+		}
+	}, [runQuery, runParam, selectedRunId]);
+
+	// 載入實驗運行清單
+	useEffect(() => {
+		const loadRuns = async () => {
+			setIsLoadingRuns(true);
+			try {
+				const runs = await datasetService.loadExperimentRuns();
+				setExperimentRuns(runs);
+				console.log("Loaded experiment runs:", runs);
+
+				// 如果URL中有runParam，並且該run存在於載入的runs中，確保它被選中
+				if (runParam && runs.some((run) => run.id === runParam)) {
+					if (selectedRunId !== runParam) {
+						setSelectedRunId(runParam);
+					}
+				} else if (!selectedRunId && runs.length > 0) {
+					// 無指定且尚未選擇時，自動選擇第一個可用的 run，避免頁面空白
+					setSelectedRunId(runs[0].id);
+					setRunQuery(runs[0].id);
+				}
+			} catch (error) {
+				console.error("Failed to load experiment runs:", error);
+			} finally {
+				setIsLoadingRuns(false);
+			}
+		};
+
+		loadRuns();
+	}, [runParam, selectedRunId, setRunQuery]);
+
+	// 候選事件和標註統計
+	const [candidateCount, setCandidateCount] = useState(0);
+	const [labeledPositive, setLabeledPositive] = useState(0);
+	const [labeledNormal, setLabeledNormal] = useState(0);
 
 	// 處理標籤進度更新
 	const handleLabelingProgress = useCallback(
@@ -379,6 +436,194 @@ export function DataResultsPhase({
 		return diffs;
 	}, [savedParams, filterParams]);
 
+	// Skeleton 組件
+	const StageContentSkeleton = ({ type }: { type: ViewMode }) => {
+		const baseSkeletonClass = "animate-pulse rounded-md bg-muted";
+
+		if (type === "overview") {
+			return (
+				<div className="space-y-6">
+					{/* 過濾參數 skeleton */}
+					<Card>
+						<CardHeader>
+							<Skeleton className="h-6 w-48" />
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<Skeleton className="h-20" />
+								<Skeleton className="h-20" />
+							</div>
+							<Skeleton className="h-32" />
+							<div className="flex gap-2">
+								<Skeleton className="h-10 w-24" />
+								<Skeleton className="h-10 w-32" />
+							</div>
+						</CardContent>
+					</Card>
+					{/* 結果摘要 skeleton */}
+					<Card>
+						<CardHeader>
+							<Skeleton className="h-6 w-36" />
+						</CardHeader>
+						<CardContent>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<Skeleton className="h-24" />
+								<Skeleton className="h-24" />
+								<Skeleton className="h-24" />
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			);
+		}
+
+		if (type === "labeling") {
+			return (
+				<div className="space-y-6">
+					{/* 標註進度 skeleton */}
+					<Card>
+						<CardHeader>
+							<Skeleton className="h-6 w-40" />
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<Skeleton className="h-20" />
+								<Skeleton className="h-20" />
+								<Skeleton className="h-20" />
+							</div>
+							<Skeleton className="h-4 w-full" />
+							<div className="flex gap-2">
+								<Skeleton className="h-10 w-28" />
+								<Skeleton className="h-10 w-36" />
+							</div>
+						</CardContent>
+					</Card>
+					{/* 標註系統 skeleton */}
+					<Card>
+						<CardContent className="p-6">
+							<Skeleton className="h-96 w-full" />
+						</CardContent>
+					</Card>
+				</div>
+			);
+		}
+
+		if (type === "training") {
+			return (
+				<div className="space-y-6">
+					{/* Header */}
+					<Card>
+						<CardHeader>
+							<Skeleton className="h-6 w-72" />
+							<Skeleton className="h-4 w-96" />
+						</CardHeader>
+					</Card>
+
+					{/* Source Distribution Context */}
+					<Card>
+						<CardContent className="p-6 space-y-3">
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div className="space-y-2">
+									<Skeleton className="h-3 w-24" />
+									<Skeleton className="h-4 w-40" />
+								</div>
+								<div className="space-y-2">
+									<Skeleton className="h-3 w-24" />
+									<Skeleton className="h-4 w-36" />
+								</div>
+								<div className="space-y-2">
+									<Skeleton className="h-3 w-24" />
+									<Skeleton className="h-4 w-32" />
+								</div>
+							</div>
+							<div className="flex items-center gap-2 pt-2">
+								<Skeleton className="h-4 w-4 rounded-full" />
+								<Skeleton className="h-4 w-56" />
+							</div>
+						</CardContent>
+					</Card>
+
+					{/* Main Grid */}
+					<div className="grid lg:grid-cols-5 gap-6">
+						{/* Left: Setup Panels */}
+						<div className="lg:col-span-2 space-y-4">
+							<Card>
+								<CardHeader>
+									<Skeleton className="h-5 w-40" />
+								</CardHeader>
+								<CardContent>
+									<Skeleton className="h-24" />
+								</CardContent>
+							</Card>
+							<Card>
+								<CardHeader>
+									<Skeleton className="h-5 w-44" />
+								</CardHeader>
+								<CardContent>
+									<Skeleton className="h-40" />
+								</CardContent>
+							</Card>
+							<Card>
+								<CardHeader>
+									<Skeleton className="h-5 w-40" />
+								</CardHeader>
+								<CardContent>
+									<Skeleton className="h-40" />
+								</CardContent>
+							</Card>
+							<Card>
+								<CardHeader>
+									<Skeleton className="h-5 w-36" />
+								</CardHeader>
+								<CardContent>
+									<Skeleton className="h-20" />
+								</CardContent>
+							</Card>
+						</div>
+
+						{/* Right: Results & Monitor */}
+						<div className="lg:col-span-3 space-y-4">
+							<Card>
+								<CardContent className="p-6">
+									<Skeleton className="h-56" />
+								</CardContent>
+							</Card>
+							<Card>
+								<CardContent className="p-6">
+									<Skeleton className="h-64" />
+								</CardContent>
+							</Card>
+							<div className="grid md:grid-cols-2 gap-4">
+								<Card>
+									<CardContent className="p-6">
+										<Skeleton className="h-32" />
+									</CardContent>
+								</Card>
+								<Card>
+									<CardContent className="p-6">
+										<Skeleton className="h-32" />
+									</CardContent>
+								</Card>
+								<Card>
+									<CardContent className="p-6">
+										<Skeleton className="h-32" />
+									</CardContent>
+								</Card>
+								<Card>
+									<CardContent className="p-6">
+										<Skeleton className="h-32" />
+									</CardContent>
+								</Card>
+							</div>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
+		return null;
+	};
+
 	return (
 		<div className="space-y-6" id="data-results-phase">
 			{/* 資料集選擇器、管理和詳細資訊 */}
@@ -398,8 +643,22 @@ export function DataResultsPhase({
 				pendingDiffs={pendingDiffs()}
 				showFilterParams={viewMode === "overview"}
 			/>
-			{/* Stage Content - 只有在選擇資料集時才顯示 */}
-			{selectedRunId && (
+			{/* Stage Content */}
+			{!selectedRunId ? (
+				<Card>
+					<CardHeader>
+						<div className="text-slate-800 font-semibold">
+							No dataset selected
+						</div>
+					</CardHeader>
+					<CardContent>
+						<div className="text-slate-600">
+							Please select an existing dataset or create a new
+							one to begin.
+						</div>
+					</CardContent>
+				</Card>
+			) : (
 				<>
 					{/* Tab Navigation */}
 					<div className="flex items-center gap-2 border-b">
@@ -419,49 +678,55 @@ export function DataResultsPhase({
 						))}
 					</div>
 
-					{viewMode === "overview" && (
-						<Stage1Automation
-							selectedRunId={selectedRunId}
-							filterParams={filterParams}
-							savedParams={savedParams}
-							onSaveParameters={handleSaveParameters}
-							pendingDiffs={pendingDiffs()}
-							onFilterParamChange={updateFilterParam}
-							onProceedToStage2={() =>
-								handleViewModeChange("labeling")
-							}
-						/>
-					)}
+					{viewMode === "overview" &&
+						(isTabLoading ? (
+							<StageContentSkeleton type="overview" />
+						) : (
+							<Stage1Automation
+								selectedRunId={selectedRunId}
+								filterParams={filterParams}
+								savedParams={savedParams}
+								onSaveParameters={handleSaveParameters}
+								pendingDiffs={pendingDiffs()}
+								onFilterParamChange={updateFilterParam}
+								onProceedToStage2={() =>
+									handleViewModeChange("labeling")
+								}
+							/>
+						))}
 
-					{viewMode === "labeling" && (
-						<Stage2LabelingRefactored
-							selectedRunId={selectedRunId}
-							candidateCount={candidateCount}
-							labeledPositive={labeledPositive}
-							labeledNormal={labeledNormal}
-							onUpdateRunStatus={updateExperimentRunStatus}
-							onBackToOverview={() =>
-								handleViewModeChange("overview")
-							}
-							onProceedToTraining={() =>
-								handleViewModeChange("training")
-							}
-							onLabelingProgress={handleLabelingProgress}
-							isCompleted={
-								experimentRuns.find(
-									(run) => run.id === selectedRunId,
-								)?.status === "COMPLETED"
-							}
-						/>
-					)}
-
-					{viewMode === "training" && (
-						<Stage3ModelTraining selectedRunId={selectedRunId} />
-					)}
-
-					{viewMode === "evaluation" && (
-						<Stage4ModelEvaluation selectedRunId={selectedRunId} />
-					)}
+					{viewMode === "labeling" &&
+						(isTabLoading ? (
+							<StageContentSkeleton type="labeling" />
+						) : (
+							<Stage2LabelingRefactored
+								selectedRunId={selectedRunId}
+								candidateCount={candidateCount}
+								labeledPositive={labeledPositive}
+								labeledNormal={labeledNormal}
+								onUpdateRunStatus={updateExperimentRunStatus}
+								onBackToOverview={() =>
+									handleViewModeChange("overview")
+								}
+								onProceedToTraining={() =>
+									handleViewModeChange("training")
+								}
+								onLabelingProgress={handleLabelingProgress}
+								isCompleted={
+									experimentRuns.find(
+										(run) => run.id === selectedRunId,
+									)?.status === "COMPLETED"
+								}
+							/>
+						))}
+					{viewMode === "training" &&
+						(isTabLoading ? (
+							<StageContentSkeleton type="training" />
+						) : (
+							<Stage3ExperimentWorkbench
+								selectedRunId={selectedRunId}
+							/>
+						))}
 				</>
 			)}
 		</div>

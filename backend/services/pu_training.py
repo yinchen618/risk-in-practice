@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # 全域變量用於追蹤訓練任務和 WebSocket 連接
 training_jobs: Dict[str, Dict[str, Any]] = {}
 websocket_connections: Set[WebSocket] = set()
+websocket_lock = asyncio.Lock()  # 添加異步鎖保護 WebSocket 操作
 
 class TrainingProgress(BaseModel):
     """訓練進度模型"""
@@ -147,13 +148,50 @@ class PULearningTrainer:
             # 更新狀態為運行中
             training_jobs[job_id]["status"] = "RUNNING"
             logger.info(f"📊 Job {job_id} status updated to RUNNING")
+
+            # 記錄和廣播超參數信息
+            hyperparams = {
+                "model_type": request.model_params.model_type,
+                "prior_method": request.model_params.prior_method,
+                "class_prior": request.model_params.class_prior,
+                "hidden_units": request.model_params.hidden_units,
+                "activation": request.model_params.activation,
+                "lambda_reg": request.model_params.lambda_reg,
+                "optimizer": request.model_params.optimizer,
+                "learning_rate": request.model_params.learning_rate,
+                "epochs": request.model_params.epochs,
+                "batch_size": request.model_params.batch_size,
+                "seed": request.model_params.seed,
+                "feature_version": request.model_params.feature_version,
+            }
+
+            logger.info("🎛️" + "="*50)
+            logger.info("🎛️ TRAINING HYPERPARAMETERS")
+            logger.info(f"🤖 Model Type: {hyperparams['model_type']}")
+            logger.info(f"📊 Prior Method: {hyperparams['prior_method']}")
+            logger.info(f"🎯 Class Prior: {hyperparams['class_prior']}")
+            logger.info(f"🧠 Hidden Units: {hyperparams['hidden_units']}")
+            logger.info(f"⚡ Activation: {hyperparams['activation']}")
+            logger.info(f"📐 Lambda Reg: {hyperparams['lambda_reg']}")
+            logger.info(f"🔧 Optimizer: {hyperparams['optimizer']}")
+            logger.info(f"📈 Learning Rate: {hyperparams['learning_rate']}")
+            logger.info(f"🔄 Epochs: {hyperparams['epochs']}")
+            logger.info(f"📦 Batch Size: {hyperparams['batch_size']}")
+            logger.info(f"🌱 Seed: {hyperparams['seed']}")
+            logger.info(f"🏷️ Feature Version: {hyperparams['feature_version']}")
+            logger.info("🎛️" + "="*50)
+
             await self._broadcast_progress(job_id, 0, "Initializing training...", {
-                "model_name": f"{request.model_params.model_type} Model"
+                "model_name": f"{request.model_params.model_type} Model",
+                "hyperparameters": hyperparams,
+                "stage": "initialization"
             })
 
             # 1. 數據準備階段
             logger.info(f"📂 Stage 1: Loading training data for job {job_id}")
-            await self._broadcast_progress(job_id, 5, "Loading training data from database...")
+            await self._broadcast_progress(job_id, 5, "Stage 1: Loading training data from database...", {
+                "stage": "data_loading"
+            })
 
             # 檢查是否有 U 樣本生成配置
             if (request.u_sample_time_range and
@@ -161,7 +199,10 @@ class PULearningTrainer:
                 request.u_sample_limit):
                 # 使用新的動態 U 樣本生成方法
                 logger.info("🆕 Using dynamic U sample generation from raw data")
-                await self._broadcast_progress(job_id, 7, "Loading P samples from anomaly events...")
+                await self._broadcast_progress(job_id, 7, "Loading P samples from anomaly events...", {
+                    "stage": "data_loading",
+                    "substage": "positive_samples"
+                })
                 p_samples, u_samples = await self._load_training_data_with_dynamic_u(
                     job_id,
                     request.experiment_run_id,
@@ -172,14 +213,19 @@ class PULearningTrainer:
             else:
                 # 使用舊的方法（從 anomaly_event 表）
                 logger.info("📋 Using traditional U sample loading from anomaly_event table")
-                await self._broadcast_progress(job_id, 7, "Loading P and U samples from anomaly events...")
+                await self._broadcast_progress(job_id, 7, "Loading P and U samples from anomaly events...", {
+                    "stage": "data_loading",
+                    "substage": "traditional_loading"
+                })
                 p_samples, u_samples = await self._load_training_data(request.experiment_run_id)
 
             logger.info(f"📊 Loaded {len(p_samples)} positive samples, {len(u_samples)} unlabeled samples")
             await self._broadcast_progress(job_id, 9, f"Data loaded: {len(p_samples)} P samples, {len(u_samples)} U samples", {
                 "p_sample_count": len(p_samples),
                 "u_sample_count": len(u_samples),
-                "model_name": f"{request.model_params.model_type} Model"
+                "model_name": f"{request.model_params.model_type} Model",
+                "stage": "data_loading",
+                "substage": "completed"
             })
 
             if len(p_samples) == 0:
@@ -187,23 +233,44 @@ class PULearningTrainer:
 
             # 2. 特徵工程階段
             logger.info(f"🔧 Stage 2: Feature engineering for job {job_id}")
-            await self._broadcast_progress(job_id, 10, "Starting feature extraction...")
+            await self._broadcast_progress(job_id, 10, "Stage 2: Starting feature extraction...", {
+                "stage": "feature_engineering"
+            })
             X_train, y_train, X_val, y_val, X_test, y_test, test_sample_ids = await self._prepare_features(
                 p_samples, u_samples, request.data_split_config
             )
             logger.info(f"📊 Training set shape: {X_train.shape if X_train is not None else 'None'}")
-            await self._broadcast_progress(job_id, 12, f"Features extracted: {X_train.shape} training samples")
+            await self._broadcast_progress(job_id, 12, f"Features extracted: {X_train.shape} training samples", {
+                "data_split_info": {
+                    "train_samples": X_train.shape[0] if X_train is not None else 0,
+                    "validation_samples": X_val.shape[0] if X_val is not None else 0,
+                    "test_samples": X_test.shape[0] if X_test is not None else 0,
+                    "train_p_samples": int(np.sum(y_train)) if y_train is not None else 0,
+                    "validation_p_samples": int(np.sum(y_val)) if y_val is not None else 0,
+                    "test_p_samples": int(np.sum(y_test)) if y_test is not None else 0,
+                    "split_enabled": request.data_split_config.enabled if request.data_split_config else False
+                },
+                "stage": "feature_engineering",
+                "substage": "completed"
+            })
 
             # 3. Prior 估計階段
             logger.info(f"🎯 Stage 3: Estimating class prior for job {job_id}")
-            await self._broadcast_progress(job_id, 15, "Estimating class prior probability...")
+            await self._broadcast_progress(job_id, 15, "Stage 3: Estimating class prior probability...", {
+                "stage": "prior_estimation"
+            })
             class_prior = await self._estimate_prior(request.model_params, len(p_samples), len(u_samples))
             logger.info(f"📈 Estimated class prior: {class_prior}")
-            await self._broadcast_progress(job_id, 17, f"Class prior estimated: {class_prior:.4f}")
+            await self._broadcast_progress(job_id, 17, f"Class prior estimated: {class_prior:.4f}", {
+                "stage": "prior_estimation",
+                "substage": "completed"
+            })
 
             # 4. 模型訓練階段
             logger.info(f"🤖 Stage 4: Model training ({request.model_params.model_type}) for job {job_id}")
-            await self._broadcast_progress(job_id, 20, f"Initializing {request.model_params.model_type} model training...")
+            await self._broadcast_progress(job_id, 20, f"Stage 4: Initializing {request.model_params.model_type} model training...", {
+                "stage": "model_training"
+            })
 
             if request.model_params.model_type.lower() == 'upu':
                 logger.info(f"🔵 Training uPU model for job {job_id}")
@@ -217,27 +284,59 @@ class PULearningTrainer:
                 )
 
             logger.info(f"🎯 Model training completed for job {job_id}. Final metrics: {final_metrics}")
-            await self._broadcast_progress(job_id, 80, f"{request.model_params.model_type} model training completed successfully")
+            await self._broadcast_progress(job_id, 80, f"{request.model_params.model_type} model training completed successfully", {
+                "stage": "model_training",
+                "substage": "completed"
+            })
+
+            # 4.5. 驗證集評估（如果有）
+            if X_val is not None and y_val is not None:
+                logger.info(f"📊 Stage 4.5: Validation set evaluation for job {job_id}")
+                await self._broadcast_progress(job_id, 82, f"Stage 4.5: Evaluating model performance on {len(y_val)} validation samples...", {
+                    "stage": "validation_evaluation"
+                })
+                validation_metrics = await self._evaluate_on_validation_set(model, X_val, y_val)
+                final_metrics["validation_metrics"] = validation_metrics
+                final_metrics["validation_sample_count"] = len(y_val)
+                logger.info(f"📊 Validation metrics: {validation_metrics}")
+                await self._broadcast_progress(job_id, 84, f"Validation evaluation completed. Accuracy: {validation_metrics.get('val_accuracy', 0):.3f}", {
+                    "validation_metrics": validation_metrics,
+                    "validation_sample_count": len(y_val),
+                    "stage": "validation_evaluation",
+                    "substage": "completed"
+                })
 
             # 5. 測試集評估（如果有）
             if X_test is not None and y_test is not None:
                 logger.info(f"🧪 Stage 5: Test set evaluation for job {job_id}")
-                await self._broadcast_progress(job_id, 85, f"Evaluating model performance on {len(y_test)} test samples...")
+                await self._broadcast_progress(job_id, 85, f"Stage 5: Evaluating model performance on {len(y_test)} test samples...", {
+                    "stage": "test_evaluation"
+                })
                 test_metrics = await self._evaluate_on_test_set(model, X_test, y_test)
                 final_metrics["test_metrics"] = test_metrics
                 final_metrics["test_sample_count"] = len(test_sample_ids) if test_sample_ids else 0
                 logger.info(f"📊 Test metrics: {test_metrics}")
-                await self._broadcast_progress(job_id, 88, f"Test evaluation completed. Accuracy: {test_metrics.get('test_accuracy', 0):.3f}")
+                await self._broadcast_progress(job_id, 88, f"Test evaluation completed. Accuracy: {test_metrics.get('test_accuracy', 0):.3f}", {
+                    "test_metrics": test_metrics,
+                    "test_sample_count": len(test_sample_ids) if test_sample_ids else 0,
+                    "stage": "test_evaluation",
+                    "substage": "completed"
+                })
 
             # 6. 模型保存階段
             logger.info(f"💾 Stage 6: Saving model for job {job_id}")
-            await self._broadcast_progress(job_id, 90, "Saving trained model to storage...")
+            await self._broadcast_progress(job_id, 90, "Stage 6: Saving trained model to storage...", {
+                "stage": "model_saving"
+            })
             model_path = await self._save_model(
                 job_id, model, request.model_params, test_sample_ids,
                 request.experiment_run_id, request.data_split_config, final_metrics
             )
             logger.info(f"💾 Model saved to: {model_path}")
-            await self._broadcast_progress(job_id, 95, "Model saved successfully, finalizing training job...")
+            await self._broadcast_progress(job_id, 95, "Model saved successfully, finalizing training job...", {
+                "stage": "model_saving",
+                "substage": "completed"
+            })
 
             # 7. 完成階段
             logger.info(f"🎉 Stage 7: Job completion for {job_id}")
@@ -250,7 +349,11 @@ class PULearningTrainer:
                 "test_sample_ids": test_sample_ids
             })
 
-            await self._broadcast_progress(job_id, 100, "PU Learning model training completed successfully! Ready for prediction.", final_metrics)
+            await self._broadcast_progress(job_id, 100, "Stage 7: PU Learning model training completed successfully! Ready for prediction.", {
+                **final_metrics,
+                "stage": "completion",
+                "substage": "finished"
+            })
             logger.info("✅" + "="*50)
             logger.info(f"🎊 TRAINING JOB {job_id} COMPLETED SUCCESSFULLY")
             logger.info("✅" + "="*50)
@@ -495,8 +598,8 @@ class PULearningTrainer:
                     }
                     u_samples.append(u_sample)
 
-                    # 發送進度更新 - 增加更新頻率
-                    if (i + 1) % 10 == 0 or i == total_anchors - 1:  # 改為每10個樣本更新一次
+                    # 發送進度更新 - 每500個樣本更新一次
+                    if (i + 1) % 500 == 0 or i == total_anchors - 1:  # 改為每500個樣本更新一次
                         progress_pct = 8.95 + (i + 1) / total_anchors * 0.05  # 從 8.95% 到 9%
                         u_sample_progress = ((i + 1) / total_anchors) * 100
                         await self._broadcast_progress(
@@ -955,6 +1058,32 @@ class PULearningTrainer:
             logger.error(f"Error evaluating on test set: {e}")
             return {"test_error": str(e)}
 
+    async def _evaluate_on_validation_set(self, model: Any, X_val: np.ndarray, y_val: np.ndarray) -> Dict[str, float]:
+        """在驗證集上評估模型性能"""
+        try:
+            # 預測
+            if hasattr(model, 'predict_proba'):
+                y_pred_proba = model.predict_proba(X_val)[:, 1]
+                y_pred = (y_pred_proba > 0.5).astype(int)
+            else:
+                y_pred = model.predict(X_val)
+                y_pred_proba = y_pred.astype(float)
+
+            # 計算指標
+            validation_metrics = {
+                "val_accuracy": accuracy_score(y_val, y_pred),
+                "val_precision": precision_score(y_val, y_pred, zero_division=0),
+                "val_recall": recall_score(y_val, y_pred, zero_division=0),
+                "val_f1": f1_score(y_val, y_pred, zero_division=0)
+            }
+
+            logger.info(f"Validation set evaluation: {validation_metrics}")
+            return validation_metrics
+
+        except Exception as e:
+            logger.error(f"Error evaluating on validation set: {e}")
+            return {"validation_error": str(e)}
+
     async def _save_model(self, job_id: str, model: Any, model_config: ModelConfig, test_sample_ids: Optional[List[str]] = None, experiment_run_id: str = None, data_split_config: Optional[DataSplitConfig] = None, metrics: Dict = None) -> str:
         """保存訓練好的模型"""
         model_filename = f"model_{job_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pkl"
@@ -977,14 +1106,13 @@ class PULearningTrainer:
             from database import db_manager
 
             db_model_data = {
-                "job_id": job_id,
+                "name": f"{model_config.model_type} Model - {job_id[:8]}",
                 "experiment_run_id": experiment_run_id or "unknown",
-                "model_type": model_config.model_type,
+                "scenario_type": model_config.model_type,  # 使用 scenario_type 而不是 model_type
                 "model_path": model_path,
                 "model_config": model_config.dict(),
+                "data_source_config": data_split_config.dict() if data_split_config else {},
                 "training_metrics": metrics or {},
-                "test_sample_ids": test_sample_ids,
-                "data_split_config": data_split_config.dict() if data_split_config else None,
                 "status": "COMPLETED"
             }
 
@@ -1024,7 +1152,12 @@ class PULearningTrainer:
         success_count = 0
         error_count = 0
 
-        for websocket in websocket_connections:
+        # 使用異步鎖保護 WebSocket 連接列表操作
+        async with websocket_lock:
+            # 創建連接列表的副本以避免迭代時集合大小改變
+            connections_copy = list(websocket_connections)
+
+        for websocket in connections_copy:
             try:
                 await websocket.send_text(json.dumps(progress_data))
                 success_count += 1
@@ -1036,9 +1169,11 @@ class PULearningTrainer:
                 logger.warning(f"❌ Failed to send progress to WebSocket: {e}")
                 disconnected.add(websocket)
 
-        # 清理斷開的連接
-        for ws in disconnected:
-            websocket_connections.discard(ws)
+        # 清理斷開的連接 - 也需要鎖保護
+        if disconnected:
+            async with websocket_lock:
+                for ws in disconnected:
+                    websocket_connections.discard(ws)
 
         logger.info(f"📊 Broadcast Results: {success_count} successful, {error_count} failed")
         if disconnected:
@@ -1058,7 +1193,8 @@ trainer = PULearningTrainer()
 # WebSocket 連接管理
 async def add_websocket_connection(websocket: WebSocket):
     """添加 WebSocket 連接"""
-    websocket_connections.add(websocket)
+    async with websocket_lock:
+        websocket_connections.add(websocket)
     logger.info("🔗" + "="*40)
     logger.info("🔗 WEBSOCKET CONNECTION ADDED")
     logger.info(f"📊 Total connections: {len(websocket_connections)}")
@@ -1067,7 +1203,8 @@ async def add_websocket_connection(websocket: WebSocket):
 
 async def remove_websocket_connection(websocket: WebSocket):
     """移除 WebSocket 連接"""
-    websocket_connections.discard(websocket)
+    async with websocket_lock:
+        websocket_connections.discard(websocket)
     logger.info("🔌" + "="*40)
     logger.info("🔌 WEBSOCKET CONNECTION REMOVED")
     logger.info(f"📊 Remaining connections: {len(websocket_connections)}")

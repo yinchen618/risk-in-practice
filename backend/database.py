@@ -10,7 +10,20 @@ import uuid
 # PostgreSQL 連線字串
 DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql+asyncpg://postgres:Info4467@supa.clkvfvz5fxb3.ap-northeast-3.rds.amazonaws.com:5432/supa"
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+# 創建引擎時加入連接池設定
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=10,          # 連接池大小
+    max_overflow=20,       # 最大溢出連接數
+    pool_pre_ping=True,    # 每次使用連接前先ping測試
+    pool_recycle=3600,     # 連接回收時間（秒）
+    connect_args={
+        "server_settings": {
+            "application_name": "pu-learning-backend",
+        }
+    }
+)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 Base = declarative_base()
 
@@ -258,16 +271,16 @@ class DatabaseManager:
             await session.commit()
             return trained_model.id
 
-    async def get_trained_model_by_job_id(self, job_id: str) -> Optional['TrainedModel']:
-        """根據job_id獲取訓練模型"""
+    async def get_trained_model_by_id(self, model_id: str) -> Optional['TrainedModel']:
+        """根據model_id獲取訓練模型"""
         async with self.session_factory() as session:
-            result = await session.execute(select(TrainedModel).where(TrainedModel.job_id == job_id))
+            result = await session.execute(select(TrainedModel).where(TrainedModel.id == model_id))
             return result.scalar_one_or_none()
 
-    async def update_trained_model_status(self, job_id: str, status: str, **updates) -> bool:
+    async def update_trained_model_status(self, model_id: str, status: str, **updates) -> bool:
         """更新訓練模型狀態"""
         async with self.session_factory() as session:
-            result = await session.execute(select(TrainedModel).where(TrainedModel.job_id == job_id))
+            result = await session.execute(select(TrainedModel).where(TrainedModel.id == model_id))
             model = result.scalar_one_or_none()
             if model:
                 model.status = status
@@ -282,11 +295,21 @@ class DatabaseManager:
 
     async def get_trained_models_by_experiment(self, experiment_run_id: str) -> List['TrainedModel']:
         """獲取特定實驗的所有訓練模型"""
-        async with self.session_factory() as session:
-            result = await session.execute(
-                select(TrainedModel).where(TrainedModel.experiment_run_id == experiment_run_id)
-            )
-            return result.scalars().all()
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    result = await session.execute(
+                        select(TrainedModel).where(TrainedModel.experiment_run_id == experiment_run_id)
+                    )
+                    return result.scalars().all()
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    # 最後一次嘗試失敗，拋出異常
+                    raise e
+                # 等待一秒後重試
+                import asyncio
+                await asyncio.sleep(1)
 
 # 異常事件相關表
 class AnomalyEvent(Base):
@@ -355,23 +378,28 @@ class TimeSeriesData(Base):
 class TrainedModel(Base):
     __tablename__ = "trained_models"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    job_id = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
     experiment_run_id = Column(String, nullable=False)
-    model_type = Column(String, nullable=False)  # 'uPU' or 'nnPU'
-    model_path = Column(String, nullable=False)
-    model_config = Column(JSON)  # 模型配置參數
-    training_metrics = Column(JSON)  # 訓練指標
-    test_sample_ids = Column(JSON)  # 測試集樣本ID列表（用於Stage 4）
-    data_split_config = Column(JSON)  # 數據切分配置
-    status = Column(String, nullable=False, default="TRAINING")  # TRAINING, COMPLETED, FAILED
-    created_at = Column(DateTime, default=datetime.utcnow)
-    completed_at = Column(DateTime)
+
+    # 訓練情境相關（使用實際資料庫欄位名稱）
+    scenario_type = Column('scenario_type', String, nullable=False) # e.g., 'ERM_BASELINE', 'uPU', 'nnPU'
+    data_source_config = Column('data_source_config', JSON) # Source data and split configuration
+    model_config = Column('model_config', JSON)  # Model hyperparameters
+
+    # 訓練結果
+    model_path = Column('model_path', String, nullable=True) # Path to the stored model file, available on completion
+    training_metrics = Column('training_metrics', JSON, nullable=True)  # Training and validation metrics
+
+    # 狀態與時間戳
+    status = Column(String, nullable=False, default="RUNNING")  # RUNNING, COMPLETED, FAILED
+    created_at = Column('created_at', DateTime, default=datetime.utcnow)
+    completed_at = Column('completed_at', DateTime, nullable=True)
 
     # 索引
     __table_args__ = (
-        Index('idx_trained_model_job', 'job_id'),
         Index('idx_trained_model_experiment', 'experiment_run_id'),
         Index('idx_trained_model_status', 'status'),
     )
+
 
 db_manager = DatabaseManager()

@@ -173,26 +173,74 @@ async def get_model_results(model_id: str):
     from core.database import db_manager
     from sqlalchemy import text
     async with db_manager.get_session() as session:
-        q = text("SELECT * FROM trained_model WHERE id = :id")
+        # Try the new table first (trained_models)
+        q = text("SELECT * FROM trained_models WHERE id = :id")
         r = await session.execute(q, {"id": model_id})
         row = r.first()
+
+        if not row:
+            # Fallback to old table (trained_model)
+            q = text("SELECT * FROM trained_model WHERE id = :id")
+            r = await session.execute(q, {"id": model_id})
+            row = r.first()
+
         if not row:
             raise HTTPException(status_code=404, detail="Model not found")
+
+        # Handle both old and new schema
+        if hasattr(row, 'training_metrics') and row.training_metrics:
+            # New schema with training_metrics JSON field
+            import json
+            try:
+                if isinstance(row.training_metrics, str):
+                    all_metrics = json.loads(row.training_metrics)
+                else:
+                    all_metrics = row.training_metrics
+
+                metrics = {}
+                # Include test set metrics if available
+                if 'test_metrics' in all_metrics:
+                    metrics['test_metrics'] = all_metrics['test_metrics']
+                if 'test_sample_count' in all_metrics:
+                    metrics['test_sample_count'] = all_metrics['test_sample_count']
+
+                # Include validation metrics
+                if 'val_precision' in all_metrics:
+                    metrics['precision'] = all_metrics['val_precision']
+                if 'val_recall' in all_metrics:
+                    metrics['recall'] = all_metrics['val_recall']
+                if 'val_f1' in all_metrics:
+                    metrics['f1'] = all_metrics['val_f1']
+
+            except Exception as e:
+                print(f"Error parsing training_metrics: {e}")
+                metrics = {}
+        else:
+            # Old schema with separate precision, recall, f1Score fields
+            metrics = {
+                'precision': float(row.precision) if hasattr(row, 'precision') and row.precision else 0.0,
+                'recall': float(row.recall) if hasattr(row, 'recall') and row.recall else 0.0,
+                'f1': float(row.f1Score) if hasattr(row, 'f1Score') and row.f1Score else 0.0,
+            }
+
+        # Determine table structure for response
+        model_name = getattr(row, 'modelName', None) or getattr(row, 'model_type', 'Unknown Model')
+        model_type = getattr(row, 'modelType', None) or getattr(row, 'model_type', 'Unknown')
+        created_at = getattr(row, 'createdAt', None) or getattr(row, 'created_at', None)
+        updated_at = getattr(row, 'updatedAt', None) or getattr(row, 'completed_at', None)
+        model_path = getattr(row, 'modelPath', None) or getattr(row, 'model_path', None)
+
         return {
             'meta': {
                 'model_id': row.id,
-                'model_name': row.modelName,
-                'model_type': row.modelType,
-                'created_at': row.createdAt.isoformat(),
-                'updated_at': row.updatedAt.isoformat(),
+                'model_name': model_name,
+                'model_type': model_type,
+                'created_at': created_at.isoformat() if created_at else None,
+                'updated_at': updated_at.isoformat() if updated_at else None,
             },
-            'metrics': {
-                'precision': float(row.precision),
-                'recall': float(row.recall),
-                'f1': float(row.f1Score),
-            },
+            'metrics': metrics,
             'artifacts': {
-                'model_path': row.modelPath,
+                'model_path': model_path,
             },
         }
 
