@@ -3,6 +3,8 @@
 import { DatasetPanel } from "@/app/case-study/tabs/components/DatasetPanel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiRequest } from "@/utils/global-api-manager";
+import { apiLogger } from "@/utils/logger";
 import dynamic from "next/dynamic";
 import { useQueryState } from "nuqs";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -30,7 +32,15 @@ const Stage2LabelingRefactored = dynamic(
 	{ ssr: false },
 );
 
-type ViewMode = "overview" | "labeling" | "training";
+const Stage4ResultsAnalysis = dynamic(
+	() =>
+		import("../components/Stage4ResultsAnalysis").then(
+			(m) => m.Stage4ResultsAnalysis,
+		),
+	{ ssr: false },
+);
+
+type ViewMode = "overview" | "labeling" | "training" | "results-analysis";
 
 interface DataResultsPhaseProps {
 	stageParam?: string | null;
@@ -50,6 +60,10 @@ const tabs = [
 		key: "training" as const,
 		title: "3 Training & Analysis Workbench",
 	},
+	{
+		key: "results-analysis" as const,
+		title: "4 Results Analysis",
+	},
 ];
 
 // 將 stage 參數映射到 viewMode
@@ -61,6 +75,8 @@ const stageToViewMode = (stage: string | null | undefined): ViewMode => {
 			return "labeling";
 		case "3": // Redirect Stage 4 to Stage 3 (Training & Analysis Workbench)
 			return "training";
+		case "4":
+			return "results-analysis";
 		default:
 			return "overview";
 	}
@@ -75,6 +91,8 @@ const viewModeToStage = (viewMode: ViewMode): string => {
 			return "2";
 		case "training":
 			return "3";
+		case "results-analysis": // 如果有結果分析階段，則映射到 4
+			return "4";
 		default:
 			return "1";
 	}
@@ -108,24 +126,62 @@ export function DataResultsPhase({
 
 	const [isPending, startTransition] = useTransition();
 
-	// 載入候選統計資料 (提前宣告以供其他 hook 使用，例如在切換 view 時重新載入統計)
-	const loadCandidateStats = useCallback(async (runId: string) => {
-		try {
-			const response = await fetch(
-				`http://localhost:8000/api/v1/stats?experiment_run_id=${runId}`,
-			);
-			if (response.ok) {
-				const result = await response.json();
+	// 載入候選統計資料 (提前宣告以供其他 hook 使用，例如在切換 view 時重新載入統計) - 優化版本
+	const [statsCache, setStatsCache] = useState<Map<string, any>>(new Map());
+	const [lastStatsLoad, setLastStatsLoad] = useState<Map<string, number>>(
+		new Map(),
+	);
+	const STATS_CACHE_DURATION = 10000; // 10秒緩存
+
+	const loadCandidateStats = useCallback(
+		async (runId: string, forceRefresh = false) => {
+			const now = Date.now();
+			const lastLoad = lastStatsLoad.get(runId) || 0;
+			const logId = Math.random().toString(36).substr(2, 9);
+			const url = `http://localhost:8000/api/v1/stats?experiment_run_id=${runId}`;
+
+			apiLogger.request(url, "GET", { runId, forceRefresh, logId });
+
+			// 檢查緩存
+			if (
+				!forceRefresh &&
+				statsCache.has(runId) &&
+				now - lastLoad < STATS_CACHE_DURATION
+			) {
+				const cachedData = statsCache.get(runId);
+				apiLogger.cached(url, { runId, cachedData, logId });
+				setCandidateCount(cachedData.totalEvents);
+				setLabeledPositive(cachedData.confirmedCount);
+				setLabeledNormal(cachedData.rejectedCount);
+				return;
+			}
+
+			try {
+				// 使用統一的API管理器來避免重複調用
+				const result = await apiRequest.get(url, !forceRefresh, true);
+
 				if (result.success && result.data) {
+					// 更新緩存
+					setStatsCache((prev) =>
+						new Map(prev).set(runId, result.data),
+					);
+					setLastStatsLoad((prev) => new Map(prev).set(runId, now));
+
 					setCandidateCount(result.data.totalEvents);
 					setLabeledPositive(result.data.confirmedCount);
 					setLabeledNormal(result.data.rejectedCount);
+					apiLogger.response(url, 200, {
+						runId,
+						data: result.data,
+						logId,
+					});
 				}
+			} catch (error) {
+				apiLogger.error(url, { error, runId, logId });
 			}
-		} catch (error) {
-			console.error("Failed to load candidate stats:", error);
-		}
-	}, []);
+		},
+		[statsCache, lastStatsLoad],
+	);
 
 	// 處理 viewMode 改變並同步到 URL（使用 nuqs，避免觸發 RSC 重新載入）
 	const handleViewModeChange = useCallback(
@@ -139,22 +195,18 @@ export function DataResultsPhase({
 				// 如果切換到標註頁 (labeling)，立即重新載入 runs 以反映後端狀態變更
 				if (newViewMode === "labeling") {
 					(async () => {
-						setIsLoadingRuns(true);
 						try {
-							const updated =
-								await datasetService.loadExperimentRuns();
-							setExperimentRuns(updated);
-							// 如果目前有選中的 run，重新載入其統計資料
+							// 使用緩存機制的強制刷新
+							await loadExperimentRunsThrottled(true);
+							// 如果目前有選中的 run，重新載入其統計資料 (強制刷新)
 							if (selectedRunId) {
-								await loadCandidateStats(selectedRunId);
+								await loadCandidateStats(selectedRunId, true);
 							}
 						} catch (e) {
 							console.error(
 								"Failed to refresh experiment runs on view change:",
 								e,
 							);
-						} finally {
-							setIsLoadingRuns(false);
 						}
 					})();
 				}
@@ -202,14 +254,23 @@ export function DataResultsPhase({
 		}
 	}, [runQuery, runParam, selectedRunId]);
 
-	// 載入實驗運行清單
-	useEffect(() => {
-		const loadRuns = async () => {
+	// 載入實驗運行清單 - 優化: 減少重複調用
+	const [lastLoadTime, setLastLoadTime] = useState(0);
+	const LOAD_THROTTLE_MS = 2000; // 2秒內不重複載入
+
+	const loadExperimentRunsThrottled = useCallback(
+		async (forceRefresh = false) => {
+			const now = Date.now();
+			if (!forceRefresh && now - lastLoadTime < LOAD_THROTTLE_MS) {
+				return;
+			}
+
 			setIsLoadingRuns(true);
+			setLastLoadTime(now);
 			try {
-				const runs = await datasetService.loadExperimentRuns();
+				const runs =
+					await datasetService.loadExperimentRuns(forceRefresh);
 				setExperimentRuns(runs);
-				console.log("Loaded experiment runs:", runs);
 
 				// 如果URL中有runParam，並且該run存在於載入的runs中，確保它被選中
 				if (runParam && runs.some((run) => run.id === runParam)) {
@@ -226,23 +287,35 @@ export function DataResultsPhase({
 			} finally {
 				setIsLoadingRuns(false);
 			}
-		};
+		},
+		[runParam, selectedRunId, setRunQuery, lastLoadTime],
+	);
 
-		loadRuns();
-	}, [runParam, selectedRunId, setRunQuery]);
+	useEffect(() => {
+		loadExperimentRunsThrottled();
+	}, [runParam, selectedRunId, setRunQuery]); // 移除 loadExperimentRunsThrottled 依賴避免循環
 
 	// 候選事件和標註統計
 	const [candidateCount, setCandidateCount] = useState(0);
 	const [labeledPositive, setLabeledPositive] = useState(0);
 	const [labeledNormal, setLabeledNormal] = useState(0);
 
-	// 處理標籤進度更新
+	// 處理標籤進度更新 - 優化版本，移除全局緩存清除以避免循環
 	const handleLabelingProgress = useCallback(
 		(positive: number, normal: number) => {
 			setLabeledPositive(positive);
 			setLabeledNormal(normal);
+
+			// 只清除當前 runId 的統計緩存，不觸發全局事件
+			if (selectedRunId) {
+				setStatsCache((prev) => {
+					const newMap = new Map(prev);
+					newMap.delete(selectedRunId);
+					return newMap;
+				});
+			}
 		},
-		[],
+		[selectedRunId],
 	);
 
 	// 當選擇的運行ID改變時載入統計資料
@@ -288,20 +361,19 @@ export function DataResultsPhase({
 					await datasetService.markRunAsComplete(runId);
 				}
 
-				// 重新載入完整的 experiment runs 列表以確保狀態同步
-				const updatedRuns = await datasetService.loadExperimentRuns();
-				setExperimentRuns(updatedRuns);
+				// 使用緩存機制的強制刷新來重新載入 experiment runs 列表
+				await loadExperimentRunsThrottled(true);
 
-				// 重新載入統計資料
+				// 重新載入統計資料 (強制刷新)
 				if (selectedRunId === runId) {
-					await loadCandidateStats(runId);
+					await loadCandidateStats(runId, true);
 				}
 			} catch (error) {
 				console.error("Failed to update experiment run status:", error);
 				throw error; // 重新拋出錯誤，讓 Stage2 組件可以處理
 			}
 		},
-		[selectedRunId, loadCandidateStats],
+		[selectedRunId, loadCandidateStats, loadExperimentRunsThrottled],
 	);
 
 	// 更新過濾參數的輔助函數
@@ -621,114 +693,152 @@ export function DataResultsPhase({
 			);
 		}
 
+		if (type === "results-analysis") {
+			<div>
+				<Skeleton className="h-32" />
+			</div>;
+		}
+
 		return null;
 	};
 
 	return (
-		<div className="space-y-6" id="data-results-phase">
-			{/* 資料集選擇器、管理和詳細資訊 */}
-			<DatasetPanel
-				selectedRunId={selectedRunId}
-				setSelectedRunId={handleSelectedRunIdChange}
-				experimentRuns={experimentRuns}
-				isLoadingRuns={isLoadingRuns}
-				isCreatingRun={isCreatingRun}
-				setIsCreatingRun={setIsCreatingRun}
-				addExperimentRun={addExperimentRun}
-				setExperimentRuns={setExperimentRuns}
-				onSaveParameters={handleSaveParameters}
-				setSavedParams={setSavedParams}
-				filterParams={filterParams}
-				showPendingChanges={pendingDiffs().length > 0}
-				pendingDiffs={pendingDiffs()}
-				showFilterParams={viewMode === "overview"}
-			/>
-			{/* Stage Content */}
-			{!selectedRunId ? (
-				<Card>
-					<CardHeader>
-						<div className="text-slate-800 font-semibold">
-							No dataset selected
-						</div>
-					</CardHeader>
-					<CardContent>
-						<div className="text-slate-600">
-							Please select an existing dataset or create a new
-							one to begin.
-						</div>
-					</CardContent>
-				</Card>
-			) : (
-				<>
-					{/* Tab Navigation */}
-					<div className="flex items-center gap-2 border-b">
-						{tabs.map((tab) => (
-							<button
-								key={tab.key}
-								type="button"
-								onClick={() => handleViewModeChange(tab.key)}
-								className={`px-4 py-2 border-b-2 transition-colors ${
-									viewMode === tab.key
-										? "text-blue-600 font-semibold border-blue-600"
-										: "text-slate-500 border-transparent hover:text-slate-700"
-								}`}
-							>
-								{tab.title}
-							</button>
-						))}
+		<div className="space-y-8">
+			<Card className="border border-blue-200">
+				<CardHeader>
+					<div className="mb-4 flex items-center gap-2">
+						<span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+							D
+						</span>
+						<h2 className="text-lg font-semibold text-slate-900">
+							Data & Results Analysis
+						</h2>
 					</div>
+					<header className="pb-2 mb-2 border-b-4 border-emerald-600" />
+				</CardHeader>
+				<CardContent className="space-y-6" id="data-results-phase">
+					{/* 資料集選擇器、管理和詳細資訊 */}
+					<DatasetPanel
+						selectedRunId={selectedRunId}
+						setSelectedRunId={handleSelectedRunIdChange}
+						experimentRuns={experimentRuns}
+						isLoadingRuns={isLoadingRuns}
+						isCreatingRun={isCreatingRun}
+						setIsCreatingRun={setIsCreatingRun}
+						addExperimentRun={addExperimentRun}
+						setExperimentRuns={setExperimentRuns}
+						onSaveParameters={handleSaveParameters}
+						setSavedParams={setSavedParams}
+						filterParams={filterParams}
+						showPendingChanges={pendingDiffs().length > 0}
+						pendingDiffs={pendingDiffs()}
+						showFilterParams={viewMode === "overview"}
+					/>
+					{/* Stage Content */}
+					{!selectedRunId ? (
+						<Card>
+							<CardHeader>
+								<div className="text-slate-800 font-semibold">
+									No dataset selected
+								</div>
+							</CardHeader>
+							<CardContent>
+								<div className="text-slate-600">
+									Please select an existing dataset or create
+									a new one to begin.
+								</div>
+							</CardContent>
+						</Card>
+					) : (
+						<>
+							{/* Tab Navigation */}
+							<div className="flex items-center gap-2 border-b">
+								{tabs.map((tab) => (
+									<button
+										key={tab.key}
+										type="button"
+										onClick={() =>
+											handleViewModeChange(tab.key)
+										}
+										className={`px-4 py-2 border-b-2 transition-colors ${
+											viewMode === tab.key
+												? "text-blue-600 font-semibold border-blue-600"
+												: "text-slate-500 border-transparent hover:text-slate-700"
+										}`}
+									>
+										{tab.title}
+									</button>
+								))}
+							</div>
 
-					{viewMode === "overview" &&
-						(isTabLoading ? (
-							<StageContentSkeleton type="overview" />
-						) : (
-							<Stage1Automation
-								selectedRunId={selectedRunId}
-								filterParams={filterParams}
-								savedParams={savedParams}
-								onSaveParameters={handleSaveParameters}
-								pendingDiffs={pendingDiffs()}
-								onFilterParamChange={updateFilterParam}
-								onProceedToStage2={() =>
-									handleViewModeChange("labeling")
-								}
-							/>
-						))}
+							{viewMode === "overview" &&
+								(isTabLoading ? (
+									<StageContentSkeleton type="overview" />
+								) : (
+									<Stage1Automation
+										selectedRunId={selectedRunId}
+										filterParams={filterParams}
+										savedParams={savedParams}
+										onSaveParameters={handleSaveParameters}
+										pendingDiffs={pendingDiffs()}
+										onFilterParamChange={updateFilterParam}
+										onProceedToStage2={() =>
+											handleViewModeChange("labeling")
+										}
+									/>
+								))}
 
-					{viewMode === "labeling" &&
-						(isTabLoading ? (
-							<StageContentSkeleton type="labeling" />
-						) : (
-							<Stage2LabelingRefactored
-								selectedRunId={selectedRunId}
-								candidateCount={candidateCount}
-								labeledPositive={labeledPositive}
-								labeledNormal={labeledNormal}
-								onUpdateRunStatus={updateExperimentRunStatus}
-								onBackToOverview={() =>
-									handleViewModeChange("overview")
-								}
-								onProceedToTraining={() =>
-									handleViewModeChange("training")
-								}
-								onLabelingProgress={handleLabelingProgress}
-								isCompleted={
-									experimentRuns.find(
-										(run) => run.id === selectedRunId,
-									)?.status === "COMPLETED"
-								}
-							/>
-						))}
-					{viewMode === "training" &&
-						(isTabLoading ? (
-							<StageContentSkeleton type="training" />
-						) : (
-							<Stage3ExperimentWorkbench
-								selectedRunId={selectedRunId}
-							/>
-						))}
-				</>
-			)}
+							{viewMode === "labeling" &&
+								(isTabLoading ? (
+									<StageContentSkeleton type="labeling" />
+								) : (
+									<Stage2LabelingRefactored
+										selectedRunId={selectedRunId}
+										candidateCount={candidateCount}
+										labeledPositive={labeledPositive}
+										labeledNormal={labeledNormal}
+										onUpdateRunStatus={
+											updateExperimentRunStatus
+										}
+										onBackToOverview={() =>
+											handleViewModeChange("overview")
+										}
+										onProceedToTraining={() =>
+											handleViewModeChange("training")
+										}
+										onLabelingProgress={
+											handleLabelingProgress
+										}
+										isCompleted={
+											experimentRuns.find(
+												(run) =>
+													run.id === selectedRunId,
+											)?.status === "COMPLETED"
+										}
+									/>
+								))}
+							{viewMode === "training" &&
+								(isTabLoading ? (
+									<StageContentSkeleton type="training" />
+								) : (
+									<Stage3ExperimentWorkbench
+										selectedRunId={selectedRunId}
+									/>
+								))}
+							{viewMode === "results-analysis" && (
+								<Stage4ResultsAnalysis
+									selectedRunId={selectedRunId}
+									// filterParams={filterParams}
+									// savedParams={savedParams}
+									// onSaveParameters={handleSaveParameters}
+									// pendingDiffs={pendingDiffs()}
+									// onFilterParamChange={updateFilterParam}
+								/>
+							)}
+						</>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

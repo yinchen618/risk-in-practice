@@ -1,3 +1,4 @@
+import { apiLogger } from "@/utils/logger";
 import type { FilterParams } from "../types";
 
 const API_BASE = "http://localhost:8000";
@@ -73,18 +74,55 @@ function formatFilterParamsForAPI(filterParams: FilterParams) {
 	};
 }
 
+// 緩存管理
+let runsCache: Array<{ id: string; name: string; status: string }> | null =
+	null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 5000; // 5秒緩存時間
+
 /**
- * 載入所有實驗運行清單
+ * 載入所有實驗運行清單 (帶緩存機制)
  */
-export async function loadExperimentRuns(): Promise<
-	Array<{ id: string; name: string; status: string }>
-> {
-	const res = await fetch(`${API_BASE}/api/v1/experiment-runs`);
-	if (res.ok) {
-		const json = await res.json();
-		return json.data ?? [];
+export async function loadExperimentRuns(
+	forceRefresh = false,
+): Promise<Array<{ id: string; name: string; status: string }>> {
+	const now = Date.now();
+	const logId = Math.random().toString(36).substr(2, 9);
+	const url = `${API_BASE}/api/v1/experiment-runs`;
+
+	apiLogger.request(url, "GET", { forceRefresh, logId });
+
+	// 如果有緩存且未過期，且不是強制刷新，則返回緩存
+	if (!forceRefresh && runsCache && now - lastFetchTime < CACHE_DURATION) {
+		apiLogger.cached(url, { count: runsCache.length, logId });
+		return runsCache;
 	}
-	throw new Error("Failed to load experiment runs");
+
+	try {
+		const res = await fetch(url);
+		if (res.ok) {
+			const json = await res.json();
+			const data = json.data ?? [];
+			runsCache = data;
+			lastFetchTime = now;
+			apiLogger.response(url, res.status, { count: data.length, logId });
+			return data;
+		}
+		apiLogger.error(url, { status: res.status, logId });
+		throw new Error("Failed to load experiment runs");
+	} catch (error) {
+		apiLogger.error(url, { error, logId });
+		throw error;
+	}
+}
+
+/**
+ * 清除實驗運行緩存
+ */
+export function clearExperimentRunsCache(): void {
+	console.log("Clearing experiment runs cache");
+	runsCache = null;
+	lastFetchTime = 0;
 }
 
 /**
@@ -104,6 +142,8 @@ export async function createNewExperimentRun(
 	});
 	if (res.ok) {
 		const json = await res.json();
+		// 清除緩存，因為新增了資料
+		clearExperimentRunsCache();
 		return json.data;
 	}
 	throw new Error("Failed to create dataset");
@@ -198,6 +238,8 @@ export async function markRunAsComplete(runId: string): Promise<any> {
 		const msg = await response.text();
 		throw new Error(msg || "Failed to mark as COMPLETED");
 	}
+	// 清除緩存，因為狀態有變更
+	clearExperimentRunsCache();
 	return response.json();
 }
 

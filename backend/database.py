@@ -1,266 +1,38 @@
 import os
+import json
+import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, String, Float, Integer, DateTime, Boolean, Text, ForeignKey, JSON, Index
+from sqlalchemy import Column, String, Float, Integer, DateTime, Boolean, Text, ForeignKey, JSON, Index, text
 from sqlalchemy.future import select
 import uuid
 
-# PostgreSQL 連線字串
-DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql+asyncpg://postgres:Info4467@supa.clkvfvz5fxb3.ap-northeast-3.rds.amazonaws.com:5432/supa"
+# Import base models and connection from core
+from core.database import Ammeter, AmmeterLog, Base, engine, async_session, init_database as core_init_database
 
-# 創建引擎時加入連接池設定
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_size=10,          # 連接池大小
-    max_overflow=20,       # 最大溢出連接數
-    pool_pre_ping=True,    # 每次使用連接前先ping測試
-    pool_recycle=3600,     # 連接回收時間（秒）
-    connect_args={
-        "server_settings": {
-            "application_name": "pu-learning-backend",
-        }
-    }
-)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
-Base = declarative_base()
+# 設置 logger
+logger = logging.getLogger(__name__)
 
-# ORM Model
-class Ammeter(Base):
-    __tablename__ = "ammeter"
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    electricMeterNumber = Column(String, nullable=False)
-    electricMeterName = Column(String, nullable=False)
-    deviceNumber = Column(String, nullable=False, unique=True)
-    factory = Column(String)
-    device = Column(String)
-    voltage = Column(Float)
-    currents = Column(Float)
-    power = Column(Float)
-    battery = Column(Float)
-    switchState = Column(Integer)
-    networkState = Column(Integer)
-    lastUpdated = Column(DateTime)
-    organizationId = Column(String)
-    createdAt = Column(DateTime, default=datetime.utcnow)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+# Extend engine configuration for PU learning specific needs
+# (Keep the existing engine configuration if needed)
 
-class AmmeterLog(Base):
-    __tablename__ = "ammeter_log"
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    deviceNumber = Column(String, nullable=False)
-    action = Column(String, nullable=False)
-    factory = Column(String)
-    device = Column(String)
-    voltage = Column(Float)
-    currents = Column(Float)
-    power = Column(Float)
-    battery = Column(Float)
-    switchState = Column(Integer)
-    networkState = Column(Integer)
-    lastUpdated = Column(DateTime)
-    requestData = Column(Text)
-    responseData = Column(Text)
-    statusCode = Column(Integer)
-    success = Column(Boolean, nullable=False)
-    errorMessage = Column(Text)
-    responseTime = Column(Integer)
-    ipAddress = Column(String)
-    userAgent = Column(String)
-    userId = Column(String)
-    organizationId = Column(String)
-    createdAt = Column(DateTime, default=datetime.utcnow)
+# Import core DatabaseManager for inheritance
+from core.database import DatabaseManager as CoreDatabaseManager
 
-# 建表
+# Initialize database with all models (core + extended)
 async def init_database():
+    """Initialize database with both core and PU learning models"""
+    await core_init_database()  # Initialize core models
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("PostgreSQL 資料表已建立")
+        await conn.run_sync(Base.metadata.create_all)  # Initialize extended models
+    print("PostgreSQL 資料表已建立 (Core + PU Learning)")
 
 # CRUD 範例
-class DatabaseManager:
+class DatabaseManager(CoreDatabaseManager):
     def __init__(self):
-        self.session_factory = async_session
-
-    async def save_ammeter_data(self, ammeter_data: Dict[str, Any]) -> Optional[str]:
-        async with self.session_factory() as session:
-            # 依 deviceNumber 查找
-            result = await session.execute(select(Ammeter).where(Ammeter.deviceNumber == ammeter_data["deviceNumber"]))
-            ammeter = result.scalar_one_or_none()
-            if ammeter:
-                for k, v in ammeter_data.items():
-                    if hasattr(ammeter, k):
-                        setattr(ammeter, k, v)
-                ammeter.updatedAt = datetime.utcnow()
-            else:
-                ammeter = Ammeter(**ammeter_data)
-                session.add(ammeter)
-            await session.commit()
-            return ammeter.id
-
-    async def get_ammeter_by_device_number(self, device_number: str) -> Optional[Ammeter]:
-        async with self.session_factory() as session:
-            result = await session.execute(select(Ammeter).where(Ammeter.deviceNumber == device_number))
-            return result.scalar_one_or_none()
-
-    async def get_ammeter_by_electric_meter_number(self, electric_meter_number: str) -> Optional[Ammeter]:
-        async with self.session_factory() as session:
-            result = await session.execute(select(Ammeter).where(Ammeter.electricMeterNumber == electric_meter_number))
-            return result.scalar_one_or_none()
-
-    async def get_all_ammeters(self) -> List[Ammeter]:
-        async with self.session_factory() as session:
-            result = await session.execute(select(Ammeter))
-            return result.scalars().all()
-
-    async def save_api_log(self, log_data: Dict[str, Any]) -> Optional[str]:
-        async with self.session_factory() as session:
-            # 如果是 ammeterDetail 動作且成功，嘗試解析電表資料
-            if (log_data.get("action") == "ammeterDetail" and
-                log_data.get("success") and
-                log_data.get("responseData")):
-
-                try:
-                    import json
-                    response_data = json.loads(log_data["responseData"])
-
-                    # 檢查是否有電表資料
-                    if (response_data.get("result") == "1" and
-                        "data" in response_data):
-
-                        ammeter_data = response_data["data"]
-
-                        # 解析數值資料
-                        def parse_voltage(voltage_str: str) -> float:
-                            try:
-                                if not voltage_str or len(voltage_str) < 4:
-                                    return 0.0
-                                value = int(voltage_str[-4:])
-                                return value / 10.0
-                            except:
-                                return 0.0
-
-                        def parse_current(current_str: str) -> float:
-                            try:
-                                if not current_str or len(current_str) < 4:
-                                    return 0.0
-                                value = int(current_str[-4:])
-                                return value / 10.0
-                            except:
-                                return 0.0
-
-                        def parse_power(power_str: str) -> float:
-                            try:
-                                if not power_str or len(power_str) < 4:
-                                    return 0.0
-                                value = int(power_str[-4:])
-                                return value / 10.0
-                            except:
-                                return 0.0
-
-                        def parse_battery(battery_str: str) -> float:
-                            try:
-                                if not battery_str or len(battery_str) < 5:
-                                    return 0.0
-                                value = int(battery_str[-5:])
-                                return value / 100.0
-                            except:
-                                return 0.0
-
-                        # 將解析後的資料加入 log_data
-                        log_data.update({
-                            "factory": ammeter_data.get("factory", ""),
-                            "device": ammeter_data.get("device", ""),
-                            "voltage": parse_voltage(ammeter_data.get("voltage", "0")),
-                            "currents": parse_current(ammeter_data.get("currents", "0")),
-                            "power": parse_power(ammeter_data.get("power", "0")),
-                            "battery": parse_battery(ammeter_data.get("battery", "0")),
-                            "switchState": int(ammeter_data.get("switchState", 0)),
-                            "networkState": int(ammeter_data.get("networkState", 0)),
-                            "lastUpdated": datetime.utcnow()
-                        })
-
-                except Exception as e:
-                    # 解析失敗不影響日誌記錄
-                    print(f"解析電表資料失敗: {e}")
-
-            log = AmmeterLog(**log_data)
-            session.add(log)
-            await session.commit()
-            return log.id
-
-    async def get_ammeter_logs(self, device_number: str = None, limit: int = 100) -> List[AmmeterLog]:
-        async with self.session_factory() as session:
-            stmt = select(AmmeterLog).order_by(AmmeterLog.createdAt.desc())
-            if device_number:
-                stmt = stmt.where(AmmeterLog.deviceNumber == device_number)
-            if limit:
-                stmt = stmt.limit(limit)
-            result = await session.execute(stmt)
-            return result.scalars().all()
-
-    async def get_ammeter_history(self, device_number: str, start_date: datetime = None, end_date: datetime = None, limit: int = 1000) -> List[AmmeterLog]:
-        """獲取電表歷史資料，用於分析"""
-        async with self.session_factory() as session:
-            stmt = select(AmmeterLog).where(
-                AmmeterLog.deviceNumber == device_number,
-                AmmeterLog.action == "ammeterDetail",
-                AmmeterLog.success == True
-            ).order_by(AmmeterLog.createdAt.desc())
-
-            if start_date:
-                stmt = stmt.where(AmmeterLog.createdAt >= start_date)
-            if end_date:
-                stmt = stmt.where(AmmeterLog.createdAt <= end_date)
-            if limit:
-                stmt = stmt.limit(limit)
-
-            result = await session.execute(stmt)
-            return result.scalars().all()
-
-    async def get_ammeter_statistics(self, device_number: str, days: int = 7) -> Dict:
-        """獲取電表統計資料"""
-        from datetime import timedelta
-
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-
-        history = await self.get_ammeter_history(device_number, start_date, end_date)
-
-        if not history:
-            return {
-                "deviceNumber": device_number,
-                "period": f"{days}天",
-                "totalRecords": 0,
-                "averageVoltage": 0,
-                "averageCurrent": 0,
-                "averagePower": 0,
-                "totalBattery": 0,
-                "onlineRate": 0,
-                "activeRate": 0
-            }
-
-        # 計算統計資料
-        voltages = [h.voltage for h in history if h.voltage is not None]
-        currents = [h.currents for h in history if h.currents is not None]
-        powers = [h.power for h in history if h.power is not None]
-        batteries = [h.battery for h in history if h.battery is not None]
-        network_states = [h.networkState for h in history if h.networkState is not None]
-        switch_states = [h.switchState for h in history if h.switchState is not None]
-
-        return {
-            "deviceNumber": device_number,
-            "period": f"{days}天",
-            "totalRecords": len(history),
-            "averageVoltage": sum(voltages) / len(voltages) if voltages else 0,
-            "averageCurrent": sum(currents) / len(currents) if currents else 0,
-            "averagePower": sum(powers) / len(powers) if powers else 0,
-            "totalBattery": max(batteries) - min(batteries) if len(batteries) > 1 else 0,
-            "onlineRate": sum(1 for s in network_states if s == 1) / len(network_states) if network_states else 0,
-            "activeRate": sum(1 for s in switch_states if s == 1) / len(switch_states) if switch_states else 0
-        }
+        super().__init__()
 
     # PU Learning 訓練模型相關方法
     async def save_trained_model(self, model_data: Dict[str, Any]) -> Optional[str]:
@@ -271,68 +43,445 @@ class DatabaseManager:
             await session.commit()
             return trained_model.id
 
-    async def get_trained_model_by_id(self, model_id: str) -> Optional['TrainedModel']:
-        """根據model_id獲取訓練模型"""
-        async with self.session_factory() as session:
-            result = await session.execute(select(TrainedModel).where(TrainedModel.id == model_id))
-            return result.scalar_one_or_none()
+    async def create_evaluation_run(
+        self,
+        name: str,
+        scenario_type: str,
+        trained_model_id: str,
+        test_set_source: dict,
+        evaluation_metrics: dict = None
+    ) -> dict:
+        """創建新的評估運行記錄"""
+        from datetime import datetime
+        import uuid
 
-    async def update_trained_model_status(self, model_id: str, status: str, **updates) -> bool:
-        """更新訓練模型狀態"""
-        async with self.session_factory() as session:
-            result = await session.execute(select(TrainedModel).where(TrainedModel.id == model_id))
-            model = result.scalar_one_or_none()
-            if model:
-                model.status = status
-                for key, value in updates.items():
-                    if hasattr(model, key):
-                        setattr(model, key, value)
-                if status == "COMPLETED":
-                    model.completed_at = datetime.utcnow()
-                await session.commit()
-                return True
-            return False
+        evaluation_run_id = str(uuid.uuid4())
 
-    async def get_trained_models_by_experiment(self, experiment_run_id: str, scenario_type: str) -> List['TrainedModel']:
-        """獲取特定實驗的所有訓練模型"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    # 使用原生 SQL 插入 EvaluationRun
+                    insert_sql = """
+                        INSERT INTO evaluation_runs (
+                            id, name, scenario_type, status, trained_model_id,
+                            test_set_source, evaluation_metrics, created_at
+                        ) VALUES (
+                            :id, :name, :scenario_type, :status, :trained_model_id,
+                            :test_set_source, :evaluation_metrics, :created_at
+                        )
+                    """
+
+                    await session.execute(
+                        text(insert_sql),
+                        {
+                            "id": evaluation_run_id,
+                            "name": name,
+                            "scenario_type": scenario_type,
+                            "status": "RUNNING",
+                            "trained_model_id": trained_model_id,
+                            "test_set_source": json.dumps(test_set_source),
+                            "evaluation_metrics": json.dumps(evaluation_metrics or {}),
+                            "created_at": datetime.utcnow()
+                        }
+                    )
+                    await session.commit()
+
+                    return {
+                        "id": evaluation_run_id,
+                        "name": name,
+                        "scenario_type": scenario_type,
+                        "status": "RUNNING",
+                        "trained_model_id": trained_model_id,
+                        "test_set_source": test_set_source,
+                        "evaluation_metrics": evaluation_metrics or {},
+                        "created_at": datetime.utcnow()
+                    }
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                import asyncio
+                await asyncio.sleep(1)
+
+    async def update_evaluation_run(
+        self,
+        evaluation_run_id: str,
+        status: str = None,
+        evaluation_metrics: dict = None
+    ) -> bool:
+        """更新評估運行結果"""
+        from datetime import datetime
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    update_data = {}
+                    if status:
+                        update_data["status"] = status
+                    if evaluation_metrics:
+                        update_data["evaluation_metrics"] = json.dumps(evaluation_metrics)
+                    if status == "COMPLETED":
+                        update_data["completed_at"] = datetime.utcnow()
+
+                    if update_data:
+                        # 構建 SET 子句
+                        set_clauses = []
+                        params = {"id": evaluation_run_id}
+
+                        for key, value in update_data.items():
+                            set_clauses.append(f"{key} = :{key}")
+                            params[key] = value
+
+                        update_sql = f"""
+                            UPDATE evaluation_runs
+                            SET {', '.join(set_clauses)}
+                            WHERE id = :id
+                        """
+
+                        result = await session.execute(text(update_sql), params)
+                        await session.commit()
+                        return result.rowcount > 0
+                    return True
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                import asyncio
+                await asyncio.sleep(1)
+
+    async def get_evaluation_runs_by_model(
+        self,
+        trained_model_id: str
+    ) -> list:
+        """獲取特定模型的所有評估運行"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    select_sql = """
+                        SELECT id, name, scenario_type, status, trained_model_id,
+                               test_set_source, evaluation_metrics, created_at, completed_at
+                        FROM evaluation_runs
+                        WHERE trained_model_id = :trained_model_id
+                        ORDER BY created_at DESC
+                    """
+
+                    result = await session.execute(
+                        text(select_sql),
+                        {"trained_model_id": trained_model_id}
+                    )
+
+                    evaluations = []
+                    for row in result:
+                        # 安全處理 JSON 欄位，檢查資料類型
+                        test_set_source = row.test_set_source
+                        if isinstance(test_set_source, str):
+                            try:
+                                test_set_source = json.loads(test_set_source)
+                            except (json.JSONDecodeError, TypeError):
+                                test_set_source = {}
+                        elif not isinstance(test_set_source, dict):
+                            test_set_source = {}
+
+                        evaluation_metrics = row.evaluation_metrics
+                        if isinstance(evaluation_metrics, str):
+                            try:
+                                evaluation_metrics = json.loads(evaluation_metrics)
+                            except (json.JSONDecodeError, TypeError):
+                                evaluation_metrics = {}
+                        elif not isinstance(evaluation_metrics, dict):
+                            evaluation_metrics = {}
+
+                        evaluation = {
+                            "id": row.id,
+                            "name": row.name,
+                            "scenario_type": row.scenario_type,
+                            "status": row.status,
+                            "trained_model_id": row.trained_model_id,
+                            "test_set_source": test_set_source,
+                            "evaluation_metrics": evaluation_metrics,
+                            "created_at": row.created_at,
+                            "completed_at": row.completed_at
+                        }
+                        evaluations.append(evaluation)
+
+                    return evaluations
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                import asyncio
+                await asyncio.sleep(1)
+
+    async def get_trained_model_by_id(self, model_id: str) -> dict:
+        """獲取訓練模型詳細信息"""
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 async with self.session_factory() as session:
                     result = await session.execute(
-                        select(TrainedModel).where(
-                            TrainedModel.experiment_run_id == experiment_run_id,
-                            TrainedModel.scenario_type == scenario_type
-                        )
+                        select(TrainedModel).where(TrainedModel.id == model_id)
                     )
-                    return result.scalars().all()
+                    model = result.scalar_one_or_none()
+
+                    if model:
+                        # 安全處理 JSON 欄位
+                        model_config = model.model_config
+                        if isinstance(model_config, str):
+                            try:
+                                model_config = json.loads(model_config)
+                            except (json.JSONDecodeError, TypeError):
+                                model_config = {}
+                        elif not isinstance(model_config, dict):
+                            model_config = {}
+
+                        data_source_config = model.data_source_config
+                        if isinstance(data_source_config, str):
+                            try:
+                                data_source_config = json.loads(data_source_config)
+                            except (json.JSONDecodeError, TypeError):
+                                data_source_config = {}
+                        elif not isinstance(data_source_config, dict):
+                            data_source_config = {}
+
+                        training_metrics = model.training_metrics
+                        if isinstance(training_metrics, str):
+                            try:
+                                training_metrics = json.loads(training_metrics)
+                            except (json.JSONDecodeError, TypeError):
+                                training_metrics = {}
+                        elif not isinstance(training_metrics, dict):
+                            training_metrics = {}
+
+                        # 從 model_config 中提取 model_type
+                        model_type = model_config.get("model_type", "unknown") if isinstance(model_config, dict) else "unknown"
+
+                        return {
+                            "id": model.id,
+                            "name": model.name,
+                            "scenario_type": model.scenario_type,
+                            "status": model.status,
+                            "experiment_run_id": model.experiment_run_id,
+                            "model_config": model_config,
+                            "data_source_config": data_source_config,
+                            "model_path": model.model_path,
+                            "training_metrics": training_metrics,
+                            "created_at": model.created_at,
+                            "completed_at": model.completed_at,
+                            "model_type": model_type
+                        }
+                    return None
             except Exception as e:
                 if attempt == max_retries - 1:
-                    # 最後一次嘗試失敗，拋出異常
                     raise e
-                # 等待一秒後重試
                 import asyncio
                 await asyncio.sleep(1)
 
-    async def get_all_trained_models_by_experiment(self, experiment_run_id: str) -> List['TrainedModel']:
-        """獲取特定實驗的所有訓練模型（不分情境類型）"""
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                async with self.session_factory() as session:
-                    result = await session.execute(
-                        select(TrainedModel).where(
-                            TrainedModel.experiment_run_id == experiment_run_id
-                        )
-                    )
-                    return result.scalars().all()
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    # 最後一次嘗試失敗，拋出異常
-                    raise e
-                # 等待一秒後重試
-                import asyncio
-                await asyncio.sleep(1)
+    async def get_anomaly_events_for_evaluation(
+        self,
+        selected_floors_by_building: Dict[str, List[str]],
+        start_date: str,
+        end_date: str,
+        start_time: str = "00:00",
+        end_time: str = "23:59"
+    ) -> Optional['pd.DataFrame']:
+        """
+        獲取指定範圍的測試數據，從 ammeter_log 真實數據生成樣本用於模型評估
+
+        Args:
+            selected_floors_by_building: 選擇的建築樓層（會被忽略，使用所有可用設備）
+            start_date: 開始日期 (YYYY-MM-DD)
+            end_date: 結束日期 (YYYY-MM-DD)
+            start_time: 開始時間 (HH:MM)
+            end_time: 結束時間 (HH:MM)
+
+        Returns:
+            DataFrame: 包含特徵的測試數據（用於預測）
+        """
+        import pandas as pd
+        import numpy as np
+        from datetime import datetime, timedelta
+        from sqlalchemy import text
+
+        try:
+            async with self.session_factory() as session:
+                # 構建時間範圍查詢條件
+                start_datetime = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+                end_datetime = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
+
+                logger.info("🔄 使用 ammeter_log 真實數據生成評估樣本")
+
+                # 從 ammeter_log 獲取指定時間範圍內的真實數據
+                query = text("""
+                    SELECT
+                        "deviceNumber" as meter_id,
+                        "lastUpdated" as timestamp,
+                        voltage,
+                        currents as current,
+                        power,
+                        battery
+                    FROM ammeter_log
+                    WHERE "lastUpdated" >= :start_time
+                        AND "lastUpdated" <= :end_time
+                        AND voltage IS NOT NULL
+                        AND currents IS NOT NULL
+                        AND power IS NOT NULL
+                    ORDER BY "lastUpdated" DESC
+                    LIMIT 1000
+                """)
+
+                result = await session.execute(query, {
+                    'start_time': start_datetime,
+                    'end_time': end_datetime
+                })
+
+                raw_data = result.fetchall()
+
+                if not raw_data:
+                    logger.warning(f"⚠️ 在時間範圍 {start_datetime} 到 {end_datetime} 內沒有找到電表數據")
+                    # 擴展時間範圍再試一次
+                    extended_start = start_datetime - timedelta(days=7)
+                    extended_end = end_datetime + timedelta(days=1)
+                    logger.info(f"🔄 擴展時間範圍至 {extended_start} 到 {extended_end}")
+
+                    result = await session.execute(query, {
+                        'start_time': extended_start,
+                        'end_time': extended_end
+                    })
+                    raw_data = result.fetchall()
+
+                if raw_data:
+                    # 轉換為 DataFrame
+                    df = pd.DataFrame(raw_data, columns=['meter_id', 'timestamp', 'voltage', 'current', 'power', 'battery'])
+
+                    # 生成真實數據特徵
+                    samples = self._generate_real_test_features(df, selected_floors_by_building)
+
+                    if samples:
+                        test_df = pd.DataFrame(samples)
+                        logger.info(f"🎯 從真實數據生成測試樣本: {len(test_df)} 條記錄")
+                        logger.info(f"📊 涵蓋電表: {test_df['meter_id'].nunique()} 個")
+                        logger.info(f"⏰ 時間範圍: {test_df['timestamp'].min()} 到 {test_df['timestamp'].max()}")
+                        return test_df
+                    else:
+                        logger.warning("⚠️ 無法從真實數據生成特徵")
+                        return None
+                else:
+                    logger.warning("⚠️ 在擴展時間範圍內仍未找到電表數據")
+                    return None
+
+        except Exception as e:
+            logger.error(f"從 ammeter_log 獲取真實測試數據失敗: {e}")
+            return None
+
+    def _generate_real_test_features(self, df: 'pd.DataFrame', selected_floors_by_building: Dict[str, List[str]]) -> List[Dict]:
+        """從真實電表數據生成測試特徵"""
+        import numpy as np
+        import pandas as pd
+        from datetime import timedelta
+
+        samples = []
+
+        # 按電表分組處理數據
+        for meter_id, meter_data in df.groupby('meter_id'):
+            if len(meter_data) < 5:  # 需要足夠的數據點來計算統計特徵
+                continue
+
+            # 按時間排序
+            meter_data = meter_data.sort_values('timestamp')
+
+            # 為每個時間窗口生成特徵
+            for i in range(len(meter_data)):
+                row = meter_data.iloc[i]
+
+                # 獲取當前時間窗口的數據（包括前面的幾個點）
+                window_size = min(10, i + 1)  # 最多使用前10個數據點
+                window_data = meter_data.iloc[max(0, i - window_size + 1):i + 1]
+
+                if len(window_data) < 3:  # 至少需要3個數據點
+                    continue
+
+                # 計算統計特徵
+                power_values = window_data['power'].values
+                voltage_values = window_data['voltage'].values
+                current_values = window_data['current'].values
+
+                # 基本統計特徵
+                power_mean = np.mean(power_values)
+                power_std = np.std(power_values) if len(power_values) > 1 else 0
+                power_max = np.max(power_values)
+                power_min = np.min(power_values)
+                power_range = power_max - power_min
+                power_variance = np.var(power_values) if len(power_values) > 1 else 0
+
+                # 電壓和電流特徵
+                voltage_mean = np.mean(voltage_values)
+                current_mean = np.mean(current_values)
+
+                # 趨勢特徵（如果有足夠數據點）
+                if len(power_values) >= 3:
+                    # 計算簡單線性趨勢
+                    x = np.arange(len(power_values))
+                    try:
+                        slope = np.polyfit(x, power_values, 1)[0]
+                        power_trend = slope
+                    except:
+                        power_trend = 0
+                else:
+                    power_trend = 0
+
+                # 時間特徵
+                timestamp = row['timestamp']
+                hour_of_day = timestamp.hour
+                day_of_week = timestamp.weekday()
+                is_weekend = 1 if day_of_week >= 5 else 0
+
+                # 從設備ID映射建築和樓層（簡化映射）
+                building, floor = self._map_device_to_building_floor(meter_id)
+
+                features = {
+                    'meter_id': meter_id,
+                    'timestamp': timestamp,
+                    'building': building,
+                    'floor': floor,
+                    'power_consumption': power_mean,
+                    'power_variance': power_variance,
+                    'power_trend': power_trend,
+                    'power_max': power_max,
+                    'power_min': power_min,
+                    'power_std': power_std,
+                    'power_range': power_range,
+                    'voltage_mean': voltage_mean,
+                    'current_mean': current_mean,
+                    'hour_of_day': hour_of_day,
+                    'day_of_week': day_of_week,
+                    'is_weekend': is_weekend,
+                }
+
+                samples.append(features)
+
+                # 限制樣本數量
+                if len(samples) >= 1000:
+                    break
+
+            if len(samples) >= 1000:
+                break
+
+        logger.info(f"🔧 從真實數據生成特徵: {len(samples)} 條記錄")
+        return samples
+
+    def _map_device_to_building_floor(self, device_id: str) -> tuple:
+        """將設備ID映射到建築和樓層（簡化版本）"""
+        # 根據設備ID前綴或其他規則映射到建築樓層
+        # 這裡使用簡化的映射邏輯
+        if device_id.startswith('402A8FB0'):
+            return 'Building A', '1'
+        elif device_id.startswith('E8FDF8B4'):
+            return 'Building A', '2'
+        elif device_id.startswith('402A8FB1'):
+            return 'Building B', '1'
+        else:
+            # 默認映射
+            return 'Building A', '2'
 
 # 異常事件相關表
 class AnomalyEvent(Base):
@@ -423,6 +572,59 @@ class TrainedModel(Base):
         Index('idx_trained_model_experiment', 'experiment_run_id'),
         Index('idx_trained_model_status', 'status'),
     )
+
+    async def create_model_predictions(
+        self,
+        evaluation_run_id: str,
+        predictions: List[Dict[str, Any]]
+    ) -> List[str]:
+        """批量創建模型預測記錄"""
+        from datetime import datetime
+        import uuid
+
+        prediction_ids = []
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                async with self.session_factory() as session:
+                    for pred in predictions:
+                        prediction_id = str(uuid.uuid4())
+                        prediction_ids.append(prediction_id)
+
+                        # 使用原生 SQL 插入 ModelPrediction
+                        insert_sql = """
+                            INSERT INTO model_predictions (
+                                id, evaluation_run_id, anomaly_event_id, timestamp,
+                                prediction_score, ground_truth
+                            ) VALUES (
+                                :id, :evaluation_run_id, :anomaly_event_id, :timestamp,
+                                :prediction_score, :ground_truth
+                            )
+                        """
+
+                        await session.execute(
+                            text(insert_sql),
+                            {
+                                "id": prediction_id,
+                                "evaluation_run_id": evaluation_run_id,
+                                "anomaly_event_id": pred.get("anomaly_event_id"),
+                                "timestamp": pred.get("timestamp", datetime.utcnow()),
+                                "prediction_score": float(pred["prediction_score"]),
+                                "ground_truth": int(pred["ground_truth"]) if pred.get("ground_truth") is not None else None
+                            }
+                        )
+
+                    await session.commit()
+                    return prediction_ids
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                import asyncio
+                await asyncio.sleep(1)
+
+        return prediction_ids
 
 
 db_manager = DatabaseManager()

@@ -17,7 +17,7 @@ from services.data_loader import data_loader
 from services.anomaly_rules import anomaly_rules
 from services.anomaly_service import anomaly_service
 from services.candidate_calculation import candidate_calculation_service
-from core.database import db_manager
+from database import async_session
 from sqlalchemy import text
 
 # 使用與 coding 模組相同的 logger 配置
@@ -99,7 +99,7 @@ async def create_experiment_run(request: ExperimentRunCreate):
         run_id = str(uuid.uuid4())
 
         # 插入到資料庫
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             query = text("""
                 INSERT INTO experiment_run (
                     id, name, description, status, "createdAt", "updatedAt"
@@ -145,7 +145,7 @@ async def list_experiment_runs(
     列出實驗批次
     """
     try:
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 構建查詢
             where_conditions = []
             params = {"limit": limit, "offset": offset}
@@ -239,7 +239,7 @@ async def update_experiment_run(run_id: str, request: ExperimentRunUpdate):
                       "createdAt", "updatedAt"
         """)
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             result = await session.execute(query, params)
             row = result.fetchone()
             await session.commit()
@@ -272,7 +272,7 @@ async def update_experiment_run(run_id: str, request: ExperimentRunUpdate):
 async def delete_experiment_run(run_id: str):
     """Delete an experiment run"""
     try:
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             query = text("DELETE FROM experiment_run WHERE id = :run_id RETURNING id")
             result = await session.execute(query, {"run_id": run_id})
             row = result.fetchone()
@@ -293,7 +293,7 @@ async def get_experiment_run(run_id: str):
     獲取特定實驗批次的詳細資訊
     """
     try:
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             query = text("""
                 SELECT
                     id, name, description, status, "filteringParameters",
@@ -360,7 +360,7 @@ async def complete_experiment_run(run_id: str):
     - 該批次下無 UNREVIEWED 事件
     """
     try:
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 1) 讀取當前實驗批次狀態
             q_status = text("SELECT status FROM experiment_run WHERE id = :run_id")
             res_status = await session.execute(q_status, {"run_id": run_id})
@@ -501,7 +501,7 @@ async def calculate_candidates(run_id: str, request: CandidateGenerationRequest)
         logger.info(f"[CALCULATE_CANDIDATES] 請求參數: {request.dict()}")
 
         # 驗證實驗批次是否存在
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             verify_query = text("SELECT id, status FROM experiment_run WHERE id = :run_id")
             result = await session.execute(verify_query, {"run_id": run_id})
             run_row = result.fetchone()
@@ -622,7 +622,7 @@ async def generate_candidates(
             logger.error(f"無法序列化請求參數: {param_error}")
 
         # 驗證實驗批次是否存在
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             verify_query = text("SELECT id, status FROM experiment_run WHERE id = :run_id")
             result = await session.execute(verify_query, {"run_id": run_id})
             run_row = result.fetchone()
@@ -635,7 +635,7 @@ async def generate_candidates(
 
         # 檢查是否已有候選事件（如果不允許覆蓋）
         if not allow_overwrite:
-            async with db_manager.get_async_session() as session:
+            async with async_session() as session:
                 count_query = text(
                     'SELECT COUNT(*) as count FROM anomaly_event WHERE "experimentRunId" = :run_id'
                 )
@@ -848,7 +848,7 @@ async def _update_experiment_run_stats(
         if isinstance(candidate_count, (np.integer, np.int64)):
             candidate_count = int(candidate_count)
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             update_query = text("""
                 UPDATE experiment_run
                 SET
@@ -890,7 +890,7 @@ async def _update_experiment_run_stats(
         if isinstance(candidate_count, (np.integer, np.int64)):
             candidate_count = int(candidate_count)
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             update_query = text("""
                 UPDATE experiment_run
                 SET
@@ -940,7 +940,7 @@ async def _save_events_to_database_with_data_window(
             logger.warning(f"[SAVE_EVENTS_WITH_DATA] events 列表為空，直接返回 0")
             return 0
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 如果允許覆蓋，先刪除現有事件（確保冪等性）
             if allow_overwrite:
                 delete_query = text(
@@ -1163,7 +1163,7 @@ async def _update_experiment_run_to_labeling_status(
         clean_calculation_result = _convert_numpy_types(calculation_result)
         clean_filtering_parameters = _convert_numpy_types(filtering_parameters)
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             update_query = text("""
                 UPDATE experiment_run
                 SET
@@ -1204,7 +1204,7 @@ async def _save_events_to_database(
         if not events:
             return 0
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 如果允許覆蓋，先刪除現有事件
             if allow_overwrite:
                 delete_query = text(
@@ -1262,7 +1262,7 @@ async def get_training_stats(run_id: str):
     try:
         logger.info(f"Getting training stats for experiment run: {run_id}")
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 檢查實驗批次是否存在
             run_query = text('SELECT * FROM experiment_run WHERE id = :run_id')
             run_result = await session.execute(run_query, {"run_id": run_id})
@@ -1292,11 +1292,9 @@ async def get_training_stats(run_id: str):
             unlabeled_result = await session.execute(unlabeled_query, {"run_id": run_id})
             unlabeled_samples = unlabeled_result.fetchone().count or 0
 
-            # 如果沒有足夠的數據，提供模擬數據
+            # 記錄統計數據
             if positive_samples == 0 and unlabeled_samples == 0:
-                positive_samples = 150
-                unlabeled_samples = 2500
-                logger.warning(f"No training data found for {run_id}, using simulated data")
+                logger.warning(f"No training data found for {run_id}")
 
             stats = {
                 "positiveSamples": positive_samples,
@@ -1328,7 +1326,7 @@ async def get_training_data_preview(run_id: str):
 
         from services.feature_engineering import feature_engineering
 
-        async with db_manager.get_async_session() as session:
+        async with async_session() as session:
             # 檢查實驗批次是否存在
             run_query = text('SELECT * FROM experiment_run WHERE id = :run_id')
             run_result = await session.execute(run_query, {"run_id": run_id})
@@ -1388,18 +1386,26 @@ async def get_training_data_preview(run_id: str):
 
             logger.info(f"Found {len(p_samples)} P samples and {len(u_samples)} U samples")
 
-            # 3. 如果沒有足夠的真實數據，生成模擬數據
+            # 3. 檢查是否有足夠的真實數據進行視覺化
             if len(p_samples) < 10 or len(u_samples) < 50:
-                logger.warning(f"Insufficient real data, generating simulated preview data")
-                return _generate_simulated_preview_data()
+                logger.warning(f"Insufficient real data for preview (P: {len(p_samples)}, U: {len(u_samples)})")
+                return {
+                    "pSamples": [],
+                    "uSamples": [],
+                    "message": f"數據不足：需要至少10個正樣本和50個未標記樣本，當前有 {len(p_samples)} 個正樣本和 {len(u_samples)} 個未標記樣本"
+                }
 
             # 4. 特徵工程
             all_samples = p_samples + u_samples
             feature_matrix, event_ids = feature_engineering.generate_feature_matrix(all_samples)
 
             if feature_matrix.size == 0:
-                logger.warning("Failed to generate features, using simulated data")
-                return _generate_simulated_preview_data()
+                logger.warning("Failed to generate features")
+                return {
+                    "pSamples": [],
+                    "uSamples": [],
+                    "message": "無法生成特徵：特徵工程失敗"
+                }
 
             # 5. 標準化特徵
             feature_matrix_scaled = feature_engineering.transform_features(feature_matrix)
@@ -1408,8 +1414,12 @@ async def get_training_data_preview(run_id: str):
             reduced_data = feature_engineering.reduce_dimensions_tsne(feature_matrix_scaled)
 
             if reduced_data.size == 0:
-                logger.warning("Dimensionality reduction failed, using simulated data")
-                return _generate_simulated_preview_data()
+                logger.warning("Dimensionality reduction failed")
+                return {
+                    "pSamples": [],
+                    "uSamples": [],
+                    "message": "降維失敗：無法處理特徵數據"
+                }
 
             # 7. 構建返回數據
             preview_data = {
@@ -1452,45 +1462,12 @@ async def get_training_data_preview(run_id: str):
         logger.error(f"Error getting training data preview: {e}")
         import traceback
         logger.error(f"Detailed error: {traceback.format_exc()}")
-        # 發生錯誤時返回模擬數據
-        return _generate_simulated_preview_data()
-
-def _generate_simulated_preview_data():
-    """生成模擬的訓練數據預覽"""
-    import numpy as np
-
-    np.random.seed(42)  # 確保結果可重現
-
-    # 生成模擬的正樣本數據
-    p_samples = []
-    for i in range(50):
-        x = 0.3 + np.random.random() * 0.4  # P 樣本集中在右側
-        y = 0.3 + np.random.random() * 0.4
-        p_samples.append({
-            "x": x,
-            "y": y,
-            "category": "P",
-            "id": f"p_{i}",
-            "meterId": f"meter_{np.random.randint(1000, 9999)}",
-            "score": 0.7 + np.random.random() * 0.3
-        })
-
-    # 生成未標記樣本 (U) - 更廣泛的分佈
-    u_samples = []
-    for i in range(200):
-        u_samples.append({
-            "x": np.random.random(),
-            "y": np.random.random(),
-            "category": "U",
-            "id": f"u_{i}",
-            "meterId": f"meter_{np.random.randint(1000, 9999)}",
-            "score": np.random.random()
-        })
-
-    return {
-        "pSamples": p_samples,
-        "uSamples": u_samples
-    }
+        # 發生錯誤時返回錯誤信息
+        return {
+            "pSamples": [],
+            "uSamples": [],
+            "message": f"獲取訓練數據預覽失敗: {str(e)}"
+        }
 
 @router.get("/{run_id}/sample-distribution")
 async def get_sample_distribution(run_id: str):
@@ -1500,3 +1477,91 @@ async def get_sample_distribution(run_id: str):
     """
     logger.warning("get_sample_distribution is deprecated. Use get_training_data_preview instead.")
     return await get_training_data_preview(run_id)
+
+# ========== Trained Models API ==========
+
+@router.get("/{run_id}/trained-models")
+async def get_trained_models(run_id: str):
+    """
+    獲取指定實驗批次的訓練模型列表
+    這是前端在 Stage 3 Right Panel 中調用的 API
+    """
+    try:
+        logger.info(f"Getting trained models for experiment run: {run_id}")
+
+        async with async_session() as session:
+            # 檢查實驗批次是否存在
+            run_query = text('SELECT * FROM experiment_run WHERE id = :run_id')
+            run_result = await session.execute(run_query, {"run_id": run_id})
+            run = run_result.fetchone()
+
+            if not run:
+                raise HTTPException(status_code=404, detail="Experiment run not found")
+
+            # 獲取該實驗批次的所有訓練模型
+            models_query = text("""
+                SELECT
+                    tm.id,
+                    tm.experiment_run_id,
+                    tm.name,
+                    tm.scenario_type,
+                    tm.data_source_config,
+                    tm.model_config,
+                    tm.training_metrics,
+                    tm.model_path,
+                    tm.status,
+                    tm.created_at,
+                    tm.completed_at
+                FROM trained_models tm
+                WHERE tm.experiment_run_id = :run_id
+                ORDER BY tm.created_at DESC
+            """)
+
+            result = await session.execute(models_query, {"run_id": run_id})
+            rows = result.fetchall()
+
+            trained_models = []
+            for row in rows:
+                try:
+                    # 解析 JSON 字段
+                    data_source_config = json.loads(row.data_source_config) if isinstance(row.data_source_config, str) else row.data_source_config
+                    model_config = json.loads(row.model_config) if isinstance(row.model_config, str) else row.model_config
+                    training_metrics = json.loads(row.training_metrics) if isinstance(row.training_metrics, str) else row.training_metrics
+
+                    # 構建模型對象 - 符合前端期望的格式
+                    model_data = {
+                        "id": row.id,
+                        "experimentRunId": row.experiment_run_id,
+                        "modelName": row.name,
+                        "modelType": row.scenario_type,  # 使用 scenario_type 作為模型類型
+                        "hyperparameters": model_config or {},
+                        "dataSourceConfig": data_source_config or {},
+                        "trainingMetrics": training_metrics or {},
+                        "status": row.status,
+                        "modelPath": row.model_path,
+                        "createdAt": row.created_at.isoformat() if row.created_at else None,
+                        "completedAt": row.completed_at.isoformat() if row.completed_at else None
+                    }
+
+                    trained_models.append(model_data)
+                    logger.debug(f"處理模型記錄: {model_data['id']}")
+
+                except Exception as row_error:
+                    logger.error(f"處理模型記錄時出錯: {str(row_error)}")
+                    continue
+
+            logger.info(f"Found {len(trained_models)} trained models for experiment {run_id}")
+
+            return {
+                "success": True,
+                "data": trained_models,
+                "message": f"Retrieved {len(trained_models)} trained models"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting trained models: {e}")
+        import traceback
+        logger.error(f"Detailed error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to get trained models: {str(e)}")

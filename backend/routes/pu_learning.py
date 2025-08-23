@@ -32,13 +32,15 @@ class DataParams(BaseModel):
 
 class ModelParams(BaseModel):
     """模型參數 - 支援 uPU 和 nnPU 的不同參數"""
+    model_config = {"protected_namespaces": ()}
+
     # nnPU 參數
     activation: Optional[Literal['relu', 'softsign', 'tanh', 'sigmoid']] = 'relu'
     n_epochs: Optional[int] = Field(50, gt=1, le=500, description="訓練週期數")
     learning_rate: Optional[float] = Field(0.001, ge=0.00001, le=1.0, description="學習率")
     hidden_dim: Optional[int] = Field(100, ge=4, le=500, description="隱藏層維度")
     weight_decay: Optional[float] = Field(0.0, ge=0.0, le=0.1, description="權重衰減 (L2正規化)")
-    
+
     # uPU 參數
     model_type: Optional[Literal['gauss', 'lm']] = 'gauss'
     use_bias: Optional[bool] = True
@@ -46,6 +48,8 @@ class ModelParams(BaseModel):
 
 class SimulationRequest(BaseModel):
     """模擬請求"""
+    model_config = {"protected_namespaces": ()}
+
     algorithm: Literal['uPU', 'nnPU'] = 'nnPU'
     seed: Optional[int] = Field(42, ge=0, le=99999, description="隨機種子，用於確保實驗可重現性")
     prior_estimation_method: Optional[Literal['mean', 'median']] = Field('median', description="先驗估計方法")
@@ -78,24 +82,24 @@ class SimulationResponse(BaseModel):
 async def handle_simulation(request: SimulationRequest):
 	"""
 	處理 PU 學習模擬請求
-	
+
 	Args:
 		request: 包含演算法類型、數據參數和模型參數的請求
-	
+
 	Returns:
 		SimulationResponse: 包含可視化數據和評估指標的回應
 	"""
 	try:
 		print(f"Processing simulation request for algorithm: {request.algorithm}")
-		
+
 		# 導入並使用真實的 PU Learning 引擎
 		from pulearning_engine import run_pu_simulation
-		
+
 		# 執行 PU 學習模擬
 		result = run_pu_simulation(request)
-		
+
 		return SimulationResponse(**result)
-		
+
 	except Exception as e:
 		print(f"Error in PU Learning simulation: {e}")
 		raise HTTPException(status_code=500, detail=str(e))
@@ -112,7 +116,7 @@ async def get_supported_algorithms():
                 "reference": "du Plessis et al., ICML 2015"
             },
             {
-                "name": "nnPU", 
+                "name": "nnPU",
                 "full_name": "Non-negative PU Learning",
                 "description": "Improved PU learning with non-negative risk (NIPS 2017)",
                 "reference": "Kiryo et al., NIPS 2017"

@@ -11,6 +11,7 @@ import * as datasetService from "../../services/datasetService";
 interface RunSelectorProps {
 	selectedRunId: string | null;
 	onRunChange: (runId: string | null) => void;
+	experimentRuns?: Array<{ id: string; name: string; status: string }>;
 	placeholder?: string;
 	className?: string;
 	label?: string;
@@ -23,6 +24,7 @@ interface RunSelectorProps {
 export function RunSelector({
 	selectedRunId,
 	onRunChange,
+	experimentRuns: providedRuns,
 	placeholder = "-- Select dataset --",
 	className = "w-80",
 	label,
@@ -34,11 +36,18 @@ export function RunSelector({
 		Array<{ id: string; name: string; status: string }>
 	>([]);
 
-	// 載入實驗運行清單
+	// 實際使用的 runs：優先使用提供的，否則使用載入的
+	const effectiveRuns = providedRuns || experimentRuns;
+
+	// 載入實驗運行清單（只在沒有提供 runs 時使用）
 	const loadAllExperimentRuns = useCallback(async () => {
+		if (providedRuns) {
+			return; // 如果已提供 runs，不需要載入
+		}
+
 		setIsLoadingRuns(true);
 		try {
-			const runs = await datasetService.loadExperimentRuns();
+			const runs = await datasetService.loadExperimentRuns(false); // 使用緩存
 			setExperimentRuns(runs);
 
 			// 如果沒有選中的run且有可用的runs，選擇第一個
@@ -51,9 +60,9 @@ export function RunSelector({
 		} finally {
 			setIsLoadingRuns(false);
 		}
-	}, [selectedRunId, onRunChange]);
+	}, [selectedRunId, onRunChange, providedRuns]);
 
-	// 組件初始化時載入所有 dataset
+	// 組件初始化時載入所有 dataset（只在沒有提供時）
 	useEffect(() => {
 		loadAllExperimentRuns();
 	}, [loadAllExperimentRuns]);
@@ -115,12 +124,12 @@ export function RunSelector({
 						/>
 					</SelectTrigger>
 					<SelectContent>
-						{!isLoadingRuns && experimentRuns.length > 0 && (
+						{!isLoadingRuns && effectiveRuns.length > 0 && (
 							<>
 								<SelectItem value="__clear">
 									-- Clear selection --
 								</SelectItem>
-								{experimentRuns.map((run) => (
+								{effectiveRuns.map((run) => (
 									<SelectItem key={run.id} value={run.id}>
 										<div className="flex items-center justify-between w-full">
 											<span>{run.name}</span>
@@ -131,7 +140,7 @@ export function RunSelector({
 								))}
 							</>
 						)}
-						{!isLoadingRuns && experimentRuns.length === 0 && (
+						{!isLoadingRuns && effectiveRuns.length === 0 && (
 							<SelectItem value="__empty" disabled>
 								No datasets available
 							</SelectItem>

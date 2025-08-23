@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from core.database import init_database
 from core.logging_config import setup_backend_logging
 from routes.ammeters import ammeters_router
@@ -19,7 +20,37 @@ from cron_ammeter import start_cron, manual_fetch
 
 # 注意：coding 相關的 API 端點現在由 coding/main.py 提供
 
-app = FastAPI(title="AI 學習平台", description="基於 PyTorch 的互動式 AI 展示平台")
+# 全域變數控制 cron 啟動
+ENABLE_CRON = False
+
+def set_cron_enabled(enabled: bool):
+    """設定 cron 任務啟用狀態"""
+    global ENABLE_CRON
+    ENABLE_CRON = enabled
+
+# 使用 lifespan 事件處理器取代已棄用的 on_event
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 啟動時執行
+    await init_database()
+
+    # 只有在啟用 cron 時才啟動 cron 任務
+    if ENABLE_CRON:
+        print("啟動 cron 任務...")
+        asyncio.create_task(start_cron())
+    else:
+        print("Cron 任務已停用")
+
+    yield
+
+    # 關閉時執行（如果需要的話）
+    print("應用程序關閉")
+
+app = FastAPI(
+    title="AI 學習平台",
+    description="基於 PyTorch 的互動式 AI 展示平台",
+    lifespan=lifespan
+)
 
 # CORS middleware
 app.add_middleware(
@@ -63,26 +94,6 @@ app.include_router(live_preview_router)
 
 # 注意：coding 相關的 API 端點現在由 coding/main.py 提供
 # 包括 /coding/chat, /coding/health, /live-preview/{session_id}/{file_path} 等
-
-# 全域變數控制 cron 啟動
-ENABLE_CRON = False
-
-def set_cron_enabled(enabled: bool):
-    """設定 cron 任務啟用狀態"""
-    global ENABLE_CRON
-    ENABLE_CRON = enabled
-
-# 啟動事件 - 初始化資料庫
-@app.on_event("startup")
-async def startup_event():
-    await init_database()
-
-    # 只有在啟用 cron 時才啟動 cron 任務
-    if ENABLE_CRON:
-        print("啟動 cron 任務...")
-        asyncio.create_task(start_cron())
-    else:
-        print("Cron 任務已停用")
 
 @app.get("/")
 async def root():

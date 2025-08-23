@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { apiLogger } from "@/utils/logger";
+import { useCallback, useEffect, useState } from "react";
 
 // 定義類型接口
 export interface AnomalyEvent {
@@ -459,9 +460,45 @@ export function useCaseStudyData() {
 	const [stats, setStats] = useState<AnomalyStats | null>(null);
 	const [statsLoading, setStatsLoading] = useState(false);
 
+	// 添加 Stats 緩存機制
+	const [statsCache, setStatsCache] = useState<
+		Map<string, { data: AnomalyStats; timestamp: number }>
+	>(new Map());
+	const STATS_CACHE_DURATION = 10000; // 10秒緩存
+
 	// Labels 資料狀態
 	const [labels, setLabels] = useState<AnomalyLabel[]>([]);
 	const [labelsLoading, setLabelsLoading] = useState(false);
+
+	// 監聽全局緩存清理事件
+	useEffect(() => {
+		const handleClearStatsCache = (event: CustomEvent) => {
+			const { experimentRunId } = event.detail;
+			if (experimentRunId) {
+				setStatsCache((prev) => {
+					const newMap = new Map(prev);
+					newMap.delete(experimentRunId);
+					newMap.delete("default"); // 同時清理默認緩存
+					return newMap;
+				});
+				console.log(
+					`Cleared stats cache for experimentRunId: ${experimentRunId}`,
+				);
+			}
+		};
+
+		window.addEventListener(
+			"clearStatsCache",
+			handleClearStatsCache as EventListener,
+		);
+
+		return () => {
+			window.removeEventListener(
+				"clearStatsCache",
+				handleClearStatsCache as EventListener,
+			);
+		};
+	}, []);
 
 	// 載入異常事件列表
 	const loadEvents = useCallback(async (filters: EventFilters = {}) => {
@@ -485,28 +522,92 @@ export function useCaseStudyData() {
 		}
 	}, []);
 
-	// 載入統計資料
-	const loadStats = useCallback(async (experimentRunId?: string) => {
-		setStatsLoading(true);
-		try {
-			const data = await caseStudyAPI.getAnomalyStats(experimentRunId);
-			setStats(data);
-		} catch (err) {
-			console.error("Failed to load anomaly stats:", err);
-			// 設置預設統計資料
-			setStats({
-				totalEvents: 0,
-				unreviewedCount: 0,
-				confirmedCount: 0,
-				rejectedCount: 0,
-				avgScore: 0,
-				maxScore: 0,
-				uniqueMeters: 0,
-			});
-		} finally {
-			setStatsLoading(false);
-		}
-	}, []);
+	// 載入統計資料 (帶緩存機制)
+	const loadStats = useCallback(
+		async (experimentRunId?: string, forceRefresh = false) => {
+			const cacheKey = experimentRunId || "default";
+			const now = Date.now();
+			const logId = Math.random().toString(36).substr(2, 9);
+
+			apiLogger.request(
+				experimentRunId
+					? `http://localhost:8000/api/v1/stats?experiment_run_id=${experimentRunId}`
+					: "http://localhost:8000/api/v1/stats",
+				"GET",
+				{
+					experimentRunId,
+					forceRefresh,
+					logId,
+					source: "useCaseStudyData",
+				},
+			);
+
+			// 檢查緩存
+			if (!forceRefresh && statsCache.has(cacheKey)) {
+				const cached = statsCache.get(cacheKey);
+				if (cached && now - cached.timestamp < STATS_CACHE_DURATION) {
+					apiLogger.cached(
+						experimentRunId
+							? `http://localhost:8000/api/v1/stats?experiment_run_id=${experimentRunId}`
+							: "http://localhost:8000/api/v1/stats",
+						{ experimentRunId, logId, source: "useCaseStudyData" },
+					);
+					setStats(cached.data);
+					return;
+				}
+			}
+
+			setStatsLoading(true);
+			try {
+				const data =
+					await caseStudyAPI.getAnomalyStats(experimentRunId);
+				setStats(data);
+				// 更新緩存
+				setStatsCache((prev) =>
+					new Map(prev).set(cacheKey, { data, timestamp: now }),
+				);
+
+				apiLogger.response(
+					experimentRunId
+						? `http://localhost:8000/api/v1/stats?experiment_run_id=${experimentRunId}`
+						: "http://localhost:8000/api/v1/stats",
+					200,
+					{
+						experimentRunId,
+						data,
+						logId,
+						source: "useCaseStudyData",
+					},
+				);
+			} catch (err) {
+				console.error("Failed to load anomaly stats:", err);
+				apiLogger.error(
+					experimentRunId
+						? `http://localhost:8000/api/v1/stats?experiment_run_id=${experimentRunId}`
+						: "http://localhost:8000/api/v1/stats",
+					{
+						error: err,
+						experimentRunId,
+						logId,
+						source: "useCaseStudyData",
+					},
+				);
+				// 設置預設統計資料
+				setStats({
+					totalEvents: 0,
+					unreviewedCount: 0,
+					confirmedCount: 0,
+					rejectedCount: 0,
+					avgScore: 0,
+					maxScore: 0,
+					uniqueMeters: 0,
+				});
+			} finally {
+				setStatsLoading(false);
+			}
+		},
+		[statsCache],
+	);
 
 	// 載入標籤列表
 	const loadLabels = useCallback(async () => {

@@ -771,75 +771,111 @@ model Temple {
 
 /// TrainedModel: 記錄一次完整的模型訓練事件
 model TrainedModel {
-    id           String @id @default(cuid())
-    name         String // 模型的名稱，例如 "ERM Baseline (2025-08-17)"
-    scenarioType String @map("scenario_type") // 核心欄位: "ERM_BASELINE" 或 "DOMAIN_ADAPTATION"
-    status       String // 訓練狀態: "PENDING", "RUNNING", "COMPLETED", "FAILED"
-
-    // 關聯到原始數據集
-    experimentRunId String        @map("experiment_run_id")
-    experimentRun   ExperimentRun @relation(fields: [experimentRunId], references: [id])
-
-    // 訓練設定的完整快照
-    modelConfig      Json @map("model_config") // 模型超參數 { epochs, batchSize, ... }
-    dataSourceConfig Json @map("data_source_config") // 數據源設定 { positiveSource, unlabeledSource, split }
-
-    // 訓練產物與結果
-    modelPath       String? @map("model_path") // 模型檔案儲存路徑
-    trainingMetrics Json?   @map("training_metrics") // 訓練/驗證集的性能指標 { loss, accuracy, ... }
-
-    createdAt   DateTime  @default(now()) @map("created_at")
-    completedAt DateTime? @map("completed_at")
-
-    // 關係：一個訓練好的模型，可以被多次評估
-    evaluationRuns EvaluationRun[]
+    id               String          @id @default(cuid())
+    name             String
+    scenarioType     String          @map("scenario_type")
+    status           String
+    experimentRunId  String          @map("experiment_run_id")
+    modelConfig      Json            @map("model_config")
+    dataSourceConfig Json            @map("data_source_config")
+    modelPath        String?         @map("model_path")
+    trainingMetrics  Json?           @map("training_metrics")
+    createdAt        DateTime        @default(now()) @map("created_at")
+    completedAt      DateTime?       @map("completed_at")
+    evaluationRuns   EvaluationRun[]
+    experimentRun    ExperimentRun   @relation(fields: [experimentRunId], references: [id])
 
     @@map("trained_models")
 }
 
 /// EvaluationRun: 記錄一次獨立的模型評估事件
 model EvaluationRun {
-    id           String @id @default(cuid())
-    name         String // 評估任務的名稱，例如 "ERM on Target: Building B"
-    scenarioType String @map("scenario_type") // 核心欄位: "ERM_BASELINE", "GENERALIZATION_CHALLENGE", "DOMAIN_ADAPTATION"
-    status       String // 評估狀態: "PENDING", "RUNNING", "COMPLETED", "FAILED"
-
-    // 關聯到被評估的模型
-    trainedModelId String       @map("trained_model_id")
-    trainedModel   TrainedModel @relation(fields: [trainedModelId], references: [id])
-
-    // 評估設定
-    testSetSource Json @map("test_set_source") // 測試集的定義 { location, timeRange, ... }
-
-    // 評估結果
-    evaluationMetrics Json? @map("evaluation_metrics") // 最終性能指標 { accuracy, f1_score, ... }
-
-    createdAt   DateTime  @default(now()) @map("created_at")
-    completedAt DateTime? @map("completed_at")
-
-    // 關係：一次評估包含多筆預測
-    predictions ModelPrediction[]
+    id                String            @id @default(cuid())
+    name              String
+    scenarioType      String            @map("scenario_type")
+    status            String
+    trainedModelId    String            @map("trained_model_id")
+    testSetSource     Json              @map("test_set_source")
+    evaluationMetrics Json?             @map("evaluation_metrics")
+    createdAt         DateTime          @default(now()) @map("created_at")
+    completedAt       DateTime?         @map("completed_at")
+    trainedModel      TrainedModel      @relation(fields: [trainedModelId], references: [id])
+    predictions       ModelPrediction[]
 
     @@map("evaluation_runs")
 }
 
 /// ModelPrediction: 記錄單一樣本的預測結果
 model ModelPrediction {
-    id String @id @default(cuid())
-
-    // 關聯到某一次評估任務
+    id              String        @id @default(cuid())
     evaluationRunId String        @map("evaluation_run_id")
-    evaluationRun   EvaluationRun @relation(fields: [evaluationRunId], references: [id])
-
-    // 關聯到原始數據點 (可選，但強烈建議)
-    anomalyEventId String? @map("anomaly_event_id")
-    // anomalyEvent    AnomalyEvent? @relation(fields: [anomalyEventId], references: [id])
-
+    anomalyEventId  String?       @map("anomaly_event_id")
     timestamp       DateTime
     predictionScore Float
-    groundTruth     Int? // 真實標籤 (1 for positive, 0 for negative)
+    groundTruth     Int?
+    evaluationRun   EvaluationRun @relation(fields: [evaluationRunId], references: [id])
 
     @@map("model_predictions")
+}
+
+/// 用於管理一組組預處理完成的分析數據集
+model AnalysisDataset {
+    id          String  @id @default(cuid())
+    name        String  @unique // 數據集的唯一名稱, e.g., "Building-A-Room-101-Golden-Week-2025-08"
+    description String?
+
+    /// 此數據集的來源與範圍
+    building  String
+    floor     String
+    room      String
+    startDate DateTime @map("start_date")
+    endDate   DateTime @map("end_date")
+
+    /// 此數據集的使用者/房間類型
+    occupantType OccupantType @map("occupant_type")
+
+    /// 數據來源的電錶 ID
+    meterIdL1 String @map("meter_id_l1") // 監測 L1 的電錶 ID
+    meterIdL2 String @map("meter_id_l2") // 監測 L2 的電錶 ID
+
+    /// 數據統計
+    totalRecords   Int @map("total_records") // 此數據集的總筆數
+    positiveLabels Int @map("positive_labels") // 其中包含的異常標籤數量
+
+    createdAt DateTime @default(now()) @map("created_at")
+
+    /// 關係：一個數據集包含多筆分析數據
+    analysisData AnalysisReadyData[]
+
+    @@map("analysis_datasets")
+}
+
+/// 存放預處理完成、可直接用於模型訓練與分析的每筆數據
+model AnalysisReadyData {
+    id String @id @default(cuid())
+
+    /// 關聯到所屬的數據集
+    datasetId String          @map("dataset_id")
+    dataset   AnalysisDataset @relation(fields: [datasetId], references: [id])
+
+    /// 時間與地點
+    timestamp DateTime
+    room      String
+
+    /// 原始讀數 (用於溯源)
+    rawWattageL1 Float @map("raw_wattage_l1") // L1 電錶的原始讀數
+    rawWattageL2 Float @map("raw_wattage_l2") // L2 電錶的原始讀數
+
+    /// 處理後的特徵
+    wattage110v  Float @map("wattage_110v") // abs(L1 - L2)
+    wattage220v  Float @map("wattage_220v") // 2 * min(L1, L2)
+    wattageTotal Float @map("wattage_total") // L1 + L2
+
+    /// 標籤資訊 (Ground Truth)
+    isPositiveLabel      Boolean @default(false) @map("is_positive_label") // 是否為已標註的異常
+    sourceAnomalyEventId String? @map("source_anomaly_event_id") // 關聯回原始 AnomalyEvent 的 ID (允許多對一)
+
+    @@map("analysis_ready_data")
 }
 
 enum PurchaseType {
@@ -857,4 +893,10 @@ enum ExperimentRunStatus {
     CONFIGURING
     LABELING
     COMPLETED
+}
+
+enum OccupantType {
+    OFFICE_WORKER // 上班族
+    STUDENT // 學生
+    DEPOSITORY // 倉庫
 }

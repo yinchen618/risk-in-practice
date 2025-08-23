@@ -140,8 +140,10 @@ export function DataSourceConfigurationPanel({
 								);
 								return ermBaselineModels.map((model) => (
 									<SelectItem key={model.id} value={model.id}>
-										{model.model_name} (F1:{" "}
-										{model.metrics?.f1?.toFixed(2) || "N/A"}
+										{model.name} (F1:{" "}
+										{model.training_metrics?.f1_score?.toFixed(
+											2,
+										) || "N/A"}
 										)
 									</SelectItem>
 								));

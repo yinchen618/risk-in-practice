@@ -8,6 +8,7 @@ export type TabKey =
 	| "problem-approach"
 	| "implementation"
 	| "data-results"
+	// | "results-analysis"
 	| "research-notes";
 
 interface TabNavigationProps {
@@ -32,9 +33,14 @@ const tabs: {
 	},
 	{
 		key: "data-results",
-		label: "Data & Results",
+		label: "Training & Prediction",
 		icon: TrendingUp,
 	},
+	// {
+	// 	key: "results-analysis",
+	// 	label: "Results Analysis",
+	// 	icon: BarChart3,
+	// },
 	{
 		key: "research-notes",
 		label: "Research Notes",

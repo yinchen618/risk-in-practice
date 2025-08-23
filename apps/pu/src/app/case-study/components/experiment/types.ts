@@ -4,15 +4,15 @@ import type { DistributionShiftScenario } from "./DistributionShiftScenarioPanel
 export interface TrainedModel {
 	id: string;
 	name: string;
-	scenarioType: DistributionShiftScenario;
+	scenario_type: DistributionShiftScenario; // 使用 snake_case 與後端一致
 	status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
-	experimentRunId: string;
-	modelConfig: ModelParameters;
-	dataSourceConfig: DataSourceConfiguration;
-	modelPath?: string;
-	trainingMetrics?: TrainingMetrics;
-	createdAt: string;
-	completedAt?: string;
+	experiment_run_id: string; // 使用 snake_case 與後端一致
+	model_config: ModelParameters; // 使用 snake_case 與後端一致
+	data_source_config: DataSourceConfiguration; // 使用 snake_case 與後端一致
+	model_path?: string; // 使用 snake_case 與後端一致
+	training_metrics?: TrainingMetrics; // 使用 snake_case 與後端一致
+	created_at: string; // 使用 snake_case 與後端一致
+	completed_at?: string; // 使用 snake_case 與後端一致
 	evaluationRuns?: EvaluationRun[];
 }
 
@@ -96,6 +96,10 @@ export interface SplitConfiguration {
 }
 
 export interface Stage3ExperimentWorkbenchProps {
+	selectedRunId: string;
+}
+
+export interface Stage4ResultsAnalysisProps {
 	selectedRunId: string;
 }
 

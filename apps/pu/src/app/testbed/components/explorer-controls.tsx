@@ -1,8 +1,8 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
 	Select,
 	SelectContent,
@@ -10,9 +10,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { fetchResidentialUnits } from "@/hooks/use-testbed-data";
+import { getUnitOptionsForBuilding } from "@/hooks/use-testbed-data";
 import { Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface ExplorerControlsProps {
 	selectedBuilding: string;
@@ -21,19 +21,33 @@ interface ExplorerControlsProps {
 	setSelectedUnit: (value: string) => void;
 	selectedMeter: string;
 	setSelectedMeter: (value: string) => void;
-	// UTC ISO string, e.g., 2025-01-01T00:00:00.000Z
-	startDateTime: string;
-	setStartDateTime: (value: string) => void;
-	endDateTime: string;
-	setEndDateTime: (value: string | null) => void;
+	// Display mode - single unit or floor
+	displayMode: "single" | "floor";
+	setDisplayMode: (mode: "single" | "floor") => void;
+	// Selected floor
+	selectedFloor: string;
+	setSelectedFloor: (floor: string) => void;
+	// Separate date and time parameters like TimeRangeFilter
+	startDate: Date;
+	setStartDate: (date: Date) => void;
+	endDate: Date;
+	setEndDate: (date: Date) => void;
+	startTime: string;
+	setStartTime: (time: string) => void;
+	endTime: string;
+	setEndTime: (time: string) => void;
 	rangeMode: "6h" | "12h" | "1d" | "3d" | "1w" | "custom";
 	setRangeMode: (mode: "6h" | "12h" | "1d" | "3d" | "1w" | "custom") => void;
 	onLoadData: (
 		building: string,
 		unit: string,
 		meter: string,
-		start: string,
-		end: string,
+		startDate: Date,
+		endDate: Date,
+		startTime: string,
+		endTime: string,
+		mode: "single" | "floor",
+		floor?: string,
 	) => void;
 }
 
@@ -44,19 +58,32 @@ export function ExplorerControls({
 	setSelectedUnit,
 	selectedMeter,
 	setSelectedMeter,
-	startDateTime,
-	setStartDateTime,
-	endDateTime,
-	setEndDateTime,
+	displayMode,
+	setDisplayMode,
+	selectedFloor,
+	setSelectedFloor,
+	startDate,
+	setStartDate,
+	endDate,
+	setEndDate,
+	startTime,
+	setStartTime,
+	endTime,
+	setEndTime,
 	rangeMode,
 	setRangeMode,
 	onLoadData,
 }: ExplorerControlsProps) {
 	function computeEndFromStart(
-		startIsoUtc: string,
+		startDate: Date,
+		startTime: string,
 		mode: "6h" | "12h" | "1d" | "3d" | "1w",
-	): string {
-		const start = new Date(startIsoUtc);
+	): { date: Date; time: string } {
+		// Combine start date and time to get start datetime
+		const [hours, minutes] = startTime.split(":").map(Number);
+		const startDateTime = new Date(startDate);
+		startDateTime.setHours(hours, minutes, 0, 0);
+
 		const msMap: Record<typeof mode, number> = {
 			"6h": 6 * 60 * 60 * 1000,
 			"12h": 12 * 60 * 60 * 1000,
@@ -64,60 +91,71 @@ export function ExplorerControls({
 			"3d": 3 * 24 * 60 * 60 * 1000,
 			"1w": 7 * 24 * 60 * 60 * 1000,
 		} as const;
-		const end = new Date(start.getTime() + msMap[mode]);
-		return end.toISOString();
+
+		const endDateTime = new Date(startDateTime.getTime() + msMap[mode]);
+
+		return {
+			date: new Date(
+				endDateTime.getFullYear(),
+				endDateTime.getMonth(),
+				endDateTime.getDate(),
+			),
+			time: `${endDateTime.getHours().toString().padStart(2, "0")}:${endDateTime.getMinutes().toString().padStart(2, "0")}`,
+		};
 	}
-	// 大樓選項
+	// Building options
 	const buildingOptions = [
 		{ value: "a", label: "Building A" },
 		{ value: "b", label: "Building B" },
 	];
 
-	// 動態載入房間（來源：後端以 meter.csv 產生）
-	const [unitOptions, setUnitOptions] = useState<
-		{ value: string; label: string; hasAppliance: boolean }[]
-	>([]);
-	useEffect(() => {
-		async function loadUnits() {
-			try {
-				const items = await fetchResidentialUnits(
-					(selectedBuilding || "a") as "a" | "b",
-				);
-				const opts = items
-					.filter((u) => !!u.roomNumber)
-					.reduce<Record<string, boolean>>((acc, u) => {
-						// 若同一房號同時有/沒有 appliance，以有為準
-						acc[u.roomNumber] = acc[u.roomNumber] || u.hasAppliance;
-						return acc;
-					}, {});
-				const sorted = Object.keys(opts)
-					.sort((a, b) => Number(a) - Number(b))
-					.map((room) => ({
-						value: room,
-						label: `${room}`,
-						hasAppliance: opts[room],
-					}));
-				setUnitOptions(sorted);
-			} catch {
-				setUnitOptions([]);
-			}
+	// Fixed floor options based on building selection
+	const getFloorOptionsForBuilding = (building: string) => {
+		if (building === "a") {
+			// Building A floors: 1, 2, 3, 5
+			return [
+				{ value: "1", label: "Floor 1" },
+				{ value: "2", label: "Floor 2" },
+				{ value: "3", label: "Floor 3" },
+				{ value: "5", label: "Floor 5" },
+			];
 		}
-		void loadUnits();
-	}, [selectedBuilding]);
+
+		// Building B floors: 1, 2, 3, 5, 6
+		return [
+			{ value: "1", label: "Floor 1" },
+			{ value: "2", label: "Floor 2" },
+			{ value: "3", label: "Floor 3" },
+			{ value: "5", label: "Floor 5" },
+			{ value: "6", label: "Floor 6" },
+		];
+	};
+
+	// Get current floor options based on selected building
+	const floorOptions = getFloorOptionsForBuilding(selectedBuilding || "a");
+
+	// Get current unit options based on selected building
+	const unitOptions = getUnitOptionsForBuilding(selectedBuilding || "a");
 
 	const selectedUnitHasAppliance =
 		unitOptions.find((u) => u.value === selectedUnit)?.hasAppliance ??
 		false;
 
-	// 若選到沒有 appliance 的房間，自動把 meter 類型切回 main
+	// If a room without appliance meter is selected in single mode, automatically switch meter type back to main
 	useEffect(() => {
 		if (
+			displayMode === "single" &&
 			!selectedUnitHasAppliance &&
 			(selectedMeter === "appliance" || selectedMeter === "both")
 		) {
 			setSelectedMeter("main");
 		}
-	}, [selectedUnitHasAppliance, selectedMeter, setSelectedMeter]);
+	}, [
+		displayMode,
+		selectedUnitHasAppliance,
+		selectedMeter,
+		setSelectedMeter,
+	]);
 
 	const meterOptions = [
 		{ value: "both", label: "Both Meters (Main + Appliance)" },
@@ -125,32 +163,94 @@ export function ExplorerControls({
 		{ value: "appliance", label: "Appliance Meter" },
 	];
 
-	// 當大樓改變時，重置房間選擇
+	// Reset unit selection when building changes
 	const handleBuildingChange = (value: string) => {
 		setSelectedBuilding(value);
-		setSelectedUnit(""); // 重置房間選擇
+		setSelectedUnit(""); // Reset unit selection
+		setSelectedFloor(""); // Reset floor selection when building changes
 	};
 
-	// 載入資料
+	// Load data
 	const handleLoadData = () => {
-		if (selectedUnit && startDateTime) {
-			const effectiveEnd =
-				rangeMode !== "custom"
-					? computeEndFromStart(startDateTime, rangeMode)
-					: endDateTime || computeEndFromStart(startDateTime, "1d");
+		if (
+			displayMode === "single" &&
+			selectedUnit &&
+			startDate &&
+			startTime
+		) {
+			let effectiveEndDate = endDate;
+			let effectiveEndTime = endTime;
+
+			if (rangeMode !== "custom") {
+				const computed = computeEndFromStart(
+					startDate,
+					startTime,
+					rangeMode,
+				);
+				effectiveEndDate = computed.date;
+				effectiveEndTime = computed.time;
+			}
+
 			onLoadData(
 				selectedBuilding,
 				selectedUnit,
 				selectedMeter,
-				startDateTime,
-				effectiveEnd,
+				startDate,
+				effectiveEndDate,
+				startTime,
+				effectiveEndTime,
+				"single",
+			);
+		} else if (
+			displayMode === "floor" &&
+			selectedFloor &&
+			startDate &&
+			startTime
+		) {
+			let effectiveEndDate = endDate;
+			let effectiveEndTime = endTime;
+
+			if (rangeMode !== "custom") {
+				const computed = computeEndFromStart(
+					startDate,
+					startTime,
+					rangeMode,
+				);
+				effectiveEndDate = computed.date;
+				effectiveEndTime = computed.time;
+			}
+
+			onLoadData(
+				selectedBuilding,
+				"", // No specific unit needed for floor mode
+				selectedMeter,
+				startDate,
+				effectiveEndDate,
+				startTime,
+				effectiveEndTime,
+				"floor",
+				selectedFloor,
 			);
 		}
 	};
 
-	// 當參數變更時自動載入資料
+	// Auto-load data when parameters change
 	useEffect(() => {
-		if (selectedUnit && selectedMeter && startDateTime) {
+		if (
+			displayMode === "single" &&
+			selectedUnit &&
+			selectedMeter &&
+			startDate &&
+			startTime
+		) {
+			handleLoadData();
+		} else if (
+			displayMode === "floor" &&
+			selectedFloor &&
+			selectedMeter &&
+			startDate &&
+			startTime
+		) {
 			handleLoadData();
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,59 +258,14 @@ export function ExplorerControls({
 		selectedBuilding,
 		selectedUnit,
 		selectedMeter,
-		startDateTime,
-		endDateTime,
+		displayMode,
+		selectedFloor,
+		startDate,
+		endDate,
+		startTime,
+		endTime,
 		rangeMode,
 	]);
-
-	// Helpers: 使用 Asia/Taipei 與 input[type=datetime-local] 互轉
-	// - 顯示時：將 UTC ISO 轉為台北時區的本地值 yyyy-MM-ddTHH:mm
-	// - 寫回時：把使用者輸入視為台北時區時間，再轉回 UTC ISO
-	function toTaipeiInputValue(utcIso: string) {
-		if (!utcIso) {
-			return "";
-		}
-		const d = new Date(utcIso);
-		// 以台北時區格式化各欄位
-		const fmt = new Intl.DateTimeFormat("en-CA", {
-			timeZone: "Asia/Taipei",
-			year: "numeric",
-			month: "2-digit",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		});
-		const parts = fmt
-			.formatToParts(d)
-			.reduce<Record<string, string>>((acc, p) => {
-				if (p.type !== "literal") {
-					acc[p.type] = p.value;
-				}
-				return acc;
-			}, {});
-		// en-CA 產生 YYYY-MM-DD, 取 hour/minute 為 24h
-		const yyyy = parts.year;
-		const mm = parts.month;
-		const dd = parts.day;
-		const hh = parts.hour;
-		const mi = parts.minute;
-		return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-	}
-
-	function taipeiLocalToUtcIso(localValue: string) {
-		if (!localValue) {
-			return "";
-		}
-		// localValue 視為台北時區的本地時間
-		const [datePart, timePart] = localValue.split("T");
-		const [y, m, d] = datePart.split("-").map((s) => Number(s));
-		const [hh, mi] = timePart.split(":").map((s) => Number(s));
-		// 構造對應的 UTC 時間：先得到台北時間的 epoch，再減去 8 小時偏移
-		const taipeiEpoch = Date.UTC(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mi ?? 0);
-		const utcEpoch = taipeiEpoch - 8 * 60 * 60 * 1000;
-		return new Date(utcEpoch).toISOString();
-	}
 
 	return (
 		<Card>
@@ -244,26 +299,78 @@ export function ExplorerControls({
 					</Select>
 				</div>
 
-				{/* Residential Unit Selection */}
+				{/* Display Mode Selection */}
 				<div className="space-y-2">
-					<Label htmlFor="unit">Residential Unit</Label>
-					<Select
-						value={selectedUnit}
-						onValueChange={setSelectedUnit}
-						disabled={!selectedBuilding}
+					<Label>Display Mode</Label>
+					<RadioGroup
+						value={displayMode}
+						onValueChange={(value: string) =>
+							setDisplayMode(value as "single" | "floor")
+						}
+						className="flex gap-4"
 					>
-						<SelectTrigger id="unit">
-							<SelectValue placeholder="Choose a unit" />
-						</SelectTrigger>
-						<SelectContent>
-							{unitOptions.map((room) => (
-								<SelectItem key={room.value} value={room.value}>
-									{room.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="single" id="single" />
+							<Label htmlFor="single">Single Unit</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<RadioGroupItem value="floor" id="floor" />
+							<Label htmlFor="floor">Entire Floor</Label>
+						</div>
+					</RadioGroup>
 				</div>
+
+				{/* Floor Selection - only show when displayMode is "floor" */}
+				{displayMode === "floor" && (
+					<div className="space-y-2">
+						<Label htmlFor="floor-select">Floor Selection</Label>
+						<Select
+							value={selectedFloor}
+							onValueChange={setSelectedFloor}
+							disabled={!selectedBuilding}
+						>
+							<SelectTrigger id="floor-select">
+								<SelectValue placeholder="Select a floor" />
+							</SelectTrigger>
+							<SelectContent>
+								{floorOptions.map((floor) => (
+									<SelectItem
+										key={floor.value}
+										value={floor.value}
+									>
+										{floor.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+
+				{/* Residential Unit Selection - only show when displayMode is "single" */}
+				{displayMode === "single" && (
+					<div className="space-y-2">
+						<Label htmlFor="unit">Residential Unit</Label>
+						<Select
+							value={selectedUnit}
+							onValueChange={setSelectedUnit}
+							disabled={!selectedBuilding}
+						>
+							<SelectTrigger id="unit">
+								<SelectValue placeholder="Choose a unit" />
+							</SelectTrigger>
+							<SelectContent>
+								{unitOptions.map((room) => (
+									<SelectItem
+										key={room.value}
+										value={room.value}
+									>
+										{room.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
 
 				{/* Meter Type Configuration */}
 				<div className="space-y-2">
@@ -277,7 +384,9 @@ export function ExplorerControls({
 						</SelectTrigger>
 						<SelectContent>
 							{meterOptions.map((option) => {
+								// Only disable appliance/both options in single mode when unit has no appliance meter
 								const disabled =
+									displayMode === "single" &&
 									(option.value === "appliance" ||
 										option.value === "both") &&
 									!selectedUnitHasAppliance;
@@ -297,21 +406,31 @@ export function ExplorerControls({
 
 				{/* Temporal Range Configuration */}
 				<div className="space-y-2">
-					<Label htmlFor="start-datetime">
-						Analysis Start DateTime
-					</Label>
-					<Input
-						id="start-datetime"
-						type="datetime-local"
-						value={toTaipeiInputValue(startDateTime)}
-						onChange={(e) =>
-							setStartDateTime(
-								taipeiLocalToUtcIso(e.target.value),
-							)
-						}
+					<Label htmlFor="start-date">Analysis Start Date</Label>
+					<input
+						id="start-date"
+						type="date"
+						value={startDate.toISOString().split("T")[0]}
+						onChange={(e) => setStartDate(new Date(e.target.value))}
+						className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
 					/>
-					{/* 快速區間按鈕 */}
-					<div className="flex flex-wrap gap-2 pt-2">
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="start-time">Analysis Start Time</Label>
+					<input
+						id="start-time"
+						type="time"
+						value={startTime}
+						onChange={(e) => setStartTime(e.target.value)}
+						className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+					/>
+				</div>
+
+				{/* Quick range buttons */}
+				<div className="space-y-2">
+					<Label>Time Range</Label>
+					<div className="flex flex-wrap gap-2">
 						{(
 							[
 								{ key: "6h", label: "6hr" },
@@ -327,8 +446,14 @@ export function ExplorerControls({
 								size="sm"
 								onClick={() => {
 									setRangeMode(key);
-									// 非 custom 模式不在 URL 寫入 end
-									setEndDateTime(null);
+									// Auto-compute end date and time
+									const computed = computeEndFromStart(
+										startDate,
+										startTime,
+										key,
+									);
+									setEndDate(computed.date);
+									setEndTime(computed.time);
 								}}
 								className={
 									rangeMode === key
@@ -353,16 +478,28 @@ export function ExplorerControls({
 						</Button>
 					</div>
 				</div>
+
 				<div className="space-y-2">
-					<Label htmlFor="end-datetime">Analysis End DateTime</Label>
-					<Input
-						id="end-datetime"
-						type="datetime-local"
-						value={toTaipeiInputValue(endDateTime)}
-						onChange={(e) =>
-							setEndDateTime(taipeiLocalToUtcIso(e.target.value))
-						}
+					<Label htmlFor="end-date">Analysis End Date</Label>
+					<input
+						id="end-date"
+						type="date"
+						value={endDate.toISOString().split("T")[0]}
+						onChange={(e) => setEndDate(new Date(e.target.value))}
 						disabled={rangeMode !== "custom"}
+						className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+					/>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="end-time">Analysis End Time</Label>
+					<input
+						id="end-time"
+						type="time"
+						value={endTime}
+						onChange={(e) => setEndTime(e.target.value)}
+						disabled={rangeMode !== "custom"}
+						className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
 					/>
 				</div>
 

@@ -57,6 +57,8 @@ class DataSplitConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     """模型配置模型"""
+    model_config = {"protected_namespaces": ()}
+
     model_type: str  # 'uPU' or 'nnPU'
     prior_method: str  # 'median', 'kmm', 'en', 'custom'
     class_prior: Optional[float] = None
@@ -72,6 +74,8 @@ class ModelConfig(BaseModel):
 
 class TrainingRequest(BaseModel):
     """訓練請求模型"""
+    model_config = {"protected_namespaces": ()}
+
     experiment_run_id: str
     model_params: ModelConfig
     prediction_start_date: str
@@ -87,7 +91,10 @@ class PULearningTrainer:
     """PU Learning 訓練器"""
 
     def __init__(self):
-        self.models_dir = "/tmp/pu_models"  # 模型保存目錄
+        # 獲取項目根目錄
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        self.models_dir = os.path.join(project_root, "trained_models")  # 模型保存目錄
         os.makedirs(self.models_dir, exist_ok=True)
 
     async def start_training_job(self, request: TrainingRequest) -> str:
@@ -307,51 +314,67 @@ class PULearningTrainer:
                     "substage": "completed"
                 })
 
-            # 5. 測試集評估（如果有）
+            # 5. 模型保存階段 (在測試集評估前)
+            logger.info(f"💾 Stage 5: Saving model for job {job_id}")
+            await self._broadcast_progress(job_id, 85, "Stage 5: Saving trained model to storage...", {
+                "stage": "model_saving"
+            })
+            model_path, model_id = await self._save_model(
+                job_id, model, request.model_params, test_sample_ids,
+                request.experiment_run_id, request.data_split_config, final_metrics, request.scenario_type, request
+            )
+            logger.info(f"💾 Model saved to: {model_path}, model_id: {model_id}")
+            await self._broadcast_progress(job_id, 88, "Model saved successfully, starting test evaluation...", {
+                "stage": "model_saving",
+                "substage": "completed"
+            })
+
+            # 6. 測試集評估（使用 model_id 創建 EvaluationRun）
             if X_test is not None and y_test is not None:
-                logger.info(f"🧪 Stage 5: Test set evaluation for job {job_id}")
-                await self._broadcast_progress(job_id, 85, f"Stage 5: Evaluating model performance on {len(y_test)} test samples...", {
+                logger.info(f"🧪 Stage 6: Test set evaluation for job {job_id}")
+                await self._broadcast_progress(job_id, 90, f"Stage 6: Evaluating model performance on {len(y_test)} test samples...", {
                     "stage": "test_evaluation"
                 })
-                test_metrics = await self._evaluate_on_test_set(model, X_test, y_test)
+                test_metrics = await self._evaluate_on_test_set(model, X_test, y_test, model_id)
                 final_metrics["test_metrics"] = test_metrics
                 final_metrics["test_sample_count"] = len(test_sample_ids) if test_sample_ids else 0
                 logger.info(f"📊 Test metrics: {test_metrics}")
-                await self._broadcast_progress(job_id, 88, f"Test evaluation completed. Accuracy: {test_metrics.get('test_accuracy', 0):.3f}", {
+                await self._broadcast_progress(job_id, 93, f"Test evaluation completed. Accuracy: {test_metrics.get('test_accuracy', 0):.3f}", {
                     "test_metrics": test_metrics,
                     "test_sample_count": len(test_sample_ids) if test_sample_ids else 0,
                     "stage": "test_evaluation",
                     "substage": "completed"
                 })
 
-            # 6. 模型保存階段
-            logger.info(f"💾 Stage 6: Saving model for job {job_id}")
-            await self._broadcast_progress(job_id, 90, "Stage 6: Saving trained model to storage...", {
-                "stage": "model_saving"
-            })
-            model_path = await self._save_model(
-                job_id, model, request.model_params, test_sample_ids,
-                request.experiment_run_id, request.data_split_config, final_metrics, request.scenario_type
-            )
-            logger.info(f"💾 Model saved to: {model_path}")
-            await self._broadcast_progress(job_id, 95, "Model saved successfully, finalizing training job...", {
-                "stage": "model_saving",
-                "substage": "completed"
-            })
+                # 更新 TrainedModel 的 training_metrics 包含最終測試結果
+                if model_id:
+                    try:
+                        from database import db_manager
+                        await db_manager.update_trained_model_metrics(model_id, final_metrics)
+                        logger.info(f"Updated TrainedModel {model_id} with final metrics")
+                    except Exception as e:
+                        logger.error(f"Failed to update TrainedModel metrics: {e}")
 
             # 7. 完成階段
             logger.info(f"🎉 Stage 7: Job completion for {job_id}")
+            await self._broadcast_progress(job_id, 95, "Finalizing training job...", {
+                "stage": "completion"
+            })
+
             training_jobs[job_id].update({
                 "status": "COMPLETED",
                 "progress": 100,
                 "completed_at": datetime.utcnow().isoformat(),
                 "model_path": model_path,
+                "model_id": model_id,
                 "metrics": final_metrics,
                 "test_sample_ids": test_sample_ids
             })
 
             await self._broadcast_progress(job_id, 100, "Stage 7: PU Learning model training completed successfully! Ready for prediction.", {
                 **final_metrics,
+                "model_path": model_path,
+                "model_id": model_id,
                 "stage": "completion",
                 "substage": "finished"
             })
@@ -1033,24 +1056,60 @@ class PULearningTrainer:
         logger.info(f"nnPU model trained. Metrics: {metrics}")
         return model, metrics
 
-    async def _evaluate_on_test_set(self, model: Any, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
-        """在測試集上評估模型性能"""
+    async def _evaluate_on_test_set(self, model: Any, X_test: np.ndarray, y_test: np.ndarray, trained_model_id: str = None) -> Dict[str, float]:
+        """在測試集上評估模型性能，並創建 EvaluationRun 記錄"""
         try:
-            # 預測
-            if hasattr(model, 'predict_proba'):
-                y_pred_proba = model.predict_proba(X_test)[:, 1]
-                y_pred = (y_pred_proba > 0.5).astype(int)
-            else:
-                y_pred = model.predict(X_test)
-                y_pred_proba = y_pred.astype(float)
+            # 如果提供了 trained_model_id，則使用統一的預測工具創建 EvaluationRun 記錄
+            if trained_model_id and self.db_manager:
+                logger.info(f"🎯 開始測試集評估，模型ID: {trained_model_id}")
 
-            # 計算指標
-            test_metrics = {
-                "test_accuracy": accuracy_score(y_test, y_pred),
-                "test_precision": precision_score(y_test, y_pred, zero_division=0),
-                "test_recall": recall_score(y_test, y_pred, zero_division=0),
-                "test_f1": f1_score(y_test, y_pred, zero_division=0)
-            }
+                # 獲取模型資訊
+                trained_model = await self.db_manager.get_trained_model_by_id(trained_model_id)
+
+                # 準備評估配置
+                evaluation_config = {
+                    "scenario_type": trained_model.get("scenario_type", "ERM_BASELINE"),
+                    "name": f"Test Set Evaluation - {trained_model.get('name', 'Unknown Model')}"
+                }
+
+                # 使用統一的預測工具進行預測和評估記錄管理
+                from services.prediction_utils import ModelPredictor
+
+                prediction_result = await ModelPredictor.make_predictions_with_evaluation_run(
+                    model=model,
+                    X_test=X_test,
+                    y_test=y_test,
+                    model_id=trained_model_id,
+                    evaluation_config=evaluation_config,
+                    db_manager=self.db_manager,
+                    model_info=trained_model
+                )
+
+                # 提取測試指標
+                test_metrics = prediction_result["evaluation_metrics"]
+                evaluation_run = prediction_result.get("evaluation_run")
+
+            else:
+                # 如果沒有 trained_model_id，只進行簡單的預測和指標計算
+                from services.prediction_utils import ModelPredictor
+
+                prediction_result = await ModelPredictor.make_predictions_with_metrics(
+                    model=model,
+                    X_test=X_test,
+                    y_test=y_test,
+                    evaluation_run_id=None,
+                    db_manager=self.db_manager
+                )
+
+                test_metrics = prediction_result["evaluation_metrics"]
+
+            # 添加測試樣本數量
+            test_metrics["test_sample_count"] = int(len(y_test))
+
+            if evaluation_run:
+                logger.info(f"EvaluationRun {evaluation_run['id']} completed successfully")
+                logger.info(f"Test set source info: P={evaluation_run.get('test_set_source', {}).get('p_source', {}).get('type', 'unknown')}, U={evaluation_run.get('test_set_source', {}).get('u_source', {}).get('type', 'unknown')}")
+                logger.info(f"Recorded {len(y_test)} ModelPrediction records")
 
             logger.info(f"Test set evaluation: {test_metrics}")
             return test_metrics
@@ -1070,12 +1129,30 @@ class PULearningTrainer:
                 y_pred = model.predict(X_val)
                 y_pred_proba = y_pred.astype(float)
 
+            # 計算混淆矩陣
+            from sklearn.metrics import confusion_matrix
+            cm = confusion_matrix(y_val, y_pred, labels=[0, 1])
+            tn, fp, fn, tp = cm.ravel()
+
             # 計算指標
             validation_metrics = {
                 "val_accuracy": accuracy_score(y_val, y_pred),
                 "val_precision": precision_score(y_val, y_pred, zero_division=0),
                 "val_recall": recall_score(y_val, y_pred, zero_division=0),
-                "val_f1": f1_score(y_val, y_pred, zero_division=0)
+                "val_f1": f1_score(y_val, y_pred, zero_division=0),
+                # 新增混淆矩陣數據
+                "val_confusion_matrix": {
+                    "tp": int(tp),
+                    "fp": int(fp),
+                    "tn": int(tn),
+                    "fn": int(fn)
+                },
+                # 新增詳細統計
+                "val_support": {
+                    "positive": int(np.sum(y_val == 1)),
+                    "negative": int(np.sum(y_val == 0)),
+                    "total": int(len(y_val))
+                }
             }
 
             logger.info(f"Validation set evaluation: {validation_metrics}")
@@ -1085,8 +1162,8 @@ class PULearningTrainer:
             logger.error(f"Error evaluating on validation set: {e}")
             return {"validation_error": str(e)}
 
-    async def _save_model(self, job_id: str, model: Any, model_config: ModelConfig, test_sample_ids: Optional[List[str]] = None, experiment_run_id: str = None, data_split_config: Optional[DataSplitConfig] = None, metrics: Dict = None, scenario_type: str = None) -> str:
-        """保存訓練好的模型"""
+    async def _save_model(self, job_id: str, model: Any, model_config: ModelConfig, test_sample_ids: Optional[List[str]] = None, experiment_run_id: str = None, data_split_config: Optional[DataSplitConfig] = None, metrics: Dict = None, scenario_type: str = None, request: TrainingRequest = None) -> tuple[str, str]:
+        """保存訓練好的模型，返回 (model_path, model_id)"""
         model_filename = f"model_{job_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pkl"
         model_path = os.path.join(self.models_dir, model_filename)
 
@@ -1103,8 +1180,44 @@ class PULearningTrainer:
         logger.info(f"Model saved to {model_path}")
 
         # 同時保存到數據庫
+        model_id = None
         try:
             from database import db_manager
+
+            # 構建完整的資料來源配置，包含 P 和 U 樣本的詳細資訊
+            data_source_config = {
+                "data_split": data_split_config.dict() if data_split_config else {},
+                "p_source": {
+                    "type": "anomaly_events",
+                    "experiment_run_id": experiment_run_id,
+                    "filter_criteria": "status = 'CONFIRMED_POSITIVE'",
+                    "description": f"Positive samples from experiment run {experiment_run_id}"
+                },
+                "u_source": {},
+                "prediction_config": {
+                    "start_date": request.prediction_start_date if request else None,
+                    "end_date": request.prediction_end_date if request else None
+                }
+            }
+
+            # 根據訓練請求設定 U 樣本來源
+            if request and request.u_sample_time_range and request.u_sample_building_floors:
+                # 動態 U 樣本生成
+                data_source_config["u_source"] = {
+                    "type": "dynamic_generation",
+                    "time_range": request.u_sample_time_range,
+                    "building_floors": request.u_sample_building_floors,
+                    "sample_limit": request.u_sample_limit or 5000,
+                    "description": f"Dynamically generated U samples from raw meter data in time range {request.u_sample_time_range['start_date']} to {request.u_sample_time_range['end_date']}"
+                }
+            else:
+                # 傳統 U 樣本載入
+                data_source_config["u_source"] = {
+                    "type": "anomaly_events",
+                    "experiment_run_id": experiment_run_id,
+                    "filter_criteria": "status = 'UNREVIEWED'",
+                    "description": f"Unlabeled samples from experiment run {experiment_run_id}"
+                }
 
             db_model_data = {
                 "name": f"{model_config.model_type} Model - {job_id[:8]}",
@@ -1112,19 +1225,20 @@ class PULearningTrainer:
                 "scenario_type": scenario_type or "ERM_BASELINE",  # 使用傳入的 scenario_type
                 "model_path": model_path,
                 "model_config": model_config.dict(),
-                "data_source_config": data_split_config.dict() if data_split_config else {},
+                "data_source_config": data_source_config,
                 "training_metrics": metrics or {},
                 "status": "COMPLETED"
             }
 
-            await db_manager.save_trained_model(db_model_data)
-            logger.info(f"Model metadata saved to database for job {job_id}")
+            model_id = await db_manager.save_trained_model(db_model_data)
+            logger.info(f"Model metadata saved to database for job {job_id}, model_id: {model_id}")
+            logger.info(f"Data source config: P source = {data_source_config['p_source']['type']}, U source = {data_source_config['u_source']['type']}")
 
         except Exception as e:
             logger.error(f"Failed to save model metadata to database: {e}")
             # 不要因為數據庫保存失敗而中斷整個流程
 
-        return model_path
+        return model_path, model_id
 
     async def _broadcast_progress(self, job_id: str, progress: float, message: str,
                                  additional_data: Optional[Dict] = None):

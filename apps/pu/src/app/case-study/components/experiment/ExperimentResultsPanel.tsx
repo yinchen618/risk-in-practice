@@ -1,9 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { FlaskConical, Target, TrendingUp } from "lucide-react";
+import { BarChart3, FlaskConical, Target, TrendingUp } from "lucide-react";
 
 interface ExperimentResult {
 	id: string;
@@ -27,6 +28,7 @@ interface ExperimentResultsPanelProps {
 	onExperimentDetailSelect: (experimentId: string) => void;
 	insights: string;
 	onInsightsChange: (insights: string) => void;
+	onToggleComparison?: () => void;
 }
 
 export function ExperimentResultsPanel({
@@ -37,6 +39,7 @@ export function ExperimentResultsPanel({
 	onExperimentDetailSelect,
 	insights,
 	onInsightsChange,
+	onToggleComparison,
 }: ExperimentResultsPanelProps) {
 	const handleExperimentToggle = (
 		experimentId: string,
@@ -51,9 +54,23 @@ export function ExperimentResultsPanel({
 			{/* Experiment History & Comparison Table */}
 			<Card>
 				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Target className="h-5 w-5" />
-						Experiment History & Comparison
+					<CardTitle className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<Target className="h-5 w-5" />
+							Experiment History & Comparison
+						</div>
+						{selectedExperiments.length > 0 &&
+							onToggleComparison && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onToggleComparison}
+									className="flex items-center gap-2"
+								>
+									<BarChart3 className="h-4 w-4" />
+									Compare ({selectedExperiments.length})
+								</Button>
+							)}
 					</CardTitle>
 				</CardHeader>
 				<CardContent>

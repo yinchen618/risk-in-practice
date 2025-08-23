@@ -55,3 +55,6 @@ trained_models/
 
 *backup*
 *.log
+*.csv
+*db/
+room*.json

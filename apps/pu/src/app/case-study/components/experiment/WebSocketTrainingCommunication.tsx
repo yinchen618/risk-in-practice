@@ -67,6 +67,7 @@ interface WebSocketTrainingCommunicationProps {
 	onTrainingComplete?: (data: {
 		success: boolean;
 		modelPath?: string;
+		modelId?: string;
 		metrics?: any;
 	}) => void;
 }
@@ -288,6 +289,7 @@ export function WebSocketTrainingCommunication({
 				onTrainingCompleteRef.current?.({
 					success: true,
 					modelPath: data.model_path,
+					modelId: data.model_id,
 					metrics: data.metrics || data,
 				});
 

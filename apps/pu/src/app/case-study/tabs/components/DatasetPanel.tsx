@@ -122,6 +122,7 @@ export function DatasetPanel({
 							label="Dataset:"
 							selectedRunId={selectedRunId}
 							onRunChange={setSelectedRunId}
+							experimentRuns={experimentRuns}
 							placeholder="Select an experiment run"
 							className="w-full"
 						/>

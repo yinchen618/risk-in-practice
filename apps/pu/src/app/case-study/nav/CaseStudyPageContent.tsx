@@ -1,5 +1,4 @@
 "use client";
-
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { DataResultsPhase } from "../tabs/DataResultsPhase";
@@ -15,6 +14,8 @@ export default function CaseStudyPageContent() {
 	const [activeTab, setActiveTab] = useState<TabKey>(
 		() => (searchParams.get("tab") as TabKey) || "problem-approach",
 	);
+
+	const isDevelopment = process.env.NODE_ENV === "development";
 
 	const handleTabChange = (tab: TabKey) => {
 		setActiveTab(tab);
@@ -33,10 +34,18 @@ export default function CaseStudyPageContent() {
 				{activeTab === "problem-approach" && <ProblemApproachPhase />}
 				{activeTab === "implementation" && <ImplementationPhase />}
 				{activeTab === "data-results" && (
-					<DataResultsPhase
-						stageParam={searchParams.get("stage")}
-						runParam={searchParams.get("run")}
-					/>
+					<div className="space-y-6">
+						<DataResultsPhase
+							stageParam={searchParams.get("stage")}
+							runParam={searchParams.get("run")}
+						/>
+						{/* 開發模式下顯示日誌檢視器 */}
+						{/* {isDevelopment && (
+							<div className="mt-8">
+								<LogViewer />
+							</div>
+						)} */}
+					</div>
 				)}
 				{activeTab === "research-notes" && <ResearchNotes />}
 

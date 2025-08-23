@@ -19,6 +19,8 @@ class DataParams(BaseModel):
 
 class ModelParams(BaseModel):
     """模型參數"""
+    model_config = {"protected_namespaces": ()}
+
     activation: Literal['relu', 'softsign', 'tanh'] = 'relu'
     n_epochs: int = Field(50, gt=1, le=500, description="訓練週期數")
     learning_rate: float = Field(0.01, gt=0.001, lt=1.0, description="學習率")
@@ -27,6 +29,8 @@ class ModelParams(BaseModel):
 
 class SimulationRequest(BaseModel):
     """模擬請求"""
+    model_config = {"protected_namespaces": ()}
+
     algorithm: Literal['uPU', 'nnPU'] = 'nnPU'
     data_params: DataParams
     model_params: ModelParams

@@ -72,20 +72,6 @@ export function TrainingMonitorPanel({
 	dataSplitInfo,
 	onStartPrediction,
 }: TrainingMonitorPanelProps) {
-	// 調試日誌
-	console.log("TrainingMonitorPanel props:", {
-		trainingStage,
-		trainingProgress,
-		pSampleCount,
-		uSampleCount,
-		uSampleProgress,
-		modelName,
-		hyperparameters,
-		trainingLogs: trainingLogs.length,
-		hasHyperparameters: !!hyperparameters,
-		hasTrainingLogs: trainingLogs.length > 0,
-	});
-
 	return (
 		<Card className="">
 			<CardHeader>

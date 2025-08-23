@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info, Target } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useCaseStudyData } from "../../../hooks/use-case-study-data";
 import { DecisionPanel } from "../shared/DecisionPanel";
@@ -94,9 +94,9 @@ export function AnomalyLabelingSystem({
 					justificationNotes: notes,
 				});
 
-				// 重新載入事件列表和統計資料
+				// 重新載入事件列表和統計資料 - 強制刷新統計
 				await loadEvents();
-				await loadStats(experimentRunId);
+				await loadStats(experimentRunId, true); // 強制刷新以獲取最新標註狀態
 
 				// 更新選中的事件狀態
 				if (selectedEvent?.id === eventId) {
@@ -141,14 +141,33 @@ export function AnomalyLabelingSystem({
 		[loadEvents, currentFilters, experimentRunId],
 	);
 
-	// handle refresh
-	const handleRefresh = useCallback(async () => {
-		const merged = experimentRunId
-			? { ...currentFilters, experimentRunId }
-			: currentFilters;
-		await loadEvents(merged);
-		await loadStats(experimentRunId);
-	}, [loadEvents, loadStats, currentFilters, experimentRunId]);
+	// handle refresh - 優化版本，減少重複調用
+	const [lastRefreshTime, setLastRefreshTime] = useState(0);
+	const REFRESH_THROTTLE_MS = 2000; // 2秒節流
+
+	const handleRefresh = useCallback(
+		async (forceRefresh = false) => {
+			const now = Date.now();
+			if (!forceRefresh && now - lastRefreshTime < REFRESH_THROTTLE_MS) {
+				console.log("Throttling handleRefresh call");
+				return;
+			}
+
+			setLastRefreshTime(now);
+			const merged = experimentRunId
+				? { ...currentFilters, experimentRunId }
+				: currentFilters;
+			await loadEvents(merged);
+			await loadStats(experimentRunId, forceRefresh);
+		},
+		[
+			loadEvents,
+			loadStats,
+			currentFilters,
+			experimentRunId,
+			lastRefreshTime,
+		],
+	);
 
 	// handle batch confirm anomaly
 	const handleBatchConfirmAnomaly = useCallback(
@@ -192,23 +211,29 @@ export function AnomalyLabelingSystem({
 		[batchReviewEvents, handleRefresh, onLabelingProgress],
 	);
 
-	// initial load; re-run when candidateCount changes
+	// initial load; re-run when experimentRunId changes - 優化版本，移除candidateCount依賴
+	const lastExperimentRunId = useRef<string | null>(null);
 	useEffect(() => {
-		const baseFilters = experimentRunId ? { experimentRunId } : {};
-		if (candidateCount > 0) {
-			setSelectedEvent(null);
-			setStats(null);
-			setTimeout(() => {
+		// 只有當 experimentRunId 實際改變時才執行
+		if (
+			experimentRunId &&
+			experimentRunId !== lastExperimentRunId.current
+		) {
+			lastExperimentRunId.current = experimentRunId;
+
+			const baseFilters = experimentRunId ? { experimentRunId } : {};
+
+			// 添加防抖邏輯，避免快速連續調用
+			const timeoutId = setTimeout(() => {
+				setSelectedEvent(null);
 				setCurrentFilters(baseFilters);
 				loadEvents(baseFilters as any);
-				loadStats(experimentRunId);
-			}, 1000);
-		} else {
-			setCurrentFilters(baseFilters);
-			loadEvents(baseFilters as any);
-			loadStats(experimentRunId);
+				// 不調用 loadStats，因為它會被 DataResultsPhase 處理
+			}, 300); // 300ms 防抖
+
+			return () => clearTimeout(timeoutId);
 		}
-	}, [loadEvents, loadStats, candidateCount, experimentRunId]);
+	}, [loadEvents, experimentRunId]); // 移除 loadStats 和 candidateCount 依賴
 
 	// load meter label map (deviceNumber -> electricMeterName)
 	useEffect(() => {

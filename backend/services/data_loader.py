@@ -120,9 +120,22 @@ class DataLoaderService:
             # 85學舍 1樓
             "402A8FB020AD": {"building": "Building B", "room": "101", "floor": "1"},
             "402A8FB00D46": {"building": "Building B", "room": "102", "floor": "1"},
+            "402A8FB012CE": {"building": "Building B", "room": "102a", "floor": "1"},
             "402A8FB007F2": {"building": "Building B", "room": "103", "floor": "1"},
-            "402A8FB020CE": {"building": "Building B", "room": "107", "floor": "1"},
+            "402A8FB0092A": {"building": "Building B", "room": "105", "floor": "1"},
+            "402A8FB01715": {"building": "Building B", "room": "105a", "floor": "1"},
+            "402A8FB01E6D": {"building": "Building B", "room": "106", "floor": "1"},
+            "402A8FB01260": {"building": "Building B", "room": "106a", "floor": "1"},
+            "402A8FB02696": {"building": "Building B", "room": "107", "floor": "1"},
+            "402A8FB000CC": {"building": "Building B", "room": "107a", "floor": "1"},
+            "402A8FB02323": {"building": "Building B", "room": "108", "floor": "1"},
+            "402A8FB01FD8": {"building": "Building B", "room": "108a", "floor": "1"},
             "402A8FB00C51": {"building": "Building B", "room": "109", "floor": "1"},
+            "402A8FB00B9D": {"building": "Building B", "room": "109a", "floor": "1"},
+            "402A8FB011AE": {"building": "Building B", "room": "110", "floor": "1"},
+            "402A8FB00DEB": {"building": "Building B", "room": "110a", "floor": "1"},
+            "402A8FB026D1": {"building": "Building B", "room": "111", "floor": "1"},
+            "402A8FB02255": {"building": "Building B", "room": "111a", "floor": "1"},
 
             # 85學舍 2樓
             "402A8FB03500": {"building": "Building B", "room": "201", "floor": "2"},
@@ -210,6 +223,8 @@ class DataLoaderService:
             "402A8FB0121F": {"building": "Building B", "room": "608a", "floor": "6"},
             "402A8FB012B1": {"building": "Building B", "room": "609", "floor": "6"},
             "402A8FB006E8": {"building": "Building B", "room": "609a", "floor": "6"},
+            "402A8FB029FA": {"building": "Building B", "room": "610", "floor": "6"},
+            "402A8FB008E3": {"building": "Building B", "room": "610a", "floor": "6"},
         }
 
     def _get_allowed_devices_by_building(self, selected_floors_by_building: Dict[str, List[str]]) -> List[str]:

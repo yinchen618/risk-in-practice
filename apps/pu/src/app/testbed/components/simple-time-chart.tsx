@@ -56,6 +56,10 @@ export function SimpleTimeChart({
 			.append("g")
 			.attr("transform", `translate(${margin.left},${margin.top})`);
 
+		// 檢查是否為整層模式 - 移除此功能，保持組件簡單
+		// const isFloorMode = displayMode === "floor" && (meterData as any).roomData;
+		// const roomData = isFloorMode ? (meterData as any).roomData : null;
+
 		// 提取和處理數據：
 		// - 將後端字串正規化為 UTC 時間（若無時區資訊，視為 UTC 而非本地）
 		// - 顯示時一律以 Asia/Taipei 進行格式化
@@ -89,7 +93,6 @@ export function SimpleTimeChart({
 					power: d.power,
 				}),
 			) || [];
-
 		// 如果沒有數據，直接返回
 		if (data.length === 0) {
 			return;
@@ -656,50 +659,6 @@ export function SimpleTimeChart({
 								className="max-w-[800px]"
 								style={{ background: "#f8fafc" }}
 							/>
-						</div>
-
-						<div className="mt-6 text-sm text-slate-600 space-y-2">
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<p className="font-medium mb-2">
-										📊 Chart Features:
-									</p>
-									<ul className="space-y-1 text-xs">
-										<li>
-											• Interactive D3.js visualization
-										</li>
-										<li>
-											• Hover for detailed information
-										</li>
-										<li>
-											• Automatic time format adjustment
-										</li>
-									</ul>
-								</div>
-								<div>
-									<p className="font-medium mb-2">
-										⚠️ Data Indicators:
-									</p>
-									<ul className="space-y-1 text-xs">
-										<li>
-											• Red diamonds = potential anomalies
-										</li>
-										<li>
-											• Line breaks = gaps &gt; 5 minutes
-										</li>
-										<li>
-											• All times in Taiwan Time (UTC+8)
-										</li>
-									</ul>
-								</div>
-							</div>
-							<div className="text-center pt-2 border-t border-slate-200">
-								<p className="text-xs text-slate-500">
-									Data points:{" "}
-									{meterData.timeSeries?.length || 0} | Chart
-									size: 800×500px
-								</p>
-							</div>
 						</div>
 					</div>
 				) : (
