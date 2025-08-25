@@ -1,0 +1,22 @@
+{
+	"name": "pu-practice-sqlite",
+	"version": "1.0.0",
+	"description": "Local SQLite database for PU Practice",
+	"main": "index.js",
+	"scripts": {
+		"db:migrate": "prisma migrate dev",
+		"db:generate": "prisma generate",
+		"db:studio": "prisma studio",
+		"dev": "node server.js",
+		"import": "node import-data.js"
+	},
+	"dependencies": {
+		"@prisma/client": "^5.0.0",
+		"express": "^4.18.0",
+		"cors": "^2.8.5",
+		"csv-parser": "^3.0.0"
+	},
+	"devDependencies": {
+		"prisma": "^5.0.0"
+	}
+}

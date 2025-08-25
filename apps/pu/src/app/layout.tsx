@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { Toaster } from "@/components/ui/sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Providers } from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,12 +28,14 @@ export default function RootLayout({
 				<link rel="icon" href="/favicon.png" sizes="32x32" />
 			</head>
 			<body className={inter.className}>
-				<NuqsAdapter>
-					<Navbar />
-					<main>{children}</main>
-					<Footer />
-					<Toaster />
-				</NuqsAdapter>
+				<Providers>
+					<NuqsAdapter>
+						<Navbar />
+						<main>{children}</main>
+						<Footer />
+						<Toaster />
+					</NuqsAdapter>
+				</Providers>
 			</body>
 		</html>
 	);

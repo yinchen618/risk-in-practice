@@ -58,3 +58,4 @@ trained_models/
 *.csv
 *db/
 room*.json
+*.db

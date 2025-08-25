@@ -1,0 +1,229 @@
+// SQLite 本機數據庫 Schema for PU Learning 實驗工作台
+// 此文件獨立於主要的 PostgreSQL 數據庫
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./pu_practice.db"
+}
+
+// ========== 枚舉定義 (SQLite 使用 String) ==========
+// OccupantType: "OFFICE_WORKER", "STUDENT", "DEPOSITORY"
+// ExperimentRunStatus: "CONFIGURING", "LABELING", "COMPLETED"
+// AnomalyEventStatus: "UNREVIEWED", "CONFIRMED_POSITIVE", "REJECTED_NORMAL"
+
+// ========== 1. 預處理數據相關資料表 ==========
+
+/// 用於管理一組組預處理完成的分析數據集（黃金週數據）
+model AnalysisDataset {
+  id             String              @id @default(cuid())
+  name           String              @unique
+  description    String?
+  building       String
+  floor          String
+  room           String
+  startDate      DateTime            @map("start_date")
+  endDate        DateTime            @map("end_date")
+  occupantType   String              @map("occupant_type") // "OFFICE_WORKER", "STUDENT", "DEPOSITORY"
+  meterIdL1      String              @map("meter_id_l1")
+  meterIdL2      String              @map("meter_id_l2")
+  totalRecords   Int                 @map("total_records")
+  positiveLabels Int                 @map("positive_labels")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  analysisData   AnalysisReadyData[]
+
+  @@map("analysis_datasets")
+}
+
+/// 存放預處理完成、每分鐘的、可直接用於模型訓練的數據
+model AnalysisReadyData {
+  id                   String          @id @default(cuid())
+  datasetId            String          @map("dataset_id")
+  dataset              AnalysisDataset @relation(fields: [datasetId], references: [id])
+  timestamp            DateTime
+  room                 String
+  rawWattageL1         Float           @map("raw_wattage_l1")
+  rawWattageL2         Float           @map("raw_wattage_l2")
+  wattage110v          Float           @map("wattage_110v")
+  wattage220v          Float           @map("wattage_220v")
+  wattageTotal         Float           @map("wattage_total")
+  isPositiveLabel      Boolean         @default(false) @map("is_positive_label")
+  sourceAnomalyEventId String?         @unique @map("source_anomaly_event_id")
+
+  @@map("analysis_ready_data")
+}
+
+// ========== 2. 實驗管理相關資料表 ==========
+
+/// 實驗運行配置和狀態
+model ExperimentRun {
+  id                  String         @id @default(cuid())
+  name                String
+  description         String?
+  filteringParameters String?        @map("filtering_parameters") // JSON string for SQLite
+  status              String         @default("CONFIGURING") @map("status") // "CONFIGURING", "LABELING", "COMPLETED"
+  candidateCount      Int?           @map("candidate_count")
+  positiveLabelCount  Int?           @map("positive_label_count")
+  negativeLabelCount  Int?           @map("negative_label_count")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  candidateStats      String?        @map("candidate_stats") // JSON string for SQLite
+  anomalyEvents       AnomalyEvent[]
+  trainedModels       TrainedModel[]
+
+  @@map("experiment_run")
+}
+
+/// 異常事件記錄
+model AnomalyEvent {
+  id                 String           @id @default(cuid())
+  eventId            String           @unique @map("event_id")
+  meterId            String           @map("meter_id")
+  eventTimestamp     DateTime         @map("event_timestamp")
+  detectionRule      String           @map("detection_rule")
+  score              Float
+  dataWindow         String           @map("data_window") // JSON string for SQLite
+  status             String           @default("UNREVIEWED") @map("status") // "UNREVIEWED", "CONFIRMED_POSITIVE", "REJECTED_NORMAL"
+  reviewerId         String?          @map("reviewer_id")
+  reviewTimestamp    DateTime?        @map("review_timestamp")
+  justificationNotes String?          @map("justification_notes")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  experimentRunId    String?          @map("experiment_run_id")
+  experimentRun      ExperimentRun?   @relation(fields: [experimentRunId], references: [id])
+  eventLabelLinks    EventLabelLink[]
+
+  @@map("anomaly_event")
+}
+
+/// 異常標籤定義
+model AnomalyLabel {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  eventLabelLinks EventLabelLink[]
+
+  @@map("anomaly_label")
+}
+
+/// 事件和標籤的關聯表
+model EventLabelLink {
+  id           String       @id @default(cuid())
+  eventId      String       @map("event_id")
+  labelId      String       @map("label_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  anomalyEvent AnomalyEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  anomalyLabel AnomalyLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, labelId])
+  @@map("event_label_link")
+}
+
+// ========== 3. 模型訓練與評估相關資料表 ==========
+
+/// 記錄一次完整的模型訓練事件
+model TrainedModel {
+  id               String          @id @default(cuid())
+  name             String
+  scenarioType     String          @map("scenario_type") // "ERM_BASELINE", "GENERALIZATION_CHALLENGE", "DOMAIN_ADAPTATION"
+  status           String // "PENDING", "RUNNING", "COMPLETED", "FAILED"
+  experimentRunId  String          @map("experiment_run_id")
+  experimentRun    ExperimentRun   @relation(fields: [experimentRunId], references: [id])
+  modelConfig      String          @map("model_config") // JSON string for SQLite
+  dataSourceConfig String          @map("data_source_config") // JSON string for SQLite
+  modelPath        String?         @map("model_path")
+  trainingMetrics  String?         @map("training_metrics") // JSON string for SQLite
+  jobId            String?         @map("job_id") // Training job tracking ID
+  createdAt        DateTime        @default(now()) @map("created_at")
+  completedAt      DateTime?       @map("completed_at")
+  evaluationRuns   EvaluationRun[]
+
+  @@map("trained_models")
+}
+
+/// 記錄一次獨立的模型評估事件
+model EvaluationRun {
+  id                String            @id @default(cuid())
+  name              String
+  scenarioType      String            @map("scenario_type") // "ERM_BASELINE", "GENERALIZATION_CHALLENGE", "DOMAIN_ADAPTATION"
+  status            String // "PENDING", "RUNNING", "COMPLETED", "FAILED"
+  trainedModelId    String            @map("trained_model_id")
+  trainedModel      TrainedModel      @relation(fields: [trainedModelId], references: [id])
+  testSetSource     String            @map("test_set_source") // JSON string for SQLite
+  evaluationMetrics String?           @map("evaluation_metrics") // JSON string for SQLite
+  jobId             String?           @map("job_id") // Evaluation job tracking ID
+  createdAt         DateTime          @default(now()) @map("created_at")
+  completedAt       DateTime?         @map("completed_at")
+  predictions       ModelPrediction[]
+
+  @@map("evaluation_runs")
+}
+
+/// 記錄單一樣本的預測結果
+model ModelPrediction {
+  id              String        @id @default(cuid())
+  evaluationRunId String        @map("evaluation_run_id")
+  evaluationRun   EvaluationRun @relation(fields: [evaluationRunId], references: [id])
+  timestamp       DateTime
+  predictionScore Float         @map("prediction_score")
+  groundTruth     Int?          @map("ground_truth")
+
+  @@map("model_predictions")
+}
+
+// ========== 4. 額外的支援資料表 ==========
+
+/// 電錶基本資訊（簡化版）
+model Ammeter {
+  id                  String    @id
+  electricMeterNumber String    @map("electric_meter_number")
+  electricMeterName   String    @map("electric_meter_name")
+  deviceNumber        String    @unique @map("device_number")
+  factory             String?
+  device              String?
+  voltage             Float?
+  currents            Float?
+  power               Float?
+  battery             Float?
+  switchState         Int?      @map("switch_state")
+  networkState        Int?      @map("network_state")
+  lastUpdated         DateTime? @map("last_updated")
+  createdAt           DateTime? @map("created_at")
+  updatedAt           DateTime? @map("updated_at")
+
+  @@map("ammeter")
+}
+
+/// 電錶日誌記錄（簡化版）
+model AmmeterLog {
+  id           String    @id
+  deviceNumber String    @map("device_number")
+  action       String
+  factory      String?
+  device       String?
+  voltage      Float?
+  currents     Float?
+  power        Float?
+  battery      Float?
+  switchState  Int?      @map("switch_state")
+  networkState Int?      @map("network_state")
+  lastUpdated  DateTime? @map("last_updated")
+  requestData  String?   @map("request_data")
+  responseData String?   @map("response_data")
+  statusCode   Int?      @map("status_code")
+  success      Boolean
+  errorMessage String?   @map("error_message")
+  responseTime Int?      @map("response_time")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  userId       String?   @map("user_id")
+  createdAt    DateTime? @map("created_at")
+
+  @@map("ammeter_log")
+}

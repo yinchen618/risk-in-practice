@@ -37,6 +37,12 @@ const corePages = [
 		icon: FlaskConical,
 	},
 	{
+		name: "Case Study v2",
+		href: "/case-study-v2",
+		description: "Advanced PU Learning experimental workbench",
+		icon: FlaskConical,
+	},
+	{
 		name: "About Me",
 		href: "/about",
 		description: "About me",

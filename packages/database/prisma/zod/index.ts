@@ -6837,21 +6837,11 @@ export const AnalysisReadyDataOrderByWithRelationInputSchema: z.ZodType<Prisma.A
   dataset: z.lazy(() => AnalysisDatasetOrderByWithRelationInputSchema).optional()
 }).strict();
 
-export const AnalysisReadyDataWhereUniqueInputSchema: z.ZodType<Prisma.AnalysisReadyDataWhereUniqueInput> = z.union([
-  z.object({
-    id: z.string().cuid(),
-    sourceAnomalyEventId: z.string()
-  }),
-  z.object({
-    id: z.string().cuid(),
-  }),
-  z.object({
-    sourceAnomalyEventId: z.string(),
-  }),
-])
+export const AnalysisReadyDataWhereUniqueInputSchema: z.ZodType<Prisma.AnalysisReadyDataWhereUniqueInput> = z.object({
+  id: z.string().cuid()
+})
 .and(z.object({
   id: z.string().cuid().optional(),
-  sourceAnomalyEventId: z.string().optional(),
   AND: z.union([ z.lazy(() => AnalysisReadyDataWhereInputSchema),z.lazy(() => AnalysisReadyDataWhereInputSchema).array() ]).optional(),
   OR: z.lazy(() => AnalysisReadyDataWhereInputSchema).array().optional(),
   NOT: z.union([ z.lazy(() => AnalysisReadyDataWhereInputSchema),z.lazy(() => AnalysisReadyDataWhereInputSchema).array() ]).optional(),
@@ -6864,6 +6854,7 @@ export const AnalysisReadyDataWhereUniqueInputSchema: z.ZodType<Prisma.AnalysisR
   wattage220v: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
   wattageTotal: z.union([ z.lazy(() => FloatFilterSchema),z.number() ]).optional(),
   isPositiveLabel: z.union([ z.lazy(() => BoolFilterSchema),z.boolean() ]).optional(),
+  sourceAnomalyEventId: z.union([ z.lazy(() => StringNullableFilterSchema),z.string() ]).optional().nullable(),
   dataset: z.union([ z.lazy(() => AnalysisDatasetScalarRelationFilterSchema),z.lazy(() => AnalysisDatasetWhereInputSchema) ]).optional(),
 }).strict());
 
