@@ -316,7 +316,6 @@ export default function CaseStudyV2Page() {
 						{selectedRun && (
 							<Stage3TrainingWorkbench
 								experimentRun={selectedRun}
-								onComplete={() => handleStageChange("stage-4")}
 							/>
 						)}
 					</TabsContent>

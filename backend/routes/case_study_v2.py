@@ -461,8 +461,9 @@ async def generate_candidates(request: dict):
 
         current_timestamp = get_current_datetime()  # Use unified datetime format
 
-        # 構建實驗名稱
-        experiment_name = f"Candidate Generation - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        # 構建實驗名稱 - 從 current_timestamp 提取日期時間部分
+        timestamp_for_name = current_timestamp[:16]  # 取 'YYYY-MM-DD HH:MM' 部分
+        experiment_name = f"Candidate Generation - {timestamp_for_name}"
         experiment_name += " [LABELING]"  # 標籤模式總是標記為 LABELING
         if buildings:
             experiment_name += f" - Buildings: {', '.join(buildings[:2])}{'...' if len(buildings) > 2 else ''}"
@@ -2536,3 +2537,708 @@ async def update_experiment_status(run_id: str, request: dict):
     except Exception as e:
         logger.error(f"Error updating experiment status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update experiment status: {str(e)}")
+
+
+# =============================================================================
+# Stage 3: Trained Models and Evaluation Runs API
+# =============================================================================
+
+@case_study_v2_router.get("/trained-models")
+async def get_trained_models(experiment_run_id: Optional[str] = None):
+    """List trained models, optionally filtered by experiment run ID"""
+    try:
+        import sqlite3
+        import json
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Build query based on filter
+        if experiment_run_id:
+            cursor.execute('''
+                SELECT id, name, scenario_type, status, model_config, data_source_config,
+                       model_path, training_metrics, job_id, created_at, completed_at, experiment_run_id
+                FROM trained_models
+                WHERE experiment_run_id = ?
+                ORDER BY created_at DESC
+            ''', (experiment_run_id,))
+        else:
+            cursor.execute('''
+                SELECT id, name, scenario_type, status, model_config, data_source_config,
+                       model_path, training_metrics, job_id, created_at, completed_at, experiment_run_id
+                FROM trained_models
+                ORDER BY created_at DESC
+            ''')
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to list of dicts
+        models = []
+        for row in rows:
+            model_config = {}
+            data_source_config = {}
+            training_metrics = {}
+
+            # Parse JSON fields
+            try:
+                if row[4]:  # model_config
+                    model_config = json.loads(row[4])
+            except json.JSONDecodeError:
+                pass
+
+            try:
+                if row[5]:  # data_source_config
+                    data_source_config = json.loads(row[5])
+            except json.JSONDecodeError:
+                pass
+
+            try:
+                if row[7]:  # training_metrics
+                    training_metrics = json.loads(row[7])
+            except json.JSONDecodeError:
+                pass
+
+            models.append({
+                "id": row[0],
+                "name": row[1],
+                "scenarioType": row[2],
+                "status": row[3] or "PENDING",
+                "modelConfig": model_config,
+                "dataSourceConfig": data_source_config,
+                "modelPath": row[6],
+                "trainingMetrics": training_metrics,
+                "jobId": row[8],
+                "createdAt": row[9],
+                "completedAt": row[10],
+                "experimentRunId": row[11]
+            })
+
+        return models
+
+    except Exception as e:
+        logger.error(f"Error fetching trained models: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@case_study_v2_router.post("/trained-models")
+async def create_trained_model(request: dict):
+    """Create a new trained model and start training job"""
+    try:
+        import sqlite3
+        import json
+        import uuid
+
+        # Validate request
+        required_fields = ["name", "scenarioType", "experimentRunId", "modelConfig", "dataSourceConfig"]
+        for field in required_fields:
+            if field not in request:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Generate IDs
+        model_id = str(uuid.uuid4())
+        job_id = str(uuid.uuid4())
+        current_time = get_current_datetime()
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Insert new trained model
+        cursor.execute('''
+            INSERT INTO trained_models (
+                id, name, scenario_type, status, experiment_run_id,
+                model_config, data_source_config, job_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            model_id,
+            request["name"],
+            request["scenarioType"],
+            "PENDING",
+            request["experimentRunId"],
+            json.dumps(request["modelConfig"]),
+            json.dumps(request["dataSourceConfig"]),
+            job_id,
+            current_time
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # Start training job asynchronously
+        asyncio.create_task(run_training_job(model_id, job_id))
+
+        return {
+            "id": model_id,
+            "name": request["name"],
+            "scenarioType": request["scenarioType"],
+            "status": "PENDING",
+            "modelConfig": request["modelConfig"],
+            "dataSourceConfig": request["dataSourceConfig"],
+            "jobId": job_id,
+            "createdAt": current_time,
+            "experimentRunId": request["experimentRunId"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating trained model: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@case_study_v2_router.get("/evaluation-runs")
+async def get_evaluation_runs(experiment_run_id: Optional[str] = None, trained_model_id: Optional[str] = None):
+    """List evaluation runs, optionally filtered by experiment run ID or trained model ID"""
+    try:
+        import sqlite3
+        import json
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Build query based on filters
+        base_query = '''
+            SELECT er.id, er.name, er.scenario_type, er.status, er.trained_model_id,
+                   er.test_set_source, er.evaluation_metrics, er.job_id, er.created_at, er.completed_at,
+                   tm.name as model_name, tm.experiment_run_id
+            FROM evaluation_runs er
+            LEFT JOIN trained_models tm ON er.trained_model_id = tm.id
+        '''
+
+        params = []
+        where_conditions = []
+
+        if experiment_run_id:
+            where_conditions.append("tm.experiment_run_id = ?")
+            params.append(experiment_run_id)
+
+        if trained_model_id:
+            where_conditions.append("er.trained_model_id = ?")
+            params.append(trained_model_id)
+
+        if where_conditions:
+            base_query += " WHERE " + " AND ".join(where_conditions)
+
+        base_query += " ORDER BY er.created_at DESC"
+
+        cursor.execute(base_query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to list of dicts
+        evaluation_runs = []
+        for row in rows:
+            test_set_source = {}
+            evaluation_metrics = {}
+
+            # Parse JSON fields
+            try:
+                if row[5]:  # test_set_source
+                    test_set_source = json.loads(row[5])
+            except json.JSONDecodeError:
+                pass
+
+            try:
+                if row[6]:  # evaluation_metrics
+                    evaluation_metrics = json.loads(row[6])
+            except json.JSONDecodeError:
+                pass
+
+            evaluation_runs.append({
+                "id": row[0],
+                "name": row[1],
+                "scenarioType": row[2],
+                "status": row[3] or "PENDING",
+                "trainedModelId": row[4],
+                "testSetSource": test_set_source,
+                "evaluationMetrics": evaluation_metrics,
+                "jobId": row[7],
+                "createdAt": row[8],
+                "completedAt": row[9],
+                "modelName": row[10],
+                "experimentRunId": row[11]
+            })
+
+        return evaluation_runs
+
+    except Exception as e:
+        logger.error(f"Error fetching evaluation runs: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@case_study_v2_router.post("/evaluation-runs")
+async def create_evaluation_run(request: dict):
+    """Create a new evaluation run and start evaluation job"""
+    try:
+        import sqlite3
+        import json
+        import uuid
+
+        # Validate request
+        required_fields = ["name", "scenarioType", "trainedModelId", "testSetSource"]
+        for field in required_fields:
+            if field not in request:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+        # Check if trained model exists
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT id FROM trained_models WHERE id = ?', (request["trainedModelId"],))
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail="Trained model not found")
+
+        # Generate IDs
+        evaluation_id = str(uuid.uuid4())
+        job_id = str(uuid.uuid4())
+        current_time = get_current_datetime()
+
+        # Insert new evaluation run
+        cursor.execute('''
+            INSERT INTO evaluation_runs (
+                id, name, scenario_type, status, trained_model_id,
+                test_set_source, job_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            evaluation_id,
+            request["name"],
+            request["scenarioType"],
+            "PENDING",
+            request["trainedModelId"],
+            json.dumps(request["testSetSource"]),
+            job_id,
+            current_time
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # Start evaluation job asynchronously
+        asyncio.create_task(run_evaluation_job(evaluation_id, job_id))
+
+        return {
+            "id": evaluation_id,
+            "name": request["name"],
+            "scenarioType": request["scenarioType"],
+            "status": "PENDING",
+            "trainedModelId": request["trainedModelId"],
+            "testSetSource": request["testSetSource"],
+            "jobId": job_id,
+            "createdAt": current_time
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating evaluation run: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Training and Evaluation Job Runners
+# =============================================================================
+
+async def run_training_job(model_id: str, job_id: str):
+    """Run training job asynchronously"""
+    try:
+        import sqlite3
+        import time
+        import random
+
+        logger.info(f"Starting training job {job_id} for model {model_id}")
+
+        # Update status to RUNNING
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE trained_models
+            SET status = ?
+            WHERE id = ?
+        ''', ("RUNNING", model_id))
+        conn.commit()
+
+        # Simulate training process
+        await asyncio.sleep(5)  # Simulate training time
+
+        # Generate mock training metrics
+        mock_metrics = {
+            "final_loss": round(random.uniform(0.1, 0.5), 4),
+            "final_accuracy": round(random.uniform(0.85, 0.95), 4),
+            "training_time": round(random.uniform(120, 300), 2),
+            "epochs_completed": random.randint(80, 100),
+            "best_epoch": random.randint(70, 90)
+        }
+
+        # Update model with completion
+        current_time = get_current_datetime()
+        cursor.execute('''
+            UPDATE trained_models
+            SET status = ?, training_metrics = ?, completed_at = ?, model_path = ?
+            WHERE id = ?
+        ''', (
+            "COMPLETED",
+            json.dumps(mock_metrics),
+            current_time,
+            f"/models/{model_id}.pth",
+            model_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Training job {job_id} completed successfully")
+
+    except Exception as e:
+        logger.error(f"Training job {job_id} failed: {str(e)}")
+
+        # Update status to FAILED
+        try:
+            db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE trained_models SET status = ? WHERE id = ?', ("FAILED", model_id))
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
+
+async def run_evaluation_job(evaluation_id: str, job_id: str):
+    """Run evaluation job asynchronously"""
+    try:
+        import sqlite3
+        import time
+        import random
+
+        logger.info(f"Starting evaluation job {job_id} for evaluation {evaluation_id}")
+
+        # Update status to RUNNING
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE evaluation_runs
+            SET status = ?
+            WHERE id = ?
+        ''', ("RUNNING", evaluation_id))
+        conn.commit()
+
+        # Simulate evaluation process
+        await asyncio.sleep(3)  # Simulate evaluation time
+
+        # Generate mock evaluation metrics
+        mock_metrics = {
+            "accuracy": round(random.uniform(0.80, 0.92), 4),
+            "precision": round(random.uniform(0.75, 0.90), 4),
+            "recall": round(random.uniform(0.70, 0.88), 4),
+            "f1_score": round(random.uniform(0.78, 0.89), 4),
+            "auc_roc": round(random.uniform(0.85, 0.95), 4),
+            "confusion_matrix": {
+                "tp": random.randint(80, 120),
+                "fp": random.randint(10, 25),
+                "tn": random.randint(150, 200),
+                "fn": random.randint(5, 20)
+            }
+        }
+
+        # Update evaluation with completion
+        current_time = get_current_datetime()
+        cursor.execute('''
+            UPDATE evaluation_runs
+            SET status = ?, evaluation_metrics = ?, completed_at = ?
+            WHERE id = ?
+        ''', (
+            "COMPLETED",
+            json.dumps(mock_metrics),
+            current_time,
+            evaluation_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Evaluation job {job_id} completed successfully")
+
+    except Exception as e:
+        logger.error(f"Evaluation job {job_id} failed: {str(e)}")
+
+        # Update status to FAILED
+        try:
+            db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE evaluation_runs SET status = ? WHERE id = ?', ("FAILED", evaluation_id))
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
+
+# ========== Stage 3: nnPU Training API Routes ==========
+
+@case_study_v2_router.post("/start-training")
+async def start_nnpu_training(request: dict):
+    """啟動新的 nnPU 模型訓練工作"""
+    try:
+        logger.info(f"Received nnPU training request: {request}")
+
+        # 驗證請求參數
+        experiment_id = request.get("experiment_id")
+        training_config = request.get("training_config", {})
+        data_source_config = request.get("data_source_config", {})
+
+        if not experiment_id:
+            raise HTTPException(status_code=400, detail="experiment_id is required")
+
+        if not training_config:
+            raise HTTPException(status_code=400, detail="training_config is required")
+
+        if not data_source_config:
+            raise HTTPException(status_code=400, detail="data_source_config is required")
+
+        # 驗證 nnPU 訓練配置的必要參數
+        required_training_params = [
+            "classPrior", "windowSize", "modelType", "hiddenSize",
+            "numLayers", "activationFunction", "dropout", "epochs",
+            "batchSize", "optimizer", "learningRate", "l2Regularization",
+            "earlyStopping", "patience", "learningRateScheduler"
+        ]
+
+        missing_params = [param for param in required_training_params if param not in training_config]
+        if missing_params:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required training config parameters: {missing_params}"
+            )
+
+        # 驗證資料來源配置
+        required_data_params = ["trainRatio", "validationRatio", "testRatio", "timeRange"]
+        missing_data_params = [param for param in required_data_params if param not in data_source_config]
+        if missing_data_params:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required data source config parameters: {missing_data_params}"
+            )
+
+        # 生成唯一的任務 ID
+        task_id = int(str(uuid.uuid4().int)[:6])  # 6位數字任務ID
+
+        logger.info(f"Starting nnPU training job with task_id: {task_id}")
+
+        # 檢查 model_trainer 是否可用
+        global model_trainer
+        if not model_trainer:
+            raise HTTPException(
+                status_code=503,
+                detail="Model trainer service is not available. Please ensure the service is properly initialized."
+            )
+
+        # 使用 model_trainer 的新接口創建訓練配置
+        from services.case_study_v2.models import StartTrainingJobRequest, ModelConfig, DataSourceConfig
+
+        # 創建配置對象
+        model_config = ModelConfig(
+            classPrior=training_config["classPrior"],
+            windowSize=training_config["windowSize"],
+            modelType=training_config["modelType"],
+            hiddenSize=training_config["hiddenSize"],
+            numLayers=training_config["numLayers"],
+            activationFunction=training_config["activationFunction"],
+            dropout=training_config["dropout"],
+            epochs=training_config["epochs"],
+            batchSize=training_config["batchSize"],
+            optimizer=training_config["optimizer"],
+            learningRate=training_config["learningRate"],
+            l2Regularization=training_config["l2Regularization"],
+            earlyStopping=training_config["earlyStopping"],
+            patience=training_config["patience"],
+            learningRateScheduler=training_config["learningRateScheduler"]
+        )
+
+        data_config = DataSourceConfig(
+            trainRatio=data_source_config["trainRatio"],
+            validationRatio=data_source_config["validationRatio"],
+            testRatio=data_source_config["testRatio"],
+            timeRange=data_source_config["timeRange"]
+        )
+
+        training_request = StartTrainingJobRequest(
+            experiment_id=experiment_id,
+            training_config=model_config,
+            data_source_config=data_config
+        )
+
+        # 啟動異步訓練任務
+        asyncio.create_task(
+            model_trainer.train_model(
+                job_id=str(task_id),
+                trained_model_id=str(uuid.uuid4()),
+                config=training_request
+            )
+        )
+
+        return {
+            "status": "success",
+            "message": "nnPU training job started successfully",
+            "task_id": task_id,
+            "experiment_id": experiment_id,
+            "training_config": training_config,
+            "data_source_config": data_source_config
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting nnPU training: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start nnPU training: {str(e)}")
+
+
+@case_study_v2_router.get("/training-jobs")
+async def get_training_jobs():
+    """獲取所有訓練工作的狀態"""
+    try:
+        # 連接到資料庫
+        import sqlite3
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 查詢訓練工作
+        cursor.execute('''
+            SELECT id, taskId, experimentId, status, startedAt, completedAt,
+                   modelType, hyperparameters, dataSourceConfig, metrics, errorMessage,
+                   createdAt, updatedAt
+            FROM training_jobs
+            ORDER BY createdAt DESC
+        ''')
+
+        jobs = []
+        for row in cursor.fetchall():
+            job = {
+                "id": row[0],
+                "taskId": row[1],
+                "experimentId": row[2],
+                "status": row[3],
+                "startedAt": row[4],
+                "completedAt": row[5],
+                "modelType": row[6],
+                "hyperparameters": json.loads(row[7]) if row[7] else {},
+                "dataSourceConfig": json.loads(row[8]) if row[8] else {},
+                "metrics": json.loads(row[9]) if row[9] else {},
+                "errorMessage": row[10],
+                "createdAt": row[11],
+                "updatedAt": row[12]
+            }
+            jobs.append(job)
+
+        conn.close()
+        return jobs
+
+    except Exception as e:
+        logger.error(f"Error retrieving training jobs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve training jobs: {str(e)}")
+
+
+@case_study_v2_router.get("/trained-models")
+async def get_trained_models():
+    """獲取所有訓練好的模型"""
+    try:
+        # 連接到資料庫
+        import sqlite3
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 查詢訓練模型
+        cursor.execute('''
+            SELECT id, trainingJobId, experimentId, taskId, modelName, modelType,
+                   status, hyperparameters, trainingMetrics, validationMetrics,
+                   modelPath, trainingLog, createdAt, updatedAt
+            FROM trained_models
+            ORDER BY createdAt DESC
+        ''')
+
+        models = []
+        for row in cursor.fetchall():
+            model = {
+                "id": row[0],
+                "trainingJobId": row[1],
+                "experimentId": row[2],
+                "taskId": row[3],
+                "modelName": row[4],
+                "modelType": row[5],
+                "status": row[6],
+                "hyperparameters": json.loads(row[7]) if row[7] else {},
+                "trainingMetrics": json.loads(row[8]) if row[8] else {},
+                "validationMetrics": json.loads(row[9]) if row[9] else {},
+                "modelPath": row[10],
+                "trainingLog": json.loads(row[11]) if row[11] else [],
+                "createdAt": row[12],
+                "updatedAt": row[13]
+            }
+            models.append(model)
+
+        conn.close()
+        return models
+
+    except Exception as e:
+        logger.error(f"Error retrieving trained models: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve trained models: {str(e)}")
+
+
+# WebSocket endpoint for real-time training monitoring
+@case_study_v2_router.websocket("/ws/training/{task_id}")
+async def websocket_training_monitor(websocket: WebSocket, task_id: str):
+    """WebSocket 端點用於即時監控訓練進度"""
+    await websocket.accept()
+
+    try:
+        logger.info(f"WebSocket connection established for training task: {task_id}")
+
+        # 註冊 WebSocket 連接
+        global websocket_manager
+        if websocket_manager:
+            await websocket_manager.connect_training_monitor(task_id, websocket)
+
+        # 保持連接並處理訊息
+        while True:
+            try:
+                # 等待來自客戶端的訊息
+                data = await websocket.receive_text()
+                logger.info(f"Received WebSocket message for task {task_id}: {data}")
+
+                # 可以在這裡處理客戶端訊息（如暫停、停止訓練等）
+                message = json.loads(data)
+                if message.get("action") == "ping":
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "timestamp": get_current_datetime()
+                    }))
+
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected for training task: {task_id}")
+                break
+            except Exception as e:
+                logger.error(f"WebSocket error for task {task_id}: {str(e)}")
+                break
+
+    except Exception as e:
+        logger.error(f"WebSocket connection error for task {task_id}: {str(e)}")
+    finally:
+        # 取消註冊 WebSocket 連接
+        if websocket_manager:
+            await websocket_manager.disconnect_training_monitor(task_id, websocket)
+
+
+# ========== End of Stage 3 API Routes ==========

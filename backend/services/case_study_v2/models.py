@@ -69,22 +69,47 @@ class LabelEventRequest(BaseModel):
     justification_notes: Optional[str] = Field(default=None, description="Optional justification notes")
 
 class ModelConfig(BaseModel):
-    """Model training configuration"""
-    model_type: str = Field(description="Type of model to train")
-    learning_rate: float = Field(default=0.001, description="Learning rate")
-    batch_size: int = Field(default=32, description="Batch size")
-    epochs: int = Field(default=100, description="Number of epochs")
-    prior: Optional[float] = Field(default=None, description="Class prior estimate")
-    beta: Optional[float] = Field(default=0.0, description="Beta parameter for nnPU")
-    gamma: Optional[float] = Field(default=1.0, description="Gamma parameter for nnPU")
+    """Complete nnPU model training configuration with all hyperparameters"""
+
+    # PU Learning 策略
+    classPrior: float = Field(default=0.05, description="Class prior (π_p) - true positive sample ratio")
+
+    # 資料準備
+    windowSize: int = Field(default=60, description="Time window size in minutes")
+
+    # 模型架構
+    modelType: str = Field(default="LSTM", description="Neural network architecture type")
+    hiddenSize: int = Field(default=128, description="Hidden layer size")
+    numLayers: int = Field(default=2, description="Number of layers")
+    activationFunction: str = Field(default="ReLU", description="Activation function")
+    dropout: float = Field(default=0.2, description="Dropout rate")
+
+    # 訓練過程
+    epochs: int = Field(default=100, description="Number of training epochs")
+    batchSize: int = Field(default=128, description="Batch size")
+    optimizer: str = Field(default="Adam", description="Optimizer algorithm")
+    learningRate: float = Field(default=0.001, description="Learning rate")
+    l2Regularization: float = Field(default=0.0001, description="L2 regularization strength")
+
+    # 訓練穩定性
+    earlyStopping: bool = Field(default=True, description="Enable early stopping")
+    patience: int = Field(default=10, description="Early stopping patience")
+    learningRateScheduler: str = Field(default="none", description="Learning rate scheduler type")
 
     model_config = {"protected_namespaces": ()}
 
 class DataSourceConfig(BaseModel):
-    """Data source configuration for training/evaluation"""
-    source_type: str = Field(description="Type of data source")
+    """Enhanced data source configuration for training/evaluation"""
+    selectedDatasets: List[str] = Field(default=[], description="Selected dataset IDs")
+    trainRatio: float = Field(default=70.0, description="Training data ratio (percentage)")
+    validationRatio: float = Field(default=20.0, description="Validation data ratio (percentage)")
+    testRatio: float = Field(default=10.0, description="Test data ratio (percentage)")
+    timeRange: Dict[str, str] = Field(default={"startDate": "", "endDate": ""}, description="Time range filter")
+
+    # Backward compatibility
+    source_type: str = Field(default="experiment_run", description="Type of data source")
     experiment_run_id: Optional[str] = Field(default=None, description="Source experiment run ID")
-    data_split_ratio: Dict[str, float] = Field(default={"train": 0.7, "val": 0.15, "test": 0.15}, description="Data split ratios")
+    data_split_ratio: Optional[Dict[str, float]] = Field(default=None, description="Legacy data split ratios")
     pretrained_model_id: Optional[str] = Field(default=None, description="Pre-trained model ID for transfer learning")
 
 class StartTrainingJobRequest(BaseModel):

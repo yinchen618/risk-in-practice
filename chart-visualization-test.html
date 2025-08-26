@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Visualization Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .checkmark {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .code {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            border-left: 4px solid #007bff;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Stage 1 & Stage 2 更新完成 - 圖表可視化增強</h1>
+
+    <div class="container">
+        <h2>📊 時間序列圖表新增功能</h2>
+        <div class="status success">
+            ✅ 圖表可視化功能已成功更新！
+        </div>
+        
+        <h3>新增的視覺化功能：</h3>
+        <ul class="feature-list">
+            <li><span class="checkmark">✓</span><strong>事件時間垂直線標記</strong> - 紅色虛線標示異常事件發生的確切時間</li>
+            <li><span class="checkmark">✓</span><strong>分析窗口區域標記</strong> - 淺紅色背景標示數據分析的時間範圍</li>
+            <li><span class="checkmark">✓</span><strong>事件點特殊標記</strong> - 事件時間附近的數據點用紅色大圓點標示</li>
+            <li><span class="checkmark">✓</span><strong>動態顏色編碼</strong> - 正常數據點為藍色，異常相關點為紅色</li>
+            <li><span class="checkmark">✓</span><strong>互動式標籤</strong> - 滑鼠懸停顯示詳細信息</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>🔧 技術實現細節</h2>
+        <div class="info">
+            使用 Chart.js annotation 插件實現專業級圖表標記功能
+        </div>
+        
+        <h3>圖表配置新增項目：</h3>
+        <div class="code">
+annotation: {
+    annotations: {
+        eventTime: {
+            type: 'line',
+            borderColor: 'rgba(255, 99, 132, 0.8)',
+            borderDash: [5, 5],
+            label: 'Event Time'
+        },
+        eventRegion: {
+            type: 'box',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            label: 'Analysis Window'
+        }
+    }
+}
+        </div>
+
+        <h3>數據點樣式動態調整：</h3>
+        <ul class="feature-list">
+            <li><span class="checkmark">✓</span>正常點：藍色，半徑 3px</li>
+            <li><span class="checkmark">✓</span>事件點：紅色，半徑 8px，邊框加粗</li>
+            <li><span class="checkmark">✓</span>1分鐘內的相關點都會被標記</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>🎯 如何使用</h2>
+        <ol>
+            <li>打開 <a href="http://localhost:3000/case-study-v2" target="_blank">Case Study v2 頁面</a></li>
+            <li>點擊 "Stage 1: Generate Candidates" 生成異常事件</li>
+            <li>切換到 "Stage 2: Expert Labeling"</li>
+            <li>選擇任一事件查看增強後的時間序列圖表</li>
+            <li>觀察紅色垂直線（事件時間）和紅色區域（分析窗口）</li>
+            <li>注意事件附近的數據點會以紅色大圓點顯示</li>
+        </ol>
+    </div>
+
+    <div class="container">
+        <h2>📈 視覺化效果說明</h2>
+        <div class="feature-list">
+            <li><strong>垂直紅線</strong>：標示異常事件發生的確切時間點</li>
+            <li><strong>紅色背景區域</strong>：顯示用於異常檢測的數據分析窗口</li>
+            <li><strong>大紅點</strong>：突出顯示事件時間附近的重要數據點</li>
+            <li><strong>標籤提示</strong>：顯示 "Event Time" 和 "Analysis Window" 說明</li>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🚀 性能和體驗優化</h2>
+        <ul class="feature-list">
+            <li><span class="checkmark">✓</span>自動根據選擇的事件動態更新標記</li>
+            <li><span class="checkmark">✓</span>響應式設計，在不同設備上都能良好顯示</li>
+            <li><span class="checkmark">✓</span>專業的顏色搭配，符合數據可視化最佳實踐</li>
+            <li><span class="checkmark">✓</span>清晰的視覺層次，重要信息突出顯示</li>
+        </ul>
+    </div>
+
+    <script>
+        // 顯示當前時間
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date().toLocaleString();
+            console.log('Chart visualization enhancements loaded at:', now);
+        });
+    </script>
+</body>
+</html>
