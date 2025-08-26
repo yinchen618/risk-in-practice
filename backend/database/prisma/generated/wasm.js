@@ -167,7 +167,9 @@ exports.Prisma.ExperimentRunScalarFieldEnum = {
 exports.Prisma.AnomalyEventScalarFieldEnum = {
   id: 'id',
   eventId: 'eventId',
-  meterId: 'meterId',
+  name: 'name',
+  datasetId: 'datasetId',
+  line: 'line',
   eventTimestamp: 'eventTimestamp',
   detectionRule: 'detectionRule',
   score: 'score',

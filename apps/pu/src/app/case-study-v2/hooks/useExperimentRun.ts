@@ -19,13 +19,8 @@ export function useExperimentRun(id?: string) {
 			id ? caseStudyV2API.getExperimentRun(id) : Promise.resolve(null),
 		enabled: !!id,
 		staleTime: 10000, // 10 seconds
-		refetchInterval: (query) => {
-			// Auto-refresh if experiment is in progress
-			if (query.state.data?.status === "CONFIGURING") {
-				return 5000; // 5 seconds
-			}
-			return false;
-		},
+		// 移除 polling 機制 - 不自動重新查詢，避免干擾長時間運行的操作
+		refetchInterval: false,
 	});
 }
 

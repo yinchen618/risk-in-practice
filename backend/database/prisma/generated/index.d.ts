@@ -30,7 +30,7 @@ export type AnalysisReadyData = $Result.DefaultSelection<Prisma.$AnalysisReadyDa
 export type ExperimentRun = $Result.DefaultSelection<Prisma.$ExperimentRunPayload>
 /**
  * Model AnomalyEvent
- * 異常事件記錄
+ * Anomaly event records
  */
 export type AnomalyEvent = $Result.DefaultSelection<Prisma.$AnomalyEventPayload>
 /**
@@ -1704,10 +1704,12 @@ export namespace Prisma {
 
   export type AnalysisDatasetCountOutputType = {
     analysisData: number
+    anomalyEvents: number
   }
 
   export type AnalysisDatasetCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     analysisData?: boolean | AnalysisDatasetCountOutputTypeCountAnalysisDataArgs
+    anomalyEvents?: boolean | AnalysisDatasetCountOutputTypeCountAnomalyEventsArgs
   }
 
   // Custom InputTypes
@@ -1726,6 +1728,13 @@ export namespace Prisma {
    */
   export type AnalysisDatasetCountOutputTypeCountAnalysisDataArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AnalysisReadyDataWhereInput
+  }
+
+  /**
+   * AnalysisDatasetCountOutputType without action
+   */
+  export type AnalysisDatasetCountOutputTypeCountAnomalyEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AnomalyEventWhereInput
   }
 
 
@@ -2172,6 +2181,7 @@ export namespace Prisma {
     positiveLabels?: boolean
     createdAt?: boolean
     analysisData?: boolean | AnalysisDataset$analysisDataArgs<ExtArgs>
+    anomalyEvents?: boolean | AnalysisDataset$anomalyEventsArgs<ExtArgs>
     _count?: boolean | AnalysisDatasetCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["analysisDataset"]>
 
@@ -2211,6 +2221,7 @@ export namespace Prisma {
 
   export type AnalysisDatasetInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     analysisData?: boolean | AnalysisDataset$analysisDataArgs<ExtArgs>
+    anomalyEvents?: boolean | AnalysisDataset$anomalyEventsArgs<ExtArgs>
     _count?: boolean | AnalysisDatasetCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type AnalysisDatasetIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2219,6 +2230,7 @@ export namespace Prisma {
     name: "AnalysisDataset"
     objects: {
       analysisData: Prisma.$AnalysisReadyDataPayload<ExtArgs>[]
+      anomalyEvents: Prisma.$AnomalyEventPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -2600,6 +2612,7 @@ export namespace Prisma {
   export interface Prisma__AnalysisDatasetClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     analysisData<T extends AnalysisDataset$analysisDataArgs<ExtArgs> = {}>(args?: Subset<T, AnalysisDataset$analysisDataArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalysisReadyDataPayload<ExtArgs>, T, "findMany"> | Null>
+    anomalyEvents<T extends AnalysisDataset$anomalyEventsArgs<ExtArgs> = {}>(args?: Subset<T, AnalysisDataset$anomalyEventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnomalyEventPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2972,6 +2985,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AnalysisReadyDataScalarFieldEnum | AnalysisReadyDataScalarFieldEnum[]
+  }
+
+  /**
+   * AnalysisDataset.anomalyEvents
+   */
+  export type AnalysisDataset$anomalyEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AnomalyEvent
+     */
+    select?: AnomalyEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AnomalyEventInclude<ExtArgs> | null
+    where?: AnomalyEventWhereInput
+    orderBy?: AnomalyEventOrderByWithRelationInput | AnomalyEventOrderByWithRelationInput[]
+    cursor?: AnomalyEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AnomalyEventScalarFieldEnum | AnomalyEventScalarFieldEnum[]
   }
 
   /**
@@ -5149,7 +5182,9 @@ export namespace Prisma {
   export type AnomalyEventMinAggregateOutputType = {
     id: string | null
     eventId: string | null
-    meterId: string | null
+    name: string | null
+    datasetId: string | null
+    line: string | null
     eventTimestamp: Date | null
     detectionRule: string | null
     score: number | null
@@ -5166,7 +5201,9 @@ export namespace Prisma {
   export type AnomalyEventMaxAggregateOutputType = {
     id: string | null
     eventId: string | null
-    meterId: string | null
+    name: string | null
+    datasetId: string | null
+    line: string | null
     eventTimestamp: Date | null
     detectionRule: string | null
     score: number | null
@@ -5183,7 +5220,9 @@ export namespace Prisma {
   export type AnomalyEventCountAggregateOutputType = {
     id: number
     eventId: number
-    meterId: number
+    name: number
+    datasetId: number
+    line: number
     eventTimestamp: number
     detectionRule: number
     score: number
@@ -5210,7 +5249,9 @@ export namespace Prisma {
   export type AnomalyEventMinAggregateInputType = {
     id?: true
     eventId?: true
-    meterId?: true
+    name?: true
+    datasetId?: true
+    line?: true
     eventTimestamp?: true
     detectionRule?: true
     score?: true
@@ -5227,7 +5268,9 @@ export namespace Prisma {
   export type AnomalyEventMaxAggregateInputType = {
     id?: true
     eventId?: true
-    meterId?: true
+    name?: true
+    datasetId?: true
+    line?: true
     eventTimestamp?: true
     detectionRule?: true
     score?: true
@@ -5244,7 +5287,9 @@ export namespace Prisma {
   export type AnomalyEventCountAggregateInputType = {
     id?: true
     eventId?: true
-    meterId?: true
+    name?: true
+    datasetId?: true
+    line?: true
     eventTimestamp?: true
     detectionRule?: true
     score?: true
@@ -5348,7 +5393,9 @@ export namespace Prisma {
   export type AnomalyEventGroupByOutputType = {
     id: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date
     detectionRule: string
     score: number
@@ -5384,7 +5431,9 @@ export namespace Prisma {
   export type AnomalyEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     eventId?: boolean
-    meterId?: boolean
+    name?: boolean
+    datasetId?: boolean
+    line?: boolean
     eventTimestamp?: boolean
     detectionRule?: boolean
     score?: boolean
@@ -5396,6 +5445,7 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     experimentRunId?: boolean
+    dataset?: boolean | AnalysisDatasetDefaultArgs<ExtArgs>
     experimentRun?: boolean | AnomalyEvent$experimentRunArgs<ExtArgs>
     eventLabelLinks?: boolean | AnomalyEvent$eventLabelLinksArgs<ExtArgs>
     _count?: boolean | AnomalyEventCountOutputTypeDefaultArgs<ExtArgs>
@@ -5404,7 +5454,9 @@ export namespace Prisma {
   export type AnomalyEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     eventId?: boolean
-    meterId?: boolean
+    name?: boolean
+    datasetId?: boolean
+    line?: boolean
     eventTimestamp?: boolean
     detectionRule?: boolean
     score?: boolean
@@ -5416,13 +5468,16 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     experimentRunId?: boolean
+    dataset?: boolean | AnalysisDatasetDefaultArgs<ExtArgs>
     experimentRun?: boolean | AnomalyEvent$experimentRunArgs<ExtArgs>
   }, ExtArgs["result"]["anomalyEvent"]>
 
   export type AnomalyEventSelectScalar = {
     id?: boolean
     eventId?: boolean
-    meterId?: boolean
+    name?: boolean
+    datasetId?: boolean
+    line?: boolean
     eventTimestamp?: boolean
     detectionRule?: boolean
     score?: boolean
@@ -5437,24 +5492,29 @@ export namespace Prisma {
   }
 
   export type AnomalyEventInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    dataset?: boolean | AnalysisDatasetDefaultArgs<ExtArgs>
     experimentRun?: boolean | AnomalyEvent$experimentRunArgs<ExtArgs>
     eventLabelLinks?: boolean | AnomalyEvent$eventLabelLinksArgs<ExtArgs>
     _count?: boolean | AnomalyEventCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type AnomalyEventIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    dataset?: boolean | AnalysisDatasetDefaultArgs<ExtArgs>
     experimentRun?: boolean | AnomalyEvent$experimentRunArgs<ExtArgs>
   }
 
   export type $AnomalyEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "AnomalyEvent"
     objects: {
+      dataset: Prisma.$AnalysisDatasetPayload<ExtArgs>
       experimentRun: Prisma.$ExperimentRunPayload<ExtArgs> | null
       eventLabelLinks: Prisma.$EventLabelLinkPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       eventId: string
-      meterId: string
+      name: string
+      datasetId: string
+      line: string
       eventTimestamp: Date
       detectionRule: string
       score: number
@@ -5830,6 +5890,7 @@ export namespace Prisma {
    */
   export interface Prisma__AnomalyEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    dataset<T extends AnalysisDatasetDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AnalysisDatasetDefaultArgs<ExtArgs>>): Prisma__AnalysisDatasetClient<$Result.GetResult<Prisma.$AnalysisDatasetPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     experimentRun<T extends AnomalyEvent$experimentRunArgs<ExtArgs> = {}>(args?: Subset<T, AnomalyEvent$experimentRunArgs<ExtArgs>>): Prisma__ExperimentRunClient<$Result.GetResult<Prisma.$ExperimentRunPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     eventLabelLinks<T extends AnomalyEvent$eventLabelLinksArgs<ExtArgs> = {}>(args?: Subset<T, AnomalyEvent$eventLabelLinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$EventLabelLinkPayload<ExtArgs>, T, "findMany"> | Null>
     /**
@@ -5863,7 +5924,9 @@ export namespace Prisma {
   interface AnomalyEventFieldRefs {
     readonly id: FieldRef<"AnomalyEvent", 'String'>
     readonly eventId: FieldRef<"AnomalyEvent", 'String'>
-    readonly meterId: FieldRef<"AnomalyEvent", 'String'>
+    readonly name: FieldRef<"AnomalyEvent", 'String'>
+    readonly datasetId: FieldRef<"AnomalyEvent", 'String'>
+    readonly line: FieldRef<"AnomalyEvent", 'String'>
     readonly eventTimestamp: FieldRef<"AnomalyEvent", 'DateTime'>
     readonly detectionRule: FieldRef<"AnomalyEvent", 'String'>
     readonly score: FieldRef<"AnomalyEvent", 'Float'>
@@ -13398,7 +13461,9 @@ export namespace Prisma {
   export const AnomalyEventScalarFieldEnum: {
     id: 'id',
     eventId: 'eventId',
-    meterId: 'meterId',
+    name: 'name',
+    datasetId: 'datasetId',
+    line: 'line',
     eventTimestamp: 'eventTimestamp',
     detectionRule: 'detectionRule',
     score: 'score',
@@ -13608,6 +13673,7 @@ export namespace Prisma {
     positiveLabels?: IntFilter<"AnalysisDataset"> | number
     createdAt?: DateTimeFilter<"AnalysisDataset"> | Date | string
     analysisData?: AnalysisReadyDataListRelationFilter
+    anomalyEvents?: AnomalyEventListRelationFilter
   }
 
   export type AnalysisDatasetOrderByWithRelationInput = {
@@ -13626,6 +13692,7 @@ export namespace Prisma {
     positiveLabels?: SortOrder
     createdAt?: SortOrder
     analysisData?: AnalysisReadyDataOrderByRelationAggregateInput
+    anomalyEvents?: AnomalyEventOrderByRelationAggregateInput
   }
 
   export type AnalysisDatasetWhereUniqueInput = Prisma.AtLeast<{
@@ -13647,6 +13714,7 @@ export namespace Prisma {
     positiveLabels?: IntFilter<"AnalysisDataset"> | number
     createdAt?: DateTimeFilter<"AnalysisDataset"> | Date | string
     analysisData?: AnalysisReadyDataListRelationFilter
+    anomalyEvents?: AnomalyEventListRelationFilter
   }, "id" | "name">
 
   export type AnalysisDatasetOrderByWithAggregationInput = {
@@ -13874,7 +13942,9 @@ export namespace Prisma {
     NOT?: AnomalyEventWhereInput | AnomalyEventWhereInput[]
     id?: StringFilter<"AnomalyEvent"> | string
     eventId?: StringFilter<"AnomalyEvent"> | string
-    meterId?: StringFilter<"AnomalyEvent"> | string
+    name?: StringFilter<"AnomalyEvent"> | string
+    datasetId?: StringFilter<"AnomalyEvent"> | string
+    line?: StringFilter<"AnomalyEvent"> | string
     eventTimestamp?: DateTimeFilter<"AnomalyEvent"> | Date | string
     detectionRule?: StringFilter<"AnomalyEvent"> | string
     score?: FloatFilter<"AnomalyEvent"> | number
@@ -13886,6 +13956,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
     updatedAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
     experimentRunId?: StringNullableFilter<"AnomalyEvent"> | string | null
+    dataset?: XOR<AnalysisDatasetRelationFilter, AnalysisDatasetWhereInput>
     experimentRun?: XOR<ExperimentRunNullableRelationFilter, ExperimentRunWhereInput> | null
     eventLabelLinks?: EventLabelLinkListRelationFilter
   }
@@ -13893,7 +13964,9 @@ export namespace Prisma {
   export type AnomalyEventOrderByWithRelationInput = {
     id?: SortOrder
     eventId?: SortOrder
-    meterId?: SortOrder
+    name?: SortOrder
+    datasetId?: SortOrder
+    line?: SortOrder
     eventTimestamp?: SortOrder
     detectionRule?: SortOrder
     score?: SortOrder
@@ -13905,6 +13978,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     experimentRunId?: SortOrderInput | SortOrder
+    dataset?: AnalysisDatasetOrderByWithRelationInput
     experimentRun?: ExperimentRunOrderByWithRelationInput
     eventLabelLinks?: EventLabelLinkOrderByRelationAggregateInput
   }
@@ -13915,7 +13989,9 @@ export namespace Prisma {
     AND?: AnomalyEventWhereInput | AnomalyEventWhereInput[]
     OR?: AnomalyEventWhereInput[]
     NOT?: AnomalyEventWhereInput | AnomalyEventWhereInput[]
-    meterId?: StringFilter<"AnomalyEvent"> | string
+    name?: StringFilter<"AnomalyEvent"> | string
+    datasetId?: StringFilter<"AnomalyEvent"> | string
+    line?: StringFilter<"AnomalyEvent"> | string
     eventTimestamp?: DateTimeFilter<"AnomalyEvent"> | Date | string
     detectionRule?: StringFilter<"AnomalyEvent"> | string
     score?: FloatFilter<"AnomalyEvent"> | number
@@ -13927,6 +14003,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
     updatedAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
     experimentRunId?: StringNullableFilter<"AnomalyEvent"> | string | null
+    dataset?: XOR<AnalysisDatasetRelationFilter, AnalysisDatasetWhereInput>
     experimentRun?: XOR<ExperimentRunNullableRelationFilter, ExperimentRunWhereInput> | null
     eventLabelLinks?: EventLabelLinkListRelationFilter
   }, "id" | "eventId">
@@ -13934,7 +14011,9 @@ export namespace Prisma {
   export type AnomalyEventOrderByWithAggregationInput = {
     id?: SortOrder
     eventId?: SortOrder
-    meterId?: SortOrder
+    name?: SortOrder
+    datasetId?: SortOrder
+    line?: SortOrder
     eventTimestamp?: SortOrder
     detectionRule?: SortOrder
     score?: SortOrder
@@ -13959,7 +14038,9 @@ export namespace Prisma {
     NOT?: AnomalyEventScalarWhereWithAggregatesInput | AnomalyEventScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"AnomalyEvent"> | string
     eventId?: StringWithAggregatesFilter<"AnomalyEvent"> | string
-    meterId?: StringWithAggregatesFilter<"AnomalyEvent"> | string
+    name?: StringWithAggregatesFilter<"AnomalyEvent"> | string
+    datasetId?: StringWithAggregatesFilter<"AnomalyEvent"> | string
+    line?: StringWithAggregatesFilter<"AnomalyEvent"> | string
     eventTimestamp?: DateTimeWithAggregatesFilter<"AnomalyEvent"> | Date | string
     detectionRule?: StringWithAggregatesFilter<"AnomalyEvent"> | string
     score?: FloatWithAggregatesFilter<"AnomalyEvent"> | number
@@ -14574,6 +14655,7 @@ export namespace Prisma {
     positiveLabels: number
     createdAt?: Date | string
     analysisData?: AnalysisReadyDataCreateNestedManyWithoutDatasetInput
+    anomalyEvents?: AnomalyEventCreateNestedManyWithoutDatasetInput
   }
 
   export type AnalysisDatasetUncheckedCreateInput = {
@@ -14592,6 +14674,7 @@ export namespace Prisma {
     positiveLabels: number
     createdAt?: Date | string
     analysisData?: AnalysisReadyDataUncheckedCreateNestedManyWithoutDatasetInput
+    anomalyEvents?: AnomalyEventUncheckedCreateNestedManyWithoutDatasetInput
   }
 
   export type AnalysisDatasetUpdateInput = {
@@ -14610,6 +14693,7 @@ export namespace Prisma {
     positiveLabels?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     analysisData?: AnalysisReadyDataUpdateManyWithoutDatasetNestedInput
+    anomalyEvents?: AnomalyEventUpdateManyWithoutDatasetNestedInput
   }
 
   export type AnalysisDatasetUncheckedUpdateInput = {
@@ -14628,6 +14712,7 @@ export namespace Prisma {
     positiveLabels?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     analysisData?: AnalysisReadyDataUncheckedUpdateManyWithoutDatasetNestedInput
+    anomalyEvents?: AnomalyEventUncheckedUpdateManyWithoutDatasetNestedInput
   }
 
   export type AnalysisDatasetCreateManyInput = {
@@ -14887,7 +14972,8 @@ export namespace Prisma {
   export type AnomalyEventCreateInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -14898,6 +14984,7 @@ export namespace Prisma {
     justificationNotes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    dataset: AnalysisDatasetCreateNestedOneWithoutAnomalyEventsInput
     experimentRun?: ExperimentRunCreateNestedOneWithoutAnomalyEventsInput
     eventLabelLinks?: EventLabelLinkCreateNestedManyWithoutAnomalyEventInput
   }
@@ -14905,7 +14992,9 @@ export namespace Prisma {
   export type AnomalyEventUncheckedCreateInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -14923,7 +15012,8 @@ export namespace Prisma {
   export type AnomalyEventUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -14934,6 +15024,7 @@ export namespace Prisma {
     justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    dataset?: AnalysisDatasetUpdateOneRequiredWithoutAnomalyEventsNestedInput
     experimentRun?: ExperimentRunUpdateOneWithoutAnomalyEventsNestedInput
     eventLabelLinks?: EventLabelLinkUpdateManyWithoutAnomalyEventNestedInput
   }
@@ -14941,7 +15032,9 @@ export namespace Prisma {
   export type AnomalyEventUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    datasetId?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -14959,7 +15052,9 @@ export namespace Prisma {
   export type AnomalyEventCreateManyInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -14976,7 +15071,8 @@ export namespace Prisma {
   export type AnomalyEventUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -14992,7 +15088,9 @@ export namespace Prisma {
   export type AnomalyEventUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    datasetId?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -15727,12 +15825,22 @@ export namespace Prisma {
     none?: AnalysisReadyDataWhereInput
   }
 
+  export type AnomalyEventListRelationFilter = {
+    every?: AnomalyEventWhereInput
+    some?: AnomalyEventWhereInput
+    none?: AnomalyEventWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
   }
 
   export type AnalysisReadyDataOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AnomalyEventOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -15975,20 +16083,10 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
-  export type AnomalyEventListRelationFilter = {
-    every?: AnomalyEventWhereInput
-    some?: AnomalyEventWhereInput
-    none?: AnomalyEventWhereInput
-  }
-
   export type TrainedModelListRelationFilter = {
     every?: TrainedModelWhereInput
     some?: TrainedModelWhereInput
     none?: TrainedModelWhereInput
-  }
-
-  export type AnomalyEventOrderByRelationAggregateInput = {
-    _count?: SortOrder
   }
 
   export type TrainedModelOrderByRelationAggregateInput = {
@@ -16094,7 +16192,9 @@ export namespace Prisma {
   export type AnomalyEventCountOrderByAggregateInput = {
     id?: SortOrder
     eventId?: SortOrder
-    meterId?: SortOrder
+    name?: SortOrder
+    datasetId?: SortOrder
+    line?: SortOrder
     eventTimestamp?: SortOrder
     detectionRule?: SortOrder
     score?: SortOrder
@@ -16115,7 +16215,9 @@ export namespace Prisma {
   export type AnomalyEventMaxOrderByAggregateInput = {
     id?: SortOrder
     eventId?: SortOrder
-    meterId?: SortOrder
+    name?: SortOrder
+    datasetId?: SortOrder
+    line?: SortOrder
     eventTimestamp?: SortOrder
     detectionRule?: SortOrder
     score?: SortOrder
@@ -16132,7 +16234,9 @@ export namespace Prisma {
   export type AnomalyEventMinOrderByAggregateInput = {
     id?: SortOrder
     eventId?: SortOrder
-    meterId?: SortOrder
+    name?: SortOrder
+    datasetId?: SortOrder
+    line?: SortOrder
     eventTimestamp?: SortOrder
     detectionRule?: SortOrder
     score?: SortOrder
@@ -16580,11 +16684,25 @@ export namespace Prisma {
     connect?: AnalysisReadyDataWhereUniqueInput | AnalysisReadyDataWhereUniqueInput[]
   }
 
+  export type AnomalyEventCreateNestedManyWithoutDatasetInput = {
+    create?: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput> | AnomalyEventCreateWithoutDatasetInput[] | AnomalyEventUncheckedCreateWithoutDatasetInput[]
+    connectOrCreate?: AnomalyEventCreateOrConnectWithoutDatasetInput | AnomalyEventCreateOrConnectWithoutDatasetInput[]
+    createMany?: AnomalyEventCreateManyDatasetInputEnvelope
+    connect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+  }
+
   export type AnalysisReadyDataUncheckedCreateNestedManyWithoutDatasetInput = {
     create?: XOR<AnalysisReadyDataCreateWithoutDatasetInput, AnalysisReadyDataUncheckedCreateWithoutDatasetInput> | AnalysisReadyDataCreateWithoutDatasetInput[] | AnalysisReadyDataUncheckedCreateWithoutDatasetInput[]
     connectOrCreate?: AnalysisReadyDataCreateOrConnectWithoutDatasetInput | AnalysisReadyDataCreateOrConnectWithoutDatasetInput[]
     createMany?: AnalysisReadyDataCreateManyDatasetInputEnvelope
     connect?: AnalysisReadyDataWhereUniqueInput | AnalysisReadyDataWhereUniqueInput[]
+  }
+
+  export type AnomalyEventUncheckedCreateNestedManyWithoutDatasetInput = {
+    create?: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput> | AnomalyEventCreateWithoutDatasetInput[] | AnomalyEventUncheckedCreateWithoutDatasetInput[]
+    connectOrCreate?: AnomalyEventCreateOrConnectWithoutDatasetInput | AnomalyEventCreateOrConnectWithoutDatasetInput[]
+    createMany?: AnomalyEventCreateManyDatasetInputEnvelope
+    connect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -16621,6 +16739,20 @@ export namespace Prisma {
     deleteMany?: AnalysisReadyDataScalarWhereInput | AnalysisReadyDataScalarWhereInput[]
   }
 
+  export type AnomalyEventUpdateManyWithoutDatasetNestedInput = {
+    create?: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput> | AnomalyEventCreateWithoutDatasetInput[] | AnomalyEventUncheckedCreateWithoutDatasetInput[]
+    connectOrCreate?: AnomalyEventCreateOrConnectWithoutDatasetInput | AnomalyEventCreateOrConnectWithoutDatasetInput[]
+    upsert?: AnomalyEventUpsertWithWhereUniqueWithoutDatasetInput | AnomalyEventUpsertWithWhereUniqueWithoutDatasetInput[]
+    createMany?: AnomalyEventCreateManyDatasetInputEnvelope
+    set?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    disconnect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    delete?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    connect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    update?: AnomalyEventUpdateWithWhereUniqueWithoutDatasetInput | AnomalyEventUpdateWithWhereUniqueWithoutDatasetInput[]
+    updateMany?: AnomalyEventUpdateManyWithWhereWithoutDatasetInput | AnomalyEventUpdateManyWithWhereWithoutDatasetInput[]
+    deleteMany?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
+  }
+
   export type AnalysisReadyDataUncheckedUpdateManyWithoutDatasetNestedInput = {
     create?: XOR<AnalysisReadyDataCreateWithoutDatasetInput, AnalysisReadyDataUncheckedCreateWithoutDatasetInput> | AnalysisReadyDataCreateWithoutDatasetInput[] | AnalysisReadyDataUncheckedCreateWithoutDatasetInput[]
     connectOrCreate?: AnalysisReadyDataCreateOrConnectWithoutDatasetInput | AnalysisReadyDataCreateOrConnectWithoutDatasetInput[]
@@ -16633,6 +16765,20 @@ export namespace Prisma {
     update?: AnalysisReadyDataUpdateWithWhereUniqueWithoutDatasetInput | AnalysisReadyDataUpdateWithWhereUniqueWithoutDatasetInput[]
     updateMany?: AnalysisReadyDataUpdateManyWithWhereWithoutDatasetInput | AnalysisReadyDataUpdateManyWithWhereWithoutDatasetInput[]
     deleteMany?: AnalysisReadyDataScalarWhereInput | AnalysisReadyDataScalarWhereInput[]
+  }
+
+  export type AnomalyEventUncheckedUpdateManyWithoutDatasetNestedInput = {
+    create?: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput> | AnomalyEventCreateWithoutDatasetInput[] | AnomalyEventUncheckedCreateWithoutDatasetInput[]
+    connectOrCreate?: AnomalyEventCreateOrConnectWithoutDatasetInput | AnomalyEventCreateOrConnectWithoutDatasetInput[]
+    upsert?: AnomalyEventUpsertWithWhereUniqueWithoutDatasetInput | AnomalyEventUpsertWithWhereUniqueWithoutDatasetInput[]
+    createMany?: AnomalyEventCreateManyDatasetInputEnvelope
+    set?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    disconnect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    delete?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    connect?: AnomalyEventWhereUniqueInput | AnomalyEventWhereUniqueInput[]
+    update?: AnomalyEventUpdateWithWhereUniqueWithoutDatasetInput | AnomalyEventUpdateWithWhereUniqueWithoutDatasetInput[]
+    updateMany?: AnomalyEventUpdateManyWithWhereWithoutDatasetInput | AnomalyEventUpdateManyWithWhereWithoutDatasetInput[]
+    deleteMany?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
   }
 
   export type AnalysisDatasetCreateNestedOneWithoutAnalysisDataInput = {
@@ -16753,6 +16899,12 @@ export namespace Prisma {
     deleteMany?: TrainedModelScalarWhereInput | TrainedModelScalarWhereInput[]
   }
 
+  export type AnalysisDatasetCreateNestedOneWithoutAnomalyEventsInput = {
+    create?: XOR<AnalysisDatasetCreateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedCreateWithoutAnomalyEventsInput>
+    connectOrCreate?: AnalysisDatasetCreateOrConnectWithoutAnomalyEventsInput
+    connect?: AnalysisDatasetWhereUniqueInput
+  }
+
   export type ExperimentRunCreateNestedOneWithoutAnomalyEventsInput = {
     create?: XOR<ExperimentRunCreateWithoutAnomalyEventsInput, ExperimentRunUncheckedCreateWithoutAnomalyEventsInput>
     connectOrCreate?: ExperimentRunCreateOrConnectWithoutAnomalyEventsInput
@@ -16775,6 +16927,14 @@ export namespace Prisma {
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
     set?: Date | string | null
+  }
+
+  export type AnalysisDatasetUpdateOneRequiredWithoutAnomalyEventsNestedInput = {
+    create?: XOR<AnalysisDatasetCreateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedCreateWithoutAnomalyEventsInput>
+    connectOrCreate?: AnalysisDatasetCreateOrConnectWithoutAnomalyEventsInput
+    upsert?: AnalysisDatasetUpsertWithoutAnomalyEventsInput
+    connect?: AnalysisDatasetWhereUniqueInput
+    update?: XOR<XOR<AnalysisDatasetUpdateToOneWithWhereWithoutAnomalyEventsInput, AnalysisDatasetUpdateWithoutAnomalyEventsInput>, AnalysisDatasetUncheckedUpdateWithoutAnomalyEventsInput>
   }
 
   export type ExperimentRunUpdateOneWithoutAnomalyEventsNestedInput = {
@@ -17287,6 +17447,53 @@ export namespace Prisma {
     data: AnalysisReadyDataCreateManyDatasetInput | AnalysisReadyDataCreateManyDatasetInput[]
   }
 
+  export type AnomalyEventCreateWithoutDatasetInput = {
+    id?: string
+    eventId: string
+    name: string
+    line: string
+    eventTimestamp: Date | string
+    detectionRule: string
+    score: number
+    dataWindow: string
+    status?: string
+    reviewerId?: string | null
+    reviewTimestamp?: Date | string | null
+    justificationNotes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    experimentRun?: ExperimentRunCreateNestedOneWithoutAnomalyEventsInput
+    eventLabelLinks?: EventLabelLinkCreateNestedManyWithoutAnomalyEventInput
+  }
+
+  export type AnomalyEventUncheckedCreateWithoutDatasetInput = {
+    id?: string
+    eventId: string
+    name: string
+    line: string
+    eventTimestamp: Date | string
+    detectionRule: string
+    score: number
+    dataWindow: string
+    status?: string
+    reviewerId?: string | null
+    reviewTimestamp?: Date | string | null
+    justificationNotes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    experimentRunId?: string | null
+    eventLabelLinks?: EventLabelLinkUncheckedCreateNestedManyWithoutAnomalyEventInput
+  }
+
+  export type AnomalyEventCreateOrConnectWithoutDatasetInput = {
+    where: AnomalyEventWhereUniqueInput
+    create: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput>
+  }
+
+  export type AnomalyEventCreateManyDatasetInputEnvelope = {
+    data: AnomalyEventCreateManyDatasetInput | AnomalyEventCreateManyDatasetInput[]
+  }
+
   export type AnalysisReadyDataUpsertWithWhereUniqueWithoutDatasetInput = {
     where: AnalysisReadyDataWhereUniqueInput
     update: XOR<AnalysisReadyDataUpdateWithoutDatasetInput, AnalysisReadyDataUncheckedUpdateWithoutDatasetInput>
@@ -17320,6 +17527,44 @@ export namespace Prisma {
     sourceAnomalyEventId?: StringNullableFilter<"AnalysisReadyData"> | string | null
   }
 
+  export type AnomalyEventUpsertWithWhereUniqueWithoutDatasetInput = {
+    where: AnomalyEventWhereUniqueInput
+    update: XOR<AnomalyEventUpdateWithoutDatasetInput, AnomalyEventUncheckedUpdateWithoutDatasetInput>
+    create: XOR<AnomalyEventCreateWithoutDatasetInput, AnomalyEventUncheckedCreateWithoutDatasetInput>
+  }
+
+  export type AnomalyEventUpdateWithWhereUniqueWithoutDatasetInput = {
+    where: AnomalyEventWhereUniqueInput
+    data: XOR<AnomalyEventUpdateWithoutDatasetInput, AnomalyEventUncheckedUpdateWithoutDatasetInput>
+  }
+
+  export type AnomalyEventUpdateManyWithWhereWithoutDatasetInput = {
+    where: AnomalyEventScalarWhereInput
+    data: XOR<AnomalyEventUpdateManyMutationInput, AnomalyEventUncheckedUpdateManyWithoutDatasetInput>
+  }
+
+  export type AnomalyEventScalarWhereInput = {
+    AND?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
+    OR?: AnomalyEventScalarWhereInput[]
+    NOT?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
+    id?: StringFilter<"AnomalyEvent"> | string
+    eventId?: StringFilter<"AnomalyEvent"> | string
+    name?: StringFilter<"AnomalyEvent"> | string
+    datasetId?: StringFilter<"AnomalyEvent"> | string
+    line?: StringFilter<"AnomalyEvent"> | string
+    eventTimestamp?: DateTimeFilter<"AnomalyEvent"> | Date | string
+    detectionRule?: StringFilter<"AnomalyEvent"> | string
+    score?: FloatFilter<"AnomalyEvent"> | number
+    dataWindow?: StringFilter<"AnomalyEvent"> | string
+    status?: StringFilter<"AnomalyEvent"> | string
+    reviewerId?: StringNullableFilter<"AnomalyEvent"> | string | null
+    reviewTimestamp?: DateTimeNullableFilter<"AnomalyEvent"> | Date | string | null
+    justificationNotes?: StringNullableFilter<"AnomalyEvent"> | string | null
+    createdAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
+    updatedAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
+    experimentRunId?: StringNullableFilter<"AnomalyEvent"> | string | null
+  }
+
   export type AnalysisDatasetCreateWithoutAnalysisDataInput = {
     id?: string
     name: string
@@ -17335,6 +17580,7 @@ export namespace Prisma {
     totalRecords: number
     positiveLabels: number
     createdAt?: Date | string
+    anomalyEvents?: AnomalyEventCreateNestedManyWithoutDatasetInput
   }
 
   export type AnalysisDatasetUncheckedCreateWithoutAnalysisDataInput = {
@@ -17352,6 +17598,7 @@ export namespace Prisma {
     totalRecords: number
     positiveLabels: number
     createdAt?: Date | string
+    anomalyEvents?: AnomalyEventUncheckedCreateNestedManyWithoutDatasetInput
   }
 
   export type AnalysisDatasetCreateOrConnectWithoutAnalysisDataInput = {
@@ -17385,6 +17632,7 @@ export namespace Prisma {
     totalRecords?: IntFieldUpdateOperationsInput | number
     positiveLabels?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    anomalyEvents?: AnomalyEventUpdateManyWithoutDatasetNestedInput
   }
 
   export type AnalysisDatasetUncheckedUpdateWithoutAnalysisDataInput = {
@@ -17402,12 +17650,14 @@ export namespace Prisma {
     totalRecords?: IntFieldUpdateOperationsInput | number
     positiveLabels?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    anomalyEvents?: AnomalyEventUncheckedUpdateManyWithoutDatasetNestedInput
   }
 
   export type AnomalyEventCreateWithoutExperimentRunInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -17418,13 +17668,16 @@ export namespace Prisma {
     justificationNotes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    dataset: AnalysisDatasetCreateNestedOneWithoutAnomalyEventsInput
     eventLabelLinks?: EventLabelLinkCreateNestedManyWithoutAnomalyEventInput
   }
 
   export type AnomalyEventUncheckedCreateWithoutExperimentRunInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -17502,26 +17755,6 @@ export namespace Prisma {
     data: XOR<AnomalyEventUpdateManyMutationInput, AnomalyEventUncheckedUpdateManyWithoutExperimentRunInput>
   }
 
-  export type AnomalyEventScalarWhereInput = {
-    AND?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
-    OR?: AnomalyEventScalarWhereInput[]
-    NOT?: AnomalyEventScalarWhereInput | AnomalyEventScalarWhereInput[]
-    id?: StringFilter<"AnomalyEvent"> | string
-    eventId?: StringFilter<"AnomalyEvent"> | string
-    meterId?: StringFilter<"AnomalyEvent"> | string
-    eventTimestamp?: DateTimeFilter<"AnomalyEvent"> | Date | string
-    detectionRule?: StringFilter<"AnomalyEvent"> | string
-    score?: FloatFilter<"AnomalyEvent"> | number
-    dataWindow?: StringFilter<"AnomalyEvent"> | string
-    status?: StringFilter<"AnomalyEvent"> | string
-    reviewerId?: StringNullableFilter<"AnomalyEvent"> | string | null
-    reviewTimestamp?: DateTimeNullableFilter<"AnomalyEvent"> | Date | string | null
-    justificationNotes?: StringNullableFilter<"AnomalyEvent"> | string | null
-    createdAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
-    updatedAt?: DateTimeFilter<"AnomalyEvent"> | Date | string
-    experimentRunId?: StringNullableFilter<"AnomalyEvent"> | string | null
-  }
-
   export type TrainedModelUpsertWithWhereUniqueWithoutExperimentRunInput = {
     where: TrainedModelWhereUniqueInput
     update: XOR<TrainedModelUpdateWithoutExperimentRunInput, TrainedModelUncheckedUpdateWithoutExperimentRunInput>
@@ -17554,6 +17787,47 @@ export namespace Prisma {
     jobId?: StringNullableFilter<"TrainedModel"> | string | null
     createdAt?: DateTimeFilter<"TrainedModel"> | Date | string
     completedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
+  }
+
+  export type AnalysisDatasetCreateWithoutAnomalyEventsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    building: string
+    floor: string
+    room: string
+    startDate: Date | string
+    endDate: Date | string
+    occupantType: string
+    meterIdL1: string
+    meterIdL2: string
+    totalRecords: number
+    positiveLabels: number
+    createdAt?: Date | string
+    analysisData?: AnalysisReadyDataCreateNestedManyWithoutDatasetInput
+  }
+
+  export type AnalysisDatasetUncheckedCreateWithoutAnomalyEventsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    building: string
+    floor: string
+    room: string
+    startDate: Date | string
+    endDate: Date | string
+    occupantType: string
+    meterIdL1: string
+    meterIdL2: string
+    totalRecords: number
+    positiveLabels: number
+    createdAt?: Date | string
+    analysisData?: AnalysisReadyDataUncheckedCreateNestedManyWithoutDatasetInput
+  }
+
+  export type AnalysisDatasetCreateOrConnectWithoutAnomalyEventsInput = {
+    where: AnalysisDatasetWhereUniqueInput
+    create: XOR<AnalysisDatasetCreateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedCreateWithoutAnomalyEventsInput>
   }
 
   export type ExperimentRunCreateWithoutAnomalyEventsInput = {
@@ -17610,6 +17884,53 @@ export namespace Prisma {
 
   export type EventLabelLinkCreateManyAnomalyEventInputEnvelope = {
     data: EventLabelLinkCreateManyAnomalyEventInput | EventLabelLinkCreateManyAnomalyEventInput[]
+  }
+
+  export type AnalysisDatasetUpsertWithoutAnomalyEventsInput = {
+    update: XOR<AnalysisDatasetUpdateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedUpdateWithoutAnomalyEventsInput>
+    create: XOR<AnalysisDatasetCreateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedCreateWithoutAnomalyEventsInput>
+    where?: AnalysisDatasetWhereInput
+  }
+
+  export type AnalysisDatasetUpdateToOneWithWhereWithoutAnomalyEventsInput = {
+    where?: AnalysisDatasetWhereInput
+    data: XOR<AnalysisDatasetUpdateWithoutAnomalyEventsInput, AnalysisDatasetUncheckedUpdateWithoutAnomalyEventsInput>
+  }
+
+  export type AnalysisDatasetUpdateWithoutAnomalyEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    building?: StringFieldUpdateOperationsInput | string
+    floor?: StringFieldUpdateOperationsInput | string
+    room?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    occupantType?: StringFieldUpdateOperationsInput | string
+    meterIdL1?: StringFieldUpdateOperationsInput | string
+    meterIdL2?: StringFieldUpdateOperationsInput | string
+    totalRecords?: IntFieldUpdateOperationsInput | number
+    positiveLabels?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    analysisData?: AnalysisReadyDataUpdateManyWithoutDatasetNestedInput
+  }
+
+  export type AnalysisDatasetUncheckedUpdateWithoutAnomalyEventsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    building?: StringFieldUpdateOperationsInput | string
+    floor?: StringFieldUpdateOperationsInput | string
+    room?: StringFieldUpdateOperationsInput | string
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    occupantType?: StringFieldUpdateOperationsInput | string
+    meterIdL1?: StringFieldUpdateOperationsInput | string
+    meterIdL2?: StringFieldUpdateOperationsInput | string
+    totalRecords?: IntFieldUpdateOperationsInput | number
+    positiveLabels?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    analysisData?: AnalysisReadyDataUncheckedUpdateManyWithoutDatasetNestedInput
   }
 
   export type ExperimentRunUpsertWithoutAnomalyEventsInput = {
@@ -17719,7 +18040,8 @@ export namespace Prisma {
   export type AnomalyEventCreateWithoutEventLabelLinksInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -17730,13 +18052,16 @@ export namespace Prisma {
     justificationNotes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    dataset: AnalysisDatasetCreateNestedOneWithoutAnomalyEventsInput
     experimentRun?: ExperimentRunCreateNestedOneWithoutAnomalyEventsInput
   }
 
   export type AnomalyEventUncheckedCreateWithoutEventLabelLinksInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -17790,7 +18115,8 @@ export namespace Prisma {
   export type AnomalyEventUpdateWithoutEventLabelLinksInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -17801,13 +18127,16 @@ export namespace Prisma {
     justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    dataset?: AnalysisDatasetUpdateOneRequiredWithoutAnomalyEventsNestedInput
     experimentRun?: ExperimentRunUpdateOneWithoutAnomalyEventsNestedInput
   }
 
   export type AnomalyEventUncheckedUpdateWithoutEventLabelLinksInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    datasetId?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -18198,6 +18527,24 @@ export namespace Prisma {
     sourceAnomalyEventId?: string | null
   }
 
+  export type AnomalyEventCreateManyDatasetInput = {
+    id?: string
+    eventId: string
+    name: string
+    line: string
+    eventTimestamp: Date | string
+    detectionRule: string
+    score: number
+    dataWindow: string
+    status?: string
+    reviewerId?: string | null
+    reviewTimestamp?: Date | string | null
+    justificationNotes?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    experimentRunId?: string | null
+  }
+
   export type AnalysisReadyDataUpdateWithoutDatasetInput = {
     id?: StringFieldUpdateOperationsInput | string
     timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18237,10 +18584,68 @@ export namespace Prisma {
     sourceAnomalyEventId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type AnomalyEventUpdateWithoutDatasetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    eventId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
+    eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    detectionRule?: StringFieldUpdateOperationsInput | string
+    score?: FloatFieldUpdateOperationsInput | number
+    dataWindow?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    reviewerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewTimestamp?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    experimentRun?: ExperimentRunUpdateOneWithoutAnomalyEventsNestedInput
+    eventLabelLinks?: EventLabelLinkUpdateManyWithoutAnomalyEventNestedInput
+  }
+
+  export type AnomalyEventUncheckedUpdateWithoutDatasetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    eventId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
+    eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    detectionRule?: StringFieldUpdateOperationsInput | string
+    score?: FloatFieldUpdateOperationsInput | number
+    dataWindow?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    reviewerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewTimestamp?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    experimentRunId?: NullableStringFieldUpdateOperationsInput | string | null
+    eventLabelLinks?: EventLabelLinkUncheckedUpdateManyWithoutAnomalyEventNestedInput
+  }
+
+  export type AnomalyEventUncheckedUpdateManyWithoutDatasetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    eventId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
+    eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    detectionRule?: StringFieldUpdateOperationsInput | string
+    score?: FloatFieldUpdateOperationsInput | number
+    dataWindow?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    reviewerId?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewTimestamp?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    experimentRunId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type AnomalyEventCreateManyExperimentRunInput = {
     id?: string
     eventId: string
-    meterId: string
+    name: string
+    datasetId: string
+    line: string
     eventTimestamp: Date | string
     detectionRule: string
     score: number
@@ -18270,7 +18675,8 @@ export namespace Prisma {
   export type AnomalyEventUpdateWithoutExperimentRunInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -18281,13 +18687,16 @@ export namespace Prisma {
     justificationNotes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    dataset?: AnalysisDatasetUpdateOneRequiredWithoutAnomalyEventsNestedInput
     eventLabelLinks?: EventLabelLinkUpdateManyWithoutAnomalyEventNestedInput
   }
 
   export type AnomalyEventUncheckedUpdateWithoutExperimentRunInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    datasetId?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number
@@ -18304,7 +18713,9 @@ export namespace Prisma {
   export type AnomalyEventUncheckedUpdateManyWithoutExperimentRunInput = {
     id?: StringFieldUpdateOperationsInput | string
     eventId?: StringFieldUpdateOperationsInput | string
-    meterId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    datasetId?: StringFieldUpdateOperationsInput | string
+    line?: StringFieldUpdateOperationsInput | string
     eventTimestamp?: DateTimeFieldUpdateOperationsInput | Date | string
     detectionRule?: StringFieldUpdateOperationsInput | string
     score?: FloatFieldUpdateOperationsInput | number

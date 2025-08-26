@@ -35,6 +35,7 @@ model AnalysisDataset {
     positiveLabels Int                 @map("positive_labels")
     createdAt      DateTime            @default(now()) @map("created_at")
     analysisData   AnalysisReadyData[]
+    anomalyEvents  AnomalyEvent[]
 
     @@map("analysis_datasets")
 }
@@ -78,11 +79,14 @@ model ExperimentRun {
     @@map("experiment_run")
 }
 
-/// 異常事件記錄
+/// Anomaly event records
 model AnomalyEvent {
     id                 String           @id @default(cuid())
     eventId            String           @unique @map("event_id")
-    meterId            String           @map("meter_id")
+    name               String // Descriptive name like "A203_wattage_total_>150W"
+    datasetId          String           @map("dataset_id")
+    dataset            AnalysisDataset  @relation(fields: [datasetId], references: [id])
+    line               String           @map("line") // L1 or L2
     eventTimestamp     DateTime         @map("event_timestamp")
     detectionRule      String           @map("detection_rule")
     score              Float

@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowRight,
 	Building,
@@ -18,6 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { D3ParameterChart } from "../../case-study/components/D3ParameterChart";
+import type { ExperimentRun } from "../types";
 
 interface AnalysisDataset {
 	id: string;
@@ -70,16 +72,17 @@ interface FilterParams {
 	buildingB: Record<string, boolean>;
 }
 
-interface ExperimentRun {
-	id: string;
-	timestamp: string;
-	status: "completed" | "running" | "failed";
-	candidate_count: number;
-	parameters: FilterParams;
+interface Stage1CandidateGenerationProps {
+	experimentRun?: ExperimentRun;
+	onComplete: (newExperimentRunId?: string) => void;
 }
 
-export function Stage1CandidateGeneration() {
+export function Stage1CandidateGeneration({
+	experimentRun: initialExperimentRun,
+	onComplete,
+}: Stage1CandidateGenerationProps) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 
 	const [filterParams, setFilterParams] = useState<FilterParams>({
 		// Dataset selection - Support multiple dataset selection
@@ -134,7 +137,7 @@ export function Stage1CandidateGeneration() {
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [candidateCount, setCandidateCount] = useState(0);
 	const [experimentRun, setExperimentRun] = useState<ExperimentRun | null>(
-		null,
+		initialExperimentRun || null,
 	);
 	const [availableDatasets, setAvailableDatasets] = useState<
 		AnalysisDataset[]
@@ -238,6 +241,11 @@ export function Stage1CandidateGeneration() {
 	);
 
 	const handleGenerateCandidates = async () => {
+		if (!experimentRun) {
+			console.error("No experiment run available");
+			return;
+		}
+
 		setIsGenerating(true);
 
 		try {
@@ -261,25 +269,29 @@ export function Stage1CandidateGeneration() {
 			const data = await response.json();
 			setCandidateCount(data.candidate_count || 0);
 
-			// Create experiment run record
-			const newExperimentRun: ExperimentRun = {
-				id: `exp_${Date.now()}`,
-				timestamp: new Date().toISOString(),
-				status: "completed",
+			// Update existing experiment run with preview results
+			const updatedExperimentRun: ExperimentRun = {
+				...experimentRun,
+				name: `Preview - ${data.candidate_count || 0} candidates`,
+				status: "COMPLETED",
 				candidate_count: data.candidate_count || 0,
-				parameters: { ...filterParams },
+				updated_at: new Date().toISOString(),
 			};
 
-			setExperimentRun(newExperimentRun);
+			setExperimentRun(updatedExperimentRun);
 		} catch (error) {
 			console.error("Error generating candidates:", error);
-			setExperimentRun({
-				id: `exp_${Date.now()}`,
-				timestamp: new Date().toISOString(),
-				status: "failed",
+
+			// Update experiment run to show error state
+			const errorExperimentRun: ExperimentRun = {
+				...experimentRun,
+				name: "Failed Generation",
+				status: "CONFIGURING", // Reset to configuring on failure
 				candidate_count: 0,
-				parameters: { ...filterParams },
-			});
+				updated_at: new Date().toISOString(),
+			};
+
+			setExperimentRun(errorExperimentRun);
 		} finally {
 			setIsGenerating(false);
 		}
@@ -295,6 +307,16 @@ export function Stage1CandidateGeneration() {
 
 		try {
 			// 使用修改後的 generate-candidates API，並設置 save_labels: true
+			// 設置較長的 timeout，不使用 polling，耐心等待完成
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 分鐘 timeout
+
+			const requestBody = {
+				experiment_run_id: experimentRun.id, // 傳遞現有的實驗ID
+				filter_params: filterParams,
+				save_labels: true, // 新增參數：直接保存為標籤
+			};
+
 			const response = await fetch(
 				"http://localhost:8000/api/v2/generate-candidates",
 				{
@@ -302,30 +324,33 @@ export function Stage1CandidateGeneration() {
 					headers: {
 						"Content-Type": "application/json",
 					},
-					body: JSON.stringify({
-						filter_params: filterParams,
-						save_labels: true, // 新增參數：直接保存為標籤
-					}),
+					body: JSON.stringify(requestBody),
+					signal: controller.signal,
 				},
 			);
+
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 
 			const data = await response.json();
-			console.log("Continue labeling response:", data);
 
-			// Update experiment run with new labeling experiment
-			const newExperimentRun: ExperimentRun = {
-				id: data.experiment_run_id,
-				timestamp: new Date().toISOString(),
-				status: "completed" as const, // Update to completed for labeling ready
+			// Update experiment run with new labeling experiment - use backend status
+			const updatedExperimentRun: ExperimentRun = {
+				...experimentRun,
+				status: data.status as "CONFIGURING" | "LABELING" | "COMPLETED", // Use backend returned status
 				candidate_count: data.candidate_count,
-				parameters: { ...filterParams },
+				updated_at: new Date().toISOString(),
 			};
 
-			setExperimentRun(newExperimentRun);
+			setExperimentRun(updatedExperimentRun);
+
+			// 手動更新 React Query 緩存，確保主頁面也能看到狀態更新
+			queryClient.invalidateQueries({
+				queryKey: ["experiment-run", experimentRun.id],
+			});
 
 			// Update candidate count with the returned data
 			setCandidateCount(data.candidate_count);
@@ -344,11 +369,30 @@ export function Stage1CandidateGeneration() {
 			alert(
 				`✅ Successfully created ${eventsCreated} anomaly event labels!\n\n📊 Total candidates: ${data.candidate_count}\n🆔 Experiment ID: ${data.experiment_run_id}\n📍 Datasets processed: ${data.filtered_datasets_count}\n\n🎯 Status: ${data.status} - Ready for labeling phase (Stage 2)`,
 			);
+
+			// Call onComplete to navigate to Stage 2 when status is LABELING
+			if (data.status === "LABELING") {
+				onComplete(); // 不需要傳遞ID，因為是更新現有實驗
+			}
 		} catch (error) {
 			console.error("Error continuing to labeling:", error);
-			alert(
-				"Error occurred while creating labeling stage. Please retry.",
-			);
+
+			// 檢查是否是 timeout 錯誤
+			if (error instanceof Error && error.name === "AbortError") {
+				alert(
+					`⏰ 創建標籤操作超時（5分鐘）。
+
+這可能是因為資料量較大或服務器處理時間較長。
+您可以稍後檢查實驗狀態，或重新嘗試操作。`,
+				);
+			} else {
+				alert(
+					`❌ 創建標籤階段時發生錯誤。
+
+請稍後重試，或檢查後端服務是否正常運行。
+錯誤詳情：${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
 		} finally {
 			setIsContinuingLabeling(false);
 		}
@@ -1011,12 +1055,14 @@ export function Stage1CandidateGeneration() {
 					</div>
 
 					{/* Generate Button */}
-					<div className="flex justify-end pt-4">
+					<div className="pt-4 border-t">
 						<Button
 							onClick={handleGenerateCandidates}
 							size="lg"
 							disabled={
-								isGenerating || selectedDatasets.length === 0
+								isGenerating ||
+								selectedDatasets.length === 0 ||
+								!experimentRun
 							}
 							className="min-w-[200px]"
 						>
@@ -1089,7 +1135,7 @@ export function Stage1CandidateGeneration() {
 											<span>Generated at:</span>
 											<span className="ml-2">
 												{new Date(
-													experimentRun.timestamp,
+													experimentRun.created_at,
 												).toLocaleString()}
 											</span>
 										</div>
@@ -1114,7 +1160,7 @@ export function Stage1CandidateGeneration() {
 														labelingReady
 															? "default"
 															: experimentRun.status ===
-																	"completed"
+																	"COMPLETED"
 																? "default"
 																: "destructive"
 													}
@@ -1171,7 +1217,7 @@ export function Stage1CandidateGeneration() {
 											<span>Generated at:</span>
 											<span className="ml-2">
 												{new Date(
-													experimentRun.timestamp,
+													experimentRun.created_at,
 												).toLocaleString()}
 											</span>
 										</div>
@@ -1232,22 +1278,29 @@ export function Stage1CandidateGeneration() {
 									{candidateCount > 0 &&
 										experimentRun &&
 										experimentRun.status ===
-											"completed" && (
+											"COMPLETED" && (
 											<div className="pt-4 border-t">
 												{labelingReady ? (
-													// 已經創建了異常事件，顯示前往Stage 2的按鈕
+													// Ready for Stage 2 - anomaly events created
 													<>
 														<div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
 															<div className="flex items-center gap-2 mb-2">
 																<div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
 																<span className="font-medium text-blue-800">
-																	準備進入人工標註階段
+																	Ready to
+																	Enter Manual
+																	Labeling
+																	Phase
 																</span>
 															</div>
 															<p className="text-sm text-blue-700">
-																異常事件已準備完成，點擊下方按鈕進入
-																Stage 2
-																進行人工標註審核。
+																Anomaly events
+																are prepared.
+																Click the button
+																below to proceed
+																to Stage 2 for
+																manual labeling
+																review.
 															</p>
 														</div>
 														<Button
@@ -1274,25 +1327,45 @@ export function Stage1CandidateGeneration() {
 															(Expert Labeling)
 														</Button>
 														<p className="text-xs text-gray-500 mt-2 text-center">
-															將開始{" "}
-															{candidateCount}{" "}
-															個異常事件的人工審核標註
+															Will begin manual
+															review and labeling
+															of {candidateCount}{" "}
+															anomaly events
 														</p>
 													</>
 												) : (
-													// 還沒創建異常事件，顯示創建按鈕
+													// Not yet created anomaly events - show create button
 													<>
 														<div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
 															<div className="flex items-center gap-2 mb-2">
 																<div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
 																<span className="font-medium text-green-800">
-																	準備創建異常事件標籤
+																	Ready to
+																	Create
+																	Anomaly
+																	Event Labels
 																</span>
 															</div>
 															<p className="text-sm text-green-700">
-																候選生成完成，點擊下方按鈕將{" "}
+																Candidate
+																generation
+																complete. Click
+																the button below
+																to convert{" "}
 																{candidateCount}{" "}
-																個候選轉換為異常事件標籤。
+																candidates into
+																anomaly event
+																labels.
+																<br />
+																<span className="text-xs text-green-600">
+																	⏱️ This
+																	operation
+																	may take
+																	several
+																	minutes,
+																	please be
+																	patient
+																</span>
 															</p>
 														</div>
 														<Button
@@ -1307,20 +1380,31 @@ export function Stage1CandidateGeneration() {
 															{isContinuingLabeling ? (
 																<>
 																	<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-																	正在創建異常事件標籤...
+																	Creating
+																	anomaly
+																	event
+																	labels...
+																	Please wait
 																</>
 															) : (
 																<>
 																	<ArrowRight className="mr-2 h-4 w-4" />
-																	📝
-																	創建異常事件標籤
+																	📝 Create
+																	Anomaly
+																	Event Labels
 																</>
 															)}
 														</Button>
 														<p className="text-xs text-gray-500 mt-2 text-center">
-															將創建{" "}
+															Will create{" "}
 															{candidateCount}{" "}
-															個異常事件到資料庫中準備標註
+															anomaly events in
+															database ready for
+															labeling
+															<br />
+															⚠️ Operation takes up
+															to 5 minutes, no
+															retry mechanism
 														</p>
 													</>
 												)}

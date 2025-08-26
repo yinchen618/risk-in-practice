@@ -117,7 +117,7 @@ export default function CaseStudyV2Page() {
 			title: "Results Analysis",
 			description: "Analyze and compare experiment outcomes",
 			icon: BarChart,
-			enabled: history?.trained_models?.length > 0,
+			enabled: (history?.trained_models?.length || 0) > 0,
 		},
 	];
 
@@ -288,12 +288,19 @@ export default function CaseStudyV2Page() {
 					className="space-y-4"
 				>
 					<TabsContent value="stage-1" className="space-y-4">
-						{selectedRun && (
-							<Stage1CandidateGeneration
-								experimentRun={selectedRun}
-								onComplete={() => handleStageChange("stage-2")}
-							/>
-						)}
+						<Stage1CandidateGeneration
+							experimentRun={selectedRun || undefined}
+							onComplete={(newExperimentRunId) => {
+								if (newExperimentRunId) {
+									// Switch to the new experiment run and move to stage 2
+									setSelectedRunId(newExperimentRunId);
+									handleStageChange("stage-2");
+								} else {
+									// Just move to stage 2 with current run
+									handleStageChange("stage-2");
+								}
+							}}
+						/>
 					</TabsContent>
 
 					<TabsContent value="stage-2" className="space-y-4">

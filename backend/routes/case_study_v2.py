@@ -165,8 +165,13 @@ async def generate_candidates(request: dict):
         # 解析請求參數
         filter_params = request.get("filter_params", {})
         save_labels = request.get("save_labels", False)  # 新增參數：是否保存為實際標籤
+        existing_experiment_run_id = request.get("experiment_run_id")  # 現有的實驗ID
 
+        logger.info(f"[GENERATE_CANDIDATES] ===== 開始處理請求 =====")
+        logger.info(f"[GENERATE_CANDIDATES] 完整請求參數: {request}")
         logger.info(f"[GENERATE_CANDIDATES] save_labels 參數: {save_labels}")
+        logger.info(f"[GENERATE_CANDIDATES] existing_experiment_run_id: {existing_experiment_run_id}")
+        logger.info(f"[GENERATE_CANDIDATES] filter_params: {filter_params}")
 
         # 提取過濾參數
         selected_dataset_ids = filter_params.get("selectedDatasetIds", [])
@@ -288,7 +293,7 @@ async def generate_candidates(request: dict):
                     if std_power > 0:
                         z_scores = np.abs((wattage_total - mean_power) / std_power)
                         z_anomaly_mask = z_scores > z_score_threshold
-                        z_anomaly_count = np.sum(z_anomaly_mask)
+                        z_anomaly_count = int(np.sum(z_anomaly_mask))  # 確保是標準 Python int
 
                         # 添加到總異常標記
                         anomaly_mask |= z_anomaly_mask
@@ -302,7 +307,7 @@ async def generate_candidates(request: dict):
                 absolute_spike_threshold = mean_power * (1 + spike_threshold / 100.0)
 
                 spike_anomaly_mask = wattage_total > absolute_spike_threshold
-                spike_anomaly_count = np.sum(spike_anomaly_mask)
+                spike_anomaly_count = int(np.sum(spike_anomaly_mask))  # 確保是標準 Python int
 
                 # 添加到總異常標記
                 anomaly_mask |= spike_anomaly_mask
@@ -319,7 +324,7 @@ async def generate_candidates(request: dict):
                     jump_anomaly_mask = np.zeros(len(wattage_total), dtype=bool)
                     jump_anomaly_mask[:-1] = power_diff > diff_threshold
 
-                    jump_anomaly_count = np.sum(jump_anomaly_mask)
+                    jump_anomaly_count = int(np.sum(jump_anomaly_mask))  # 確保是標準 Python int
 
                     # 添加到總異常標記
                     anomaly_mask |= jump_anomaly_mask
@@ -327,7 +332,7 @@ async def generate_candidates(request: dict):
                     logger.info(f"[GENERATE_CANDIDATES] 功率跳躍異常: {jump_anomaly_count}")
 
                 # 計算聯集後的總異常數量
-                total_anomalies = np.sum(anomaly_mask)
+                total_anomalies = int(np.sum(anomaly_mask))  # 確保是標準 Python int
 
                 # 4. 最小事件持續時間過濾
                 # 將連續的異常點聚合成事件
@@ -366,15 +371,60 @@ async def generate_candidates(request: dict):
 
                     # 為每個選中的異常點創建事件數據
                     for idx in selected_indices:
+                        # 構建時間窗口的 JSON 格式數據
+                        window_start_idx = max(0, idx - 5)
+                        window_end_idx = min(len(timestamps) - 1, idx + 5)
+                        data_window_json = json.dumps({
+                            "startTime": timestamps[window_start_idx],
+                            "endTime": timestamps[window_end_idx],
+                            "centerIndex": int(idx),  # 確保是標準 Python int
+                            "wattageTotal": float(wattage_total[idx]),
+                            "wattage110v": float(wattage_110v[idx]),
+                            "wattage220v": float(wattage_220v[idx])
+                        })
+
+                        # Generate descriptive name for anomaly event
+                        # Format: BuildingRoom_metric_>thresholdValue
+                        building = dataset.get('building', 'Unknown')
+                        room = dataset.get('room', '000')
+                        current_wattage = float(wattage_total[idx])
+
+                        # Extract building letter and room number for compact format
+                        # e.g., "Building A" -> "A", "203" -> "203"
+                        building_code = building.split()[-1] if building else "X"
+                        room_code = room.replace(" ", "").replace("號房", "").replace("Room", "")
+
+                        # Determine which threshold was exceeded by checking each condition
+                        # Re-check conditions for this specific index
+                        mean_power = np.mean(wattage_total)
+                        std_power = np.std(wattage_total)
+
+                        is_z_anomaly = False
+                        is_spike_anomaly = False
+
+                        if std_power > 0:
+                            z_score = abs((wattage_total[idx] - mean_power) / std_power)
+                            is_z_anomaly = z_score > z_score_threshold
+
+                        absolute_spike_threshold = mean_power * (1 + spike_threshold / 100.0)
+                        is_spike_anomaly = wattage_total[idx] > absolute_spike_threshold
+
+                        # Generate appropriate name based on detection type
+                        if is_z_anomaly:
+                            event_name = f"{building_code}{room_code}_wattage_total_zscore>{z_score_threshold}σ_{current_wattage:.0f}W"
+                        elif is_spike_anomaly:
+                            event_name = f"{building_code}{room_code}_wattage_total_spike>{spike_threshold}%_{current_wattage:.0f}W"
+                        else:
+                            event_name = f"{building_code}{room_code}_wattage_total_anomaly_{current_wattage:.0f}W"
+
                         anomaly_events_to_create.append({
-                            'meter_id': f"{dataset['name']}_L1",  # 使用數據集名稱作為meter_id
+                            'dataset_id': dataset_id,  # 使用數據集 ID 而不是 meter_id
+                            'name': event_name,
+                            'line': 'L1',  # 預設為 L1，後續可根據需要調整
                             'event_timestamp': timestamps[idx],
-                            'wattage_total': float(wattage_total[idx]),
-                            'wattage_110v': float(wattage_110v[idx]),
-                            'wattage_220v': float(wattage_220v[idx]),
                             'detection_rule': f"Z-score:{z_score_threshold},Spike:{spike_threshold}%,Duration:{min_event_duration}min",
-                            'score': 0.8,  # 預設信心分數
-                            'data_window': f"[{timestamps[max(0, idx-5)]} - {timestamps[min(len(timestamps)-1, idx+5)]}]"
+                            'score': float(0.8),  # 預設信心分數
+                            'data_window': data_window_json
                         })
 
                     logger.info(f"[GENERATE_CANDIDATES] 總共準備創建 {len(anomaly_events_to_create)} 個異常事件")
@@ -393,14 +443,22 @@ async def generate_candidates(request: dict):
             logger.info(f"[GENERATE_CANDIDATES] 預覽模式完成，總候選數: {total_candidates}")
             return {
                 "success": True,
-                "candidate_count": total_candidates,
+                "candidate_count": int(total_candidates),  # 確保是標準 Python int
                 "status": "preview",
-                "message": f"Preview completed. Found {total_candidates} potential candidates."
+                "message": f"Preview completed. Found {int(total_candidates)} potential candidates."
             }
 
-        # 只有在 save_labels=True 時才創建實驗運行記錄
+        # 只有在 save_labels=True 時才創建或更新實驗運行記錄
         from datetime import datetime
-        experiment_run_id = str(uuid.uuid4())
+
+        # 如果提供了現有的實驗ID，使用它；否則創建新的
+        if existing_experiment_run_id:
+            experiment_run_id = existing_experiment_run_id
+            logger.info(f"[GENERATE_CANDIDATES] 使用現有實驗ID: {experiment_run_id}")
+        else:
+            experiment_run_id = str(uuid.uuid4())
+            logger.info(f"[GENERATE_CANDIDATES] 創建新實驗ID: {experiment_run_id}")
+
         current_timestamp = get_current_datetime()  # Use unified datetime format
 
         # 構建實驗名稱
@@ -412,80 +470,144 @@ async def generate_candidates(request: dict):
         # 標籤模式的狀態總是 LABELING
         status = "LABELING"
 
-        cursor.execute('''
-            INSERT INTO experiment_run
-            (id, name, description, filtering_parameters, status, candidate_count,
-             positive_label_count, negative_label_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            experiment_run_id,
-            experiment_name,
-            f"Generated {total_candidates} anomaly candidates using filter criteria",
-            json.dumps(filter_params, sort_keys=True),  # 確保與查詢時的格式一致
-            status,
-            total_candidates,
-            0,  # 初始時沒有標籤
-            0,
-            current_timestamp,
-            current_timestamp
-        ))
+        # 如果使用現有實驗ID，先嘗試更新記錄；如果找不到，則創建新記錄
+        experiment_created_or_updated = False
+
+        if existing_experiment_run_id:
+            # 先檢查實驗記錄是否存在
+            cursor.execute('SELECT id FROM experiment_run WHERE id = ?', (experiment_run_id,))
+            existing_record = cursor.fetchone()
+
+            if existing_record:
+                # 更新現有實驗記錄
+                logger.info(f"[GENERATE_CANDIDATES] 準備更新現有實驗記錄 ID: {experiment_run_id}")
+                logger.info(f"[GENERATE_CANDIDATES] 更新資料: name={experiment_name}, status={status}, candidate_count={total_candidates}")
+
+                cursor.execute('''
+                    UPDATE experiment_run
+                    SET name = ?, description = ?, filtering_parameters = ?, status = ?,
+                        candidate_count = ?, updated_at = ?
+                    WHERE id = ?
+                ''', (
+                    experiment_name,
+                    f"Generated {total_candidates} anomaly candidates using filter criteria",
+                    json.dumps(filter_params, sort_keys=True),
+                    status,
+                    total_candidates,
+                    current_timestamp,
+                    experiment_run_id
+                ))
+
+                # 檢查更新是否成功
+                rows_affected = cursor.rowcount
+                logger.info(f"[GENERATE_CANDIDATES] 更新完成，影響的行數: {rows_affected}")
+
+                if rows_affected > 0:
+                    logger.info(f"[GENERATE_CANDIDATES] 成功更新現有實驗記錄: {experiment_run_id}")
+                    experiment_created_or_updated = True
+                else:
+                    logger.warning(f"[GENERATE_CANDIDATES] 更新失敗，將改為創建新記錄")
+            else:
+                logger.warning(f"[GENERATE_CANDIDATES] 找不到 ID 為 {experiment_run_id} 的實驗記錄，將創建新記錄")
+
+        # 如果是全新創建，或者更新失敗，則插入新實驗記錄
+        if not experiment_created_or_updated:
+            # 如果原本的ID不存在，生成新的ID
+            if existing_experiment_run_id and not existing_record:
+                logger.info(f"[GENERATE_CANDIDATES] 原ID {experiment_run_id} 不存在，生成新ID")
+                experiment_run_id = str(uuid.uuid4())
+                logger.info(f"[GENERATE_CANDIDATES] 新生成的實驗ID: {experiment_run_id}")
+
+            logger.info(f"[GENERATE_CANDIDATES] 準備創建新實驗記錄 ID: {experiment_run_id}")
+            logger.info(f"[GENERATE_CANDIDATES] 新記錄資料: name={experiment_name}, status={status}, candidate_count={total_candidates}")
+
+            cursor.execute('''
+                INSERT INTO experiment_run
+                (id, name, description, filtering_parameters, status, candidate_count,
+                 positive_label_count, negative_label_count, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                experiment_run_id,
+                experiment_name,
+                f"Generated {total_candidates} anomaly candidates using filter criteria",
+                json.dumps(filter_params, sort_keys=True),
+                status,
+                total_candidates,
+                0,
+                0,
+                current_timestamp,
+                current_timestamp
+            ))
+            logger.info(f"[GENERATE_CANDIDATES] 成功創建新實驗記錄: {experiment_run_id}")
+            experiment_created_or_updated = True
 
         # 創建實際的 anomaly_event 記錄
         anomaly_events_created = 0
-        if anomaly_events_to_create:
+        if anomaly_events_to_create and experiment_created_or_updated:
             logger.info(f"[GENERATE_CANDIDATES] 開始創建 {len(anomaly_events_to_create)} 個異常事件記錄")
 
-            # 先刪除具有完全相同過濾參數且狀態為 'LABELING' 的舊實驗運行及其異常事件
-            # 注意：只有參數完全匹配時才清理，避免誤刪其他實驗
-            filter_params_json = json.dumps(filter_params, sort_keys=True)  # 確保JSON鍵值順序一致
-            cursor.execute('''
-                SELECT id, name FROM experiment_run
-                WHERE filtering_parameters = ? AND status = 'LABELING'
-                ORDER BY created_at DESC
-            ''', (filter_params_json,))
-
-            existing_labeling_runs = cursor.fetchall()
-
-            if existing_labeling_runs:
-                logger.info(f"[GENERATE_CANDIDATES] 找到 {len(existing_labeling_runs)} 個具有相同參數的LABELING實驗")
-                for run in existing_labeling_runs:
-                    logger.info(f"[GENERATE_CANDIDATES] 將清理實驗: {run[0]} - {run[1]}")
-
-                run_ids_to_clean = [run[0] for run in existing_labeling_runs]
-                placeholders = ','.join(['?' for _ in run_ids_to_clean])
-
-                # 先刪除異常事件
-                delete_events_query = f'''
+            # 清理舊的異常事件記錄
+            if existing_experiment_run_id and existing_record:
+                # 如果是更新現有實驗，只清理該實驗的異常事件
+                cursor.execute('''
                     DELETE FROM anomaly_event
-                    WHERE experiment_run_id IN ({placeholders})
-                '''
-                cursor.execute(delete_events_query, run_ids_to_clean)
+                    WHERE experiment_run_id = ?
+                ''', (experiment_run_id,))
                 deleted_events_count = cursor.rowcount
-
-                # 再刪除舊的實驗運行記錄
-                delete_runs_query = f'''
-                    DELETE FROM experiment_run
-                    WHERE id IN ({placeholders})
-                '''
-                cursor.execute(delete_runs_query, run_ids_to_clean)
-                deleted_runs_count = cursor.rowcount
-
-                logger.info(f"[GENERATE_CANDIDATES] 清理舊資料: 刪除了 {deleted_events_count} 個異常事件和 {deleted_runs_count} 個實驗運行記錄")
+                logger.info(f"[GENERATE_CANDIDATES] 清理現有實驗的舊異常事件: 刪除了 {deleted_events_count} 個記錄")
             else:
-                logger.info(f"[GENERATE_CANDIDATES] 沒有找到需要清理的舊實驗記錄")
+                # 如果是創建新實驗，清理具有相同參數的舊LABELING實驗
+                filter_params_json = json.dumps(filter_params, sort_keys=True)
+                cursor.execute('''
+                    SELECT id, name FROM experiment_run
+                    WHERE filtering_parameters = ? AND status = 'LABELING' AND id != ?
+                    ORDER BY created_at DESC
+                ''', (filter_params_json, experiment_run_id))
+
+                existing_labeling_runs = cursor.fetchall()
+
+                if existing_labeling_runs:
+                    logger.info(f"[GENERATE_CANDIDATES] 找到 {len(existing_labeling_runs)} 個具有相同參數的舊LABELING實驗")
+                    for run in existing_labeling_runs:
+                        logger.info(f"[GENERATE_CANDIDATES] 將清理實驗: {run[0]} - {run[1]}")
+
+                    run_ids_to_clean = [run[0] for run in existing_labeling_runs]
+                    placeholders = ','.join(['?' for _ in run_ids_to_clean])
+
+                    # 先刪除異常事件
+                    delete_events_query = f'''
+                        DELETE FROM anomaly_event
+                        WHERE experiment_run_id IN ({placeholders})
+                    '''
+                    cursor.execute(delete_events_query, run_ids_to_clean)
+                    deleted_events_count = cursor.rowcount
+
+                    # 再刪除舊的實驗運行記錄
+                    delete_runs_query = f'''
+                        DELETE FROM experiment_run
+                        WHERE id IN ({placeholders})
+                    '''
+                    cursor.execute(delete_runs_query, run_ids_to_clean)
+                    deleted_runs_count = cursor.rowcount
+
+                    logger.info(f"[GENERATE_CANDIDATES] 清理舊資料: 刪除了 {deleted_events_count} 個異常事件和 {deleted_runs_count} 個實驗運行記錄")
+                else:
+                    logger.info(f"[GENERATE_CANDIDATES] 沒有找到需要清理的舊實驗記錄")
 
             for event_data in anomaly_events_to_create:
                 anomaly_event_id = str(uuid.uuid4())
                 event_id = f"AUTO_{anomaly_event_id[:8]}"
                 cursor.execute('''
                     INSERT INTO anomaly_event
-                    (id, event_id, meter_id, event_timestamp, detection_rule, score,
+                    (id, event_id, name, dataset_id, line, event_timestamp, detection_rule, score,
                      data_window, status, experiment_run_id, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     anomaly_event_id,
                     event_id,
-                    event_data['meter_id'],
+                    event_data['name'],
+                    event_data['dataset_id'],
+                    event_data['line'],
                     event_data['event_timestamp'],
                     event_data['detection_rule'],
                     event_data['score'],
@@ -498,29 +620,75 @@ async def generate_candidates(request: dict):
                 anomaly_events_created += 1
 
             logger.info(f"[GENERATE_CANDIDATES] 創建了 {anomaly_events_created} 個異常事件記錄")
+        elif not experiment_created_or_updated:
+            logger.error(f"[GENERATE_CANDIDATES] 實驗記錄創建/更新失敗，跳過異常事件創建")
 
         conn.commit()
+
+        # 只有在實驗記錄成功創建/更新時才進行驗證
+        if experiment_created_or_updated:
+            # 驗證實驗記錄是否正確更新
+            cursor.execute('SELECT id, name, status, candidate_count, updated_at FROM experiment_run WHERE id = ?', (experiment_run_id,))
+            verification_result = cursor.fetchone()
+
+            if verification_result:
+                logger.info(f"[GENERATE_CANDIDATES] 資料庫驗證 - 實驗記錄 {experiment_run_id}:")
+                logger.info(f"  - ID: {verification_result[0]}")
+                logger.info(f"  - Name: {verification_result[1]}")
+                logger.info(f"  - Status: {verification_result[2]}")
+                logger.info(f"  - Candidate Count: {verification_result[3]}")
+                logger.info(f"  - Updated At: {verification_result[4]}")
+            else:
+                logger.error(f"[GENERATE_CANDIDATES] 錯誤：無法在資料庫中找到實驗記錄 {experiment_run_id}")
+        else:
+            logger.error(f"[GENERATE_CANDIDATES] 實驗記錄處理失敗，跳過驗證")
+
         conn.close()
 
-        logger.info(f"Generated {total_candidates} candidates and created {anomaly_events_created} anomaly events for experiment {experiment_run_id}")
+        if experiment_created_or_updated:
+            logger.info(f"Generated {total_candidates} candidates and created {anomaly_events_created} anomaly events for experiment {experiment_run_id}")
 
-        response = {
-            "success": True,
-            "experiment_run_id": experiment_run_id,
-            "candidate_count": total_candidates,
-            "anomaly_events_created": anomaly_events_created,
-            "status": "LABELING",
-            "filtered_datasets_count": len(filtered_datasets),
-            "filter_summary": {
-                "buildings": buildings,
-                "floors": floors,
-                "rooms": rooms,
-                "occupant_types": occupant_types,
-                "z_score_threshold": z_score_threshold,
-                "spike_threshold": spike_threshold
-            },
-            "message": f"Successfully generated {total_candidates} anomaly candidates and created {anomaly_events_created} anomaly events for labeling"
-        }
+            # 確保所有值都是 JSON 可序列化的
+            import json
+            response = {
+                "success": True,
+                "experiment_run_id": str(experiment_run_id),
+                "candidate_count": int(total_candidates),  # 確保是標準 Python int
+                "anomaly_events_created": int(anomaly_events_created),  # 確保是標準 Python int
+                "status": "LABELING",
+                "filtered_datasets_count": int(len(filtered_datasets)),
+                "filter_summary": {
+                    "buildings": list(buildings) if buildings else [],
+                    "floors": list(floors) if floors else [],
+                    "rooms": list(rooms) if rooms else [],
+                    "occupant_types": list(occupant_types) if occupant_types else [],
+                    "z_score_threshold": float(z_score_threshold),  # 確保是標準 Python float
+                    "spike_threshold": int(spike_threshold)  # 確保是標準 Python int
+                },
+                "message": f"Successfully generated {int(total_candidates)} anomaly candidates and created {int(anomaly_events_created)} anomaly events for labeling"
+            }
+
+            # 測試 JSON 序列化
+            try:
+                json.dumps(response)
+            except TypeError as e:
+                logger.error(f"JSON serialization error: {e}")
+                # 返回一個簡化的響應
+                response = {
+                    "success": True,
+                    "experiment_run_id": str(experiment_run_id),
+                    "candidate_count": int(total_candidates),
+                    "anomaly_events_created": int(anomaly_events_created),
+                    "status": "LABELING",
+                    "message": "Successfully generated candidates"
+                }
+        else:
+            logger.error(f"Failed to create or update experiment run")
+            response = {
+                "success": False,
+                "error": "Failed to create or update experiment run",
+                "message": "Experiment run could not be created or updated"
+            }
 
         return response
 
@@ -765,12 +933,12 @@ async def get_experiment_candidates(run_id: str):
 
         # 查詢指定實驗運行的異常事件
         cursor.execute('''
-            SELECT id, event_id, meter_id, event_timestamp, detection_rule, score,
-                   data_window, status, reviewer_id, review_timestamp, justification_notes,
-                   created_at, updated_at, experiment_run_id
-            FROM anomaly_event
-            WHERE experiment_run_id = ?
-            ORDER BY event_timestamp DESC
+            SELECT ae.id, ae.event_id, ae.dataset_id, ae.line, ae.event_timestamp, ae.detection_rule, ae.score,
+                   ae.data_window, ae.status, ae.reviewer_id, ae.review_timestamp, ae.justification_notes,
+                   ae.created_at, ae.updated_at, ae.experiment_run_id, ae.name
+            FROM anomaly_event ae
+            WHERE ae.experiment_run_id = ?
+            ORDER BY ae.event_timestamp DESC
         ''', (run_id,))
 
         rows = cursor.fetchall()
@@ -781,8 +949,8 @@ async def get_experiment_candidates(run_id: str):
             # 解析 JSON 欄位
             data_window = {}
             try:
-                if row[6]:  # data_window
-                    data_window = json.loads(row[6])
+                if row[7]:  # data_window (調整索引)
+                    data_window = json.loads(row[7])
             except json.JSONDecodeError:
                 pass
 
@@ -793,57 +961,61 @@ async def get_experiment_candidates(run_id: str):
             created_at = None
             updated_at = None
 
-            if row[3]:  # event_timestamp
+            if row[4]:  # event_timestamp (調整索引)
                 try:
-                    if isinstance(row[3], str):
-                        event_timestamp = row[3]
+                    if isinstance(row[4], str):
+                        event_timestamp = row[4]
                     else:
-                        event_timestamp = datetime.fromtimestamp(row[3] / 1000).isoformat() + "Z"
+                        event_timestamp = datetime.fromtimestamp(row[4] / 1000).isoformat() + "Z"
                 except:
-                    event_timestamp = str(row[3])
+                    event_timestamp = str(row[4])
 
-            if row[9]:  # review_timestamp
+            if row[10]:  # review_timestamp (調整索引)
                 try:
-                    if isinstance(row[9], str):
-                        review_timestamp = row[9]
+                    if isinstance(row[10], str):
+                        review_timestamp = row[10]
                     else:
-                        review_timestamp = datetime.fromtimestamp(row[9] / 1000).isoformat() + "Z"
+                        review_timestamp = datetime.fromtimestamp(row[10] / 1000).isoformat() + "Z"
                 except:
-                    review_timestamp = str(row[9])
+                    review_timestamp = str(row[10])
 
-            if row[11]:  # created_at
-                try:
-                    if isinstance(row[11], str):
-                        created_at = row[11]
-                    else:
-                        created_at = datetime.fromtimestamp(row[11] / 1000).isoformat() + "Z"
-                except:
-                    created_at = str(row[11])
-
-            if row[12]:  # updated_at
+            if row[12]:  # created_at (調整索引)
                 try:
                     if isinstance(row[12], str):
-                        updated_at = row[12]
+                        created_at = row[12]
                     else:
-                        updated_at = datetime.fromtimestamp(row[12] / 1000).isoformat() + "Z"
+                        created_at = datetime.fromtimestamp(row[12] / 1000).isoformat() + "Z"
                 except:
-                    updated_at = str(row[12])
+                    created_at = str(row[12])
+
+            if row[13]:  # updated_at (調整索引)
+                try:
+                    if isinstance(row[13], str):
+                        updated_at = row[13]
+                    else:
+                        updated_at = datetime.fromtimestamp(row[13] / 1000).isoformat() + "Z"
+                except:
+                    updated_at = str(row[13])
 
             result.append({
                 "id": row[0],
                 "event_id": row[1],
-                "meter_id": row[2],
+                "dataset_id": row[2],
+                "line": row[3],
                 "event_timestamp": event_timestamp,
-                "detection_rule": row[4],
-                "score": row[5],
+                "detection_rule": row[5],
+                "score": row[6],
                 "data_window": data_window,
-                "status": row[7] or "PENDING",
-                "reviewer_id": row[8],
+                "status": row[8] or "PENDING",
+                "reviewer_id": row[9],
                 "review_timestamp": review_timestamp,
-                "justification_notes": row[10],
+                "justification_notes": row[11],
                 "created_at": created_at,
                 "updated_at": updated_at,
-                "experiment_run_id": row[13]
+                "experiment_run_id": row[14],
+                "dataset": {
+                    "name": row[15] if row[15] else "Unknown Event"
+                }
             })
 
         conn.close()
@@ -915,6 +1087,835 @@ async def label_anomaly_event(event_id: str, request: dict):
     except Exception as e:
         logger.error(f"Error labeling event {event_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ========== Stage 2: Expert Labeling API Routes ==========
+
+@case_study_v2_router.get("/anomaly-events")
+async def get_anomaly_events(
+    experiment_run_id: str = None,
+    status: str = None,
+    limit: int = 100,
+    offset: int = 0,
+    count_only: bool = False
+):
+    """
+    獲取異常事件列表，支援過濾和分頁
+    主要用於 Stage 2 的事件審核介面
+    支援 count_only=true 來只返回總數
+    """
+    try:
+        import sqlite3
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 建立查詢條件
+        where_conditions = []
+        params = []
+
+        if experiment_run_id:
+            where_conditions.append("experiment_run_id = ?")
+            params.append(experiment_run_id)
+
+        if status:
+            where_conditions.append("status = ?")
+            params.append(status)
+
+        # 如果只需要計數
+        if count_only:
+            count_query = "SELECT COUNT(*) FROM anomaly_event ae"
+            if where_conditions:
+                count_query += " WHERE " + " AND ".join(where_conditions)
+
+            cursor.execute(count_query, params)
+            total_count = cursor.fetchone()[0]
+            conn.close()
+
+            return {"total": total_count}
+
+        # 構建查詢 - 直接讀取 anomaly_event 的 name 欄位
+        query = """
+            SELECT ae.id, ae.event_id, ae.dataset_id, ae.line, ae.event_timestamp, ae.detection_rule,
+                   ae.score, ae.status, ae.data_window, ae.reviewer_id, ae.review_timestamp,
+                   ae.justification_notes, ae.experiment_run_id, ae.created_at, ae.name
+            FROM anomaly_event ae
+        """
+
+        if where_conditions:
+            query += " WHERE " + " AND ".join(where_conditions)
+
+        query += " ORDER BY score DESC, event_timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        events = cursor.fetchall()
+
+        # 轉換為字典格式
+        columns = [desc[0] for desc in cursor.description]
+        result = []
+
+        for event_row in events:
+            event_dict = dict(zip(columns, event_row))
+
+            # 添加 name 信息到結果中 (直接使用 anomaly_event 的 name)
+            if 'name' in event_dict:
+                event_dict['dataset'] = {
+                    'name': event_dict['name'] if event_dict['name'] else "Unknown Event"
+                }
+
+            # 解析 data_window 格式 (可能是字符串或 JSON)
+            if event_dict['data_window']:
+                try:
+                    # 嘗試解析為 JSON
+                    event_dict['data_window'] = json.loads(event_dict['data_window'])
+                except (json.JSONDecodeError, TypeError):
+                    # 如果不是 JSON，可能是時間範圍字符串格式 [start - end]
+                    window_str = event_dict['data_window']
+                    if window_str.startswith('[') and ' - ' in window_str:
+                        # 解析 "[2025-07-27T10:13:00.000Z - 2025-07-27T14:03:00.000Z]" 格式
+                        times = window_str.strip('[]').split(' - ')
+                        if len(times) == 2:
+                            event_dict['data_window'] = {
+                                'startTime': times[0].strip(),
+                                'endTime': times[1].strip(),
+                                'duration': window_str
+                            }
+                        else:
+                            event_dict['data_window'] = {'raw': window_str}
+                    else:
+                        event_dict['data_window'] = {'raw': window_str}
+
+            # 添加 metadata 欄位用於前端兼容
+            event_dict['metadata'] = {}
+
+            result.append(event_dict)
+
+        conn.close()
+
+        logger.info(f"Retrieved {len(result)} anomaly events for experiment {experiment_run_id}, status: {status}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error fetching anomaly events: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch anomaly events: {str(e)}")
+
+@case_study_v2_router.post("/anomaly-events/bulk-review")
+async def bulk_review_anomaly_events(request: dict):
+    """
+    批量審核異常事件
+    支持將多個事件一次性標記為正異常或正常
+    """
+    try:
+        import sqlite3
+
+        # 解析請求參數
+        event_ids = request.get("event_ids", [])
+        status = request.get("status")
+        reviewer_id = request.get("reviewer_id")
+        justification_notes = request.get("justification_notes", "")
+
+        # 驗證必需參數
+        if not event_ids or not status or not reviewer_id:
+            raise HTTPException(status_code=400, detail="event_ids, status and reviewer_id are required")
+
+        if not isinstance(event_ids, list) or len(event_ids) == 0:
+            raise HTTPException(status_code=400, detail="event_ids must be a non-empty list")
+
+        # 驗證狀態值
+        valid_statuses = ["CONFIRMED_POSITIVE", "REJECTED_NORMAL"]
+        if status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+
+        try:
+            # 開始事務
+            conn.execute("BEGIN TRANSACTION")
+            cursor = conn.cursor()
+
+            current_timestamp = get_current_datetime()
+            updated_events = []
+            experiment_run_ids = set()
+
+            # 處理每個事件
+            for event_id in event_ids:
+                # 1. 查詢並驗證異常事件
+                cursor.execute("""
+                    SELECT id, dataset_id, event_timestamp, status, experiment_run_id
+                    FROM anomaly_event
+                    WHERE id = ?
+                """, (event_id,))
+
+                event_row = cursor.fetchone()
+                if not event_row:
+                    logger.warning(f"Anomaly event {event_id} not found, skipping")
+                    continue
+
+                current_status = event_row[3]
+                if current_status != "UNREVIEWED":
+                    logger.warning(f"Event {event_id} has already been reviewed, skipping")
+                    continue
+
+                event_dataset_id = event_row[1]
+                event_timestamp = event_row[2]
+                experiment_run_id = event_row[4]
+                experiment_run_ids.add(experiment_run_id)
+
+                # 2. 更新異常事件狀態
+                cursor.execute("""
+                    UPDATE anomaly_event
+                    SET status = ?, reviewer_id = ?, justification_notes = ?,
+                        review_timestamp = ?, updated_at = ?
+                    WHERE id = ?
+                """, (status, reviewer_id, justification_notes, current_timestamp, current_timestamp, event_id))
+
+                # 3. 如果確認為異常，更新相關的 AnalysisReadyData
+                if status == "CONFIRMED_POSITIVE":
+                    cursor.execute("""
+                        UPDATE analysis_ready_data
+                        SET is_positive_label = 1, source_anomaly_event_id = ?
+                        WHERE dataset_id = ? AND timestamp = ?
+                    """, (event_id, event_dataset_id, event_timestamp))
+
+                    # 如果沒有找到完全匹配的記錄，嘗試時間範圍匹配
+                    if cursor.rowcount == 0:
+                        from datetime import datetime, timedelta
+
+                        try:
+                            event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                            start_window = (event_dt - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+                            end_window = (event_dt + timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+
+                            cursor.execute("""
+                                SELECT id
+                                FROM analysis_ready_data
+                                WHERE dataset_id = ?
+                                AND timestamp BETWEEN ? AND ?
+                                ORDER BY ABS(julianday(timestamp) - julianday(?)) ASC
+                                LIMIT 1
+                            """, (event_dataset_id, start_window, end_window, event_timestamp))
+
+                            matching_record = cursor.fetchone()
+                            if matching_record:
+                                cursor.execute("""
+                                    UPDATE analysis_ready_data
+                                    SET is_positive_label = 1, source_anomaly_event_id = ?
+                                    WHERE id = ?
+                                """, (event_id, matching_record[0]))
+
+                        except Exception as dt_error:
+                            logger.error(f"Error processing timestamp for event {event_id}: {dt_error}")
+
+                updated_events.append(event_id)
+
+            # 4. 更新所有相關實驗運行的統計數據
+            for experiment_run_id in experiment_run_ids:
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) as total_candidates,
+                        SUM(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 ELSE 0 END) as positive_count,
+                        SUM(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 ELSE 0 END) as negative_count
+                    FROM anomaly_event
+                    WHERE experiment_run_id = ?
+                """, (experiment_run_id,))
+
+                stats_row = cursor.fetchone()
+                if stats_row:
+                    total_candidates, positive_count, negative_count = stats_row
+
+                    cursor.execute("""
+                        UPDATE experiment_run
+                        SET positive_label_count = ?, negative_label_count = ?, updated_at = ?
+                        WHERE id = ?
+                    """, (positive_count, negative_count, current_timestamp, experiment_run_id))
+
+            # 提交事務
+            conn.commit()
+
+            logger.info(f"Successfully bulk reviewed {len(updated_events)} events with status {status} by reviewer {reviewer_id}")
+
+            return {
+                "success": True,
+                "message": f"Successfully reviewed {len(updated_events)} events",
+                "updated_events": updated_events,
+                "total_requested": len(event_ids),
+                "total_updated": len(updated_events),
+                "status": status,
+                "reviewer_id": reviewer_id,
+                "review_timestamp": current_timestamp
+            }
+
+        except Exception as e:
+            # 回滾事務
+            conn.rollback()
+            raise e
+
+        finally:
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error bulk reviewing events: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to bulk review events: {str(e)}")
+
+@case_study_v2_router.post("/anomaly-events/bulk-review-by-experiment")
+async def bulk_review_by_experiment(request: dict):
+    """
+    按實驗批量審核所有未標記的異常事件
+    支持將特定實驗的所有 UNREVIEWED 事件一次性標記為正異常或正常
+    """
+    try:
+        import sqlite3
+
+        # 解析請求參數
+        experiment_run_id = request.get("experiment_run_id")
+        status = request.get("status")
+        reviewer_id = request.get("reviewer_id")
+        justification_notes = request.get("justification_notes", "")
+
+        # 驗證必需參數
+        if not experiment_run_id or not status or not reviewer_id:
+            raise HTTPException(status_code=400, detail="experiment_run_id, status and reviewer_id are required")
+
+        # 驗證狀態值
+        valid_statuses = ["CONFIRMED_POSITIVE", "REJECTED_NORMAL"]
+        if status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+
+        try:
+            # 開始事務
+            conn.execute("BEGIN TRANSACTION")
+            cursor = conn.cursor()
+
+            current_timestamp = get_current_datetime()
+
+            # 1. 獲取所有未審核的事件
+            cursor.execute("""
+                SELECT id, event_id, dataset_id, event_timestamp
+                FROM anomaly_event
+                WHERE experiment_run_id = ? AND status = 'UNREVIEWED'
+            """, (experiment_run_id,))
+
+            unreviewed_events = cursor.fetchall()
+            event_count = len(unreviewed_events)
+
+            if event_count == 0:
+                conn.close()
+                return {
+                    "success": True,
+                    "message": "No unreviewed events found",
+                    "updated_events": [],
+                    "total_updated": 0,
+                    "status": status,
+                    "reviewer_id": reviewer_id,
+                    "review_timestamp": current_timestamp
+                }
+
+            # 2. 更新所有未審核事件的狀態
+            placeholders = ','.join(['?' for _ in range(event_count)])
+            event_ids = [event[0] for event in unreviewed_events]
+
+            cursor.execute(f"""
+                UPDATE anomaly_event
+                SET status = ?, reviewer_id = ?, review_timestamp = ?, justification_notes = ?
+                WHERE id IN ({placeholders})
+            """, [status, reviewer_id, current_timestamp, justification_notes] + event_ids)
+
+            # 3. 更新 analysis_ready_data 中的標籤
+            if status == "CONFIRMED_POSITIVE":
+                for event_id, event_event_id, event_dataset_id, event_timestamp in unreviewed_events:
+                    cursor.execute("""
+                        UPDATE analysis_ready_data
+                        SET is_positive_label = 1, source_anomaly_event_id = ?
+                        WHERE dataset_id = ? AND timestamp = ?
+                    """, (event_id, event_dataset_id, event_timestamp))
+
+                    # 如果沒有找到完全匹配的記錄，嘗試時間範圍匹配
+                    if cursor.rowcount == 0:
+                        from datetime import datetime, timedelta
+
+                        try:
+                            event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                            start_window = (event_dt - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+                            end_window = (event_dt + timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+
+                            cursor.execute("""
+                                SELECT id
+                                FROM analysis_ready_data
+                                WHERE dataset_id = ?
+                                AND timestamp BETWEEN ? AND ?
+                                ORDER BY ABS(julianday(timestamp) - julianday(?)) ASC
+                                LIMIT 1
+                            """, (event_dataset_id, start_window, end_window, event_timestamp))
+
+                            matching_record = cursor.fetchone()
+                            if matching_record:
+                                cursor.execute("""
+                                    UPDATE analysis_ready_data
+                                    SET is_positive_label = 1, source_anomaly_event_id = ?
+                                    WHERE id = ?
+                                """, (event_id, matching_record[0]))
+
+                        except Exception as dt_error:
+                            logger.error(f"Error processing timestamp for event {event_id}: {dt_error}")
+
+            # 4. 更新實驗運行的統計數據
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_candidates,
+                    SUM(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 ELSE 0 END) as positive_count,
+                    SUM(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 ELSE 0 END) as negative_count
+                FROM anomaly_event
+                WHERE experiment_run_id = ?
+            """, (experiment_run_id,))
+
+            stats = cursor.fetchone()
+            if stats:
+                total_candidates, positive_count, negative_count = stats
+
+                cursor.execute("""
+                    UPDATE experiment_run
+                    SET candidate_count = ?, positive_label_count = ?, negative_label_count = ?
+                    WHERE id = ?
+                """, (total_candidates, positive_count, negative_count, experiment_run_id))
+
+            # 提交事務
+            conn.commit()
+
+            logger.info(f"Successfully bulk reviewed {event_count} events for experiment {experiment_run_id} as {status}")
+
+            return {
+                "success": True,
+                "message": f"Successfully reviewed {event_count} events",
+                "updated_events": event_ids,
+                "total_updated": event_count,
+                "status": status,
+                "reviewer_id": reviewer_id,
+                "review_timestamp": current_timestamp,
+                "experiment_run_id": experiment_run_id
+            }
+
+        except Exception as e:
+            # 回滾事務
+            conn.rollback()
+            raise e
+
+        finally:
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error bulk reviewing events by experiment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to bulk review events by experiment: {str(e)}")
+
+@case_study_v2_router.get("/anomaly-events/{event_id}")
+async def get_anomaly_event_detail(event_id: str):
+    """
+    獲取單一異常事件的詳細資訊
+    """
+    try:
+        import sqlite3
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT ae.id, ae.event_id, ae.dataset_id, ae.line, ae.event_timestamp, ae.detection_rule,
+                   ae.score, ae.status, ae.data_window, ae.reviewer_id, ae.review_timestamp,
+                   ae.justification_notes, ae.experiment_run_id, ae.created_at, ae.name
+            FROM anomaly_event ae
+            WHERE ae.id = ?
+        """, (event_id,))
+
+        event_row = cursor.fetchone()
+
+        if not event_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Anomaly event not found")
+
+        # 轉換為字典格式
+        columns = [desc[0] for desc in cursor.description]
+        event_dict = dict(zip(columns, event_row))
+
+        # 解析 data_window 格式 (可能是字符串或 JSON)
+        if event_dict['data_window']:
+            try:
+                # 嘗試解析為 JSON
+                event_dict['data_window'] = json.loads(event_dict['data_window'])
+            except (json.JSONDecodeError, TypeError):
+                # 如果不是 JSON，可能是時間範圍字符串格式 [start - end]
+                window_str = event_dict['data_window']
+                if window_str.startswith('[') and ' - ' in window_str:
+                    # 解析 "[2025-07-27T10:13:00.000Z - 2025-07-27T14:03:00.000Z]" 格式
+                    times = window_str.strip('[]').split(' - ')
+                    if len(times) == 2:
+                        event_dict['data_window'] = {
+                            'startTime': times[0].strip(),
+                            'endTime': times[1].strip(),
+                            'duration': window_str
+                        }
+                    else:
+                        event_dict['data_window'] = {'raw': window_str}
+                else:
+                    event_dict['data_window'] = {'raw': window_str}
+
+        # 添加 metadata 欄位用於前端兼容
+        event_dict['metadata'] = {}
+
+        conn.close()
+
+        logger.info(f"Retrieved anomaly event detail for {event_id}")
+        return event_dict
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching anomaly event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch anomaly event: {str(e)}")
+
+@case_study_v2_router.get("/anomaly-events/{event_id}/data")
+async def get_data_for_event(
+    event_id: str,
+    start_time: str = None,
+    end_time: str = None
+):
+    """
+    獲取指定異常事件的時間窗口內的電力數據，用於圖表視覺化
+    這是 Stage 2 審核介面的核心 API - 新版本直接使用事件 ID
+    支援自定義時間範圍參數 start_time 和 end_time
+    """
+    try:
+        import sqlite3
+        from datetime import datetime
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 1. 首先獲取異常事件信息
+        cursor.execute("""
+            SELECT ae.dataset_id, ae.data_window
+            FROM anomaly_event ae
+            WHERE ae.id = ?
+        """, (event_id,))
+
+        event_result = cursor.fetchone()
+        if not event_result:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Anomaly event not found")
+
+        dataset_id, data_window_str = event_result
+
+        # 2. 確定時間範圍 - 優先使用傳入的參數，否則使用事件的 data_window
+        if start_time and end_time:
+            # 使用前端傳入的自定義時間範圍
+            query_start_time = start_time
+            query_end_time = end_time
+        else:
+            # 使用事件原始的 data_window 時間範圍
+            try:
+                data_window = json.loads(data_window_str)
+                query_start_time = data_window.get('startTime')
+                query_end_time = data_window.get('endTime')
+            except (json.JSONDecodeError, TypeError):
+                # 處理舊格式的 data_window
+                conn.close()
+                raise HTTPException(status_code=400, detail="Invalid data_window format in event")
+
+        # 3. 直接用 dataset_id 查詢 analysis_ready_data
+        cursor.execute("""
+            SELECT timestamp, raw_wattage_l1, raw_wattage_l2, wattage_110v, wattage_220v, wattage_total, is_positive_label
+            FROM analysis_ready_data
+            WHERE dataset_id = ?
+            AND timestamp BETWEEN ? AND ?
+            ORDER BY timestamp
+        """, (dataset_id, query_start_time, query_end_time))
+
+        data_rows = cursor.fetchall()
+
+        # 4. 轉換為前端需要的格式
+        time_series_data = []
+        for row in data_rows:
+            time_series_data.append({
+                "timestamp": row[0],
+                "rawWattageL1": row[1],
+                "rawWattageL2": row[2],
+                "wattage110v": row[3],
+                "wattage220v": row[4],
+                "wattageTotal": row[5],
+                "isPositiveLabel": bool(row[6])
+            })
+
+        conn.close()
+
+        logger.info(f"Retrieved {len(time_series_data)} data points for event {event_id}, time range: {query_start_time} to {query_end_time}")
+        return time_series_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching data for event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch event data: {str(e)}")
+
+@case_study_v2_router.get("/data-for-window")
+async def get_data_for_window(
+    meter_id: str,
+    start_time: str,
+    end_time: str
+):
+    """
+    獲取指定時間窗口內的電力數據，用於圖表視覺化
+    這是 Stage 2 審核介面的核心 API
+    注意：這個 API 保留是為了向後兼容，建議使用新的 /anomaly-events/{event_id}/data
+    """
+    try:
+        import sqlite3
+        from datetime import datetime
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 驗證時間格式並轉換
+        try:
+            start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+
+            # 轉換為 SQLite 格式
+            start_formatted = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+            end_formatted = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid datetime format: {str(e)}")
+
+        # 查詢數據 - 根據 meter_id 從 analysis_datasets 查找關聯的房間
+        cursor.execute("""
+            SELECT room FROM analysis_datasets
+            WHERE meter_id_l1 = ? OR meter_id_l2 = ? OR id LIKE ?
+            LIMIT 1
+        """, (meter_id, meter_id, f"%{meter_id}%"))
+
+        room_result = cursor.fetchone()
+        data_rows = []
+
+        if room_result:
+            room = room_result[0]
+            # 使用房間信息查詢數據
+            cursor.execute("""
+                SELECT ard.timestamp, ard.wattage_total, ard.wattage_110v, ard.wattage_220v
+                FROM analysis_ready_data ard
+                JOIN analysis_datasets ad ON ard.dataset_id = ad.id
+                WHERE ad.room = ?
+                AND ard.timestamp BETWEEN ? AND ?
+                ORDER BY ard.timestamp ASC
+                LIMIT 1000
+            """, (room, start_formatted, end_formatted))
+
+            data_rows = cursor.fetchall()
+
+        # 如果還是沒有數據，嘗試直接根據房間匹配
+        if not data_rows and 'Room' in meter_id:
+            # 提取房間號，例如從 "Room R041 Analysis Dataset_L1" 提取 "R041"
+            import re
+            room_match = re.search(r'Room\s+([A-Z0-9]+)', meter_id)
+            if room_match:
+                room_code = room_match.group(1)
+                cursor.execute("""
+                    SELECT ard.timestamp, ard.wattage_total, ard.wattage_110v, ard.wattage_220v
+                    FROM analysis_ready_data ard
+                    WHERE ard.room LIKE ?
+                    AND ard.timestamp BETWEEN ? AND ?
+                    ORDER BY ard.timestamp ASC
+                    LIMIT 1000
+                """, (f"%{room_code}%", start_formatted, end_formatted))
+
+                data_rows = cursor.fetchall()
+
+        # 轉換為 JSON 格式
+        result = []
+        for row in data_rows:
+            timestamp, wattage_total, wattage_110v, wattage_220v = row
+            result.append({
+                'timestamp': timestamp,
+                'wattageTotal': wattage_total or 0,
+                'wattage110v': wattage_110v or 0,
+                'wattage220v': wattage_220v or 0
+            })
+
+        conn.close()
+
+        logger.info(f"Retrieved {len(result)} data points for meter {meter_id} between {start_time} and {end_time}")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching data for window: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}")
+
+@case_study_v2_router.patch("/anomaly-events/{event_id}/review")
+async def review_anomaly_event(event_id: str, request: dict):
+    """
+    提交異常事件的審核結果
+    這是 Stage 2 的核心業務邏輯，包含資料庫事務處理
+    """
+    try:
+        import sqlite3
+
+        # 解析請求參數
+        status = request.get("status")
+        reviewer_id = request.get("reviewer_id")
+        justification_notes = request.get("justification_notes", "")
+
+        # 驗證必需參數
+        if not status or not reviewer_id:
+            raise HTTPException(status_code=400, detail="status and reviewer_id are required")
+
+        # 驗證狀態值
+        valid_statuses = ["CONFIRMED_POSITIVE", "REJECTED_NORMAL"]
+        if status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+
+        try:
+            # 開始事務
+            conn.execute("BEGIN TRANSACTION")
+            cursor = conn.cursor()
+
+            # 1. 查詢並驗證異常事件
+            cursor.execute("""
+                SELECT id, dataset_id, event_timestamp, status, experiment_run_id
+                FROM anomaly_event
+                WHERE id = ?
+            """, (event_id,))
+
+            event_row = cursor.fetchone()
+            if not event_row:
+                raise HTTPException(status_code=404, detail="Anomaly event not found")
+
+            current_status = event_row[3]
+            if current_status != "UNREVIEWED":
+                raise HTTPException(status_code=400, detail="Event has already been reviewed")
+
+            event_dataset_id = event_row[1]
+            event_timestamp = event_row[2]
+            experiment_run_id = event_row[4]
+
+            # 2. 更新異常事件狀態
+            current_timestamp = get_current_datetime()
+
+            cursor.execute("""
+                UPDATE anomaly_event
+                SET status = ?, reviewer_id = ?, justification_notes = ?,
+                    review_timestamp = ?, updated_at = ?
+                WHERE id = ?
+            """, (status, reviewer_id, justification_notes, current_timestamp, current_timestamp, event_id))
+
+            # 3. 【關鍵步驟】如果確認為異常，更新相關的 AnalysisReadyData
+            if status == "CONFIRMED_POSITIVE":
+                # 直接使用 dataset_id 和 timestamp 找到對應的 analysis_ready_data 記錄
+                cursor.execute("""
+                    UPDATE analysis_ready_data
+                    SET is_positive_label = 1, source_anomaly_event_id = ?
+                    WHERE dataset_id = ? AND timestamp = ?
+                """, (event_id, event_dataset_id, event_timestamp))
+
+                # 如果沒有找到完全匹配的記錄，嘗試時間範圍匹配
+                if cursor.rowcount == 0:
+                    from datetime import datetime, timedelta
+
+                    # 解析事件時間戳
+                    try:
+                        event_dt = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+                        # 創建時間窗口 (±5分鐘)
+                        start_window = (event_dt - timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+                        end_window = (event_dt + timedelta(minutes=5)).strftime('%Y-%m-%d %H:%M:%S')
+
+                        # 查找對應的數據集和時間範圍
+                        cursor.execute("""
+                            SELECT id
+                            FROM analysis_ready_data
+                            WHERE dataset_id = ?
+                            AND timestamp BETWEEN ? AND ?
+                            ORDER BY ABS(julianday(timestamp) - julianday(?)) ASC
+                            LIMIT 1
+                        """, (event_dataset_id, start_window, end_window, event_timestamp))
+
+                        matching_record = cursor.fetchone()
+                        if matching_record:
+                            cursor.execute("""
+                                UPDATE analysis_ready_data
+                                SET is_positive_label = 1, source_anomaly_event_id = ?
+                                WHERE id = ?
+                            """, (event_id, matching_record[0]))
+
+                            logger.info(f"Updated analysis_ready_data record {matching_record[0]} for event {event_id}")
+                        else:
+                            logger.warning(f"Could not find matching analysis_ready_data for event {event_id}")
+
+                    except Exception as dt_error:
+                        logger.error(f"Error processing timestamp for event {event_id}: {dt_error}")
+
+            # 4. 更新實驗運行的統計數據
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_candidates,
+                    SUM(CASE WHEN status = 'CONFIRMED_POSITIVE' THEN 1 ELSE 0 END) as positive_count,
+                    SUM(CASE WHEN status = 'REJECTED_NORMAL' THEN 1 ELSE 0 END) as negative_count
+                FROM anomaly_event
+                WHERE experiment_run_id = ?
+            """, (experiment_run_id,))
+
+            stats_row = cursor.fetchone()
+            if stats_row:
+                total_candidates, positive_count, negative_count = stats_row
+
+                cursor.execute("""
+                    UPDATE experiment_run
+                    SET positive_label_count = ?, negative_label_count = ?, updated_at = ?
+                    WHERE id = ?
+                """, (positive_count, negative_count, current_timestamp, experiment_run_id))
+
+            # 提交事務
+            conn.commit()
+
+            logger.info(f"Successfully reviewed event {event_id} with status {status} by reviewer {reviewer_id}")
+
+            return {
+                "success": True,
+                "message": "Event reviewed successfully",
+                "event_id": event_id,
+                "status": status,
+                "reviewer_id": reviewer_id,
+                "review_timestamp": current_timestamp
+            }
+
+        except Exception as e:
+            # 回滾事務
+            conn.rollback()
+            raise e
+
+        finally:
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reviewing event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to review event: {str(e)}")
+
+# ========== End of Stage 2 API Routes ==========
 
 
 @case_study_v2_router.post("/training-jobs")
@@ -1474,3 +2475,64 @@ async def evaluation_logs_websocket(websocket: WebSocket, job_id: str):
         pass
     finally:
         await websocket_manager.disconnect_evaluation_logs(job_id, websocket)
+
+@case_study_v2_router.patch("/experiment-runs/{run_id}/status")
+async def update_experiment_status(run_id: str, request: dict):
+    """
+    更新實驗運行的狀態
+    支持的狀態: CONFIGURING, LABELING, COMPLETED
+    """
+    try:
+        import sqlite3
+
+        # 解析請求參數
+        new_status = request.get("status")
+        if not new_status:
+            raise HTTPException(status_code=400, detail="status is required")
+
+        # 驗證狀態值
+        valid_statuses = ["CONFIGURING", "LABELING", "COMPLETED"]
+        if new_status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 檢查實驗是否存在
+        cursor.execute('SELECT id, name, status FROM experiment_run WHERE id = ?', (run_id,))
+        experiment = cursor.fetchone()
+
+        if not experiment:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Experiment run not found")
+
+        old_status = experiment[2]
+
+        # 更新實驗狀態
+        current_timestamp = get_current_datetime()
+        cursor.execute("""
+            UPDATE experiment_run
+            SET status = ?, updated_at = ?
+            WHERE id = ?
+        """, (new_status, current_timestamp, run_id))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Updated experiment {run_id} status from {old_status} to {new_status}")
+
+        return {
+            "success": True,
+            "message": f"Experiment status updated successfully",
+            "experiment_id": run_id,
+            "old_status": old_status,
+            "new_status": new_status,
+            "updated_at": current_timestamp
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating experiment status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update experiment status: {str(e)}")
