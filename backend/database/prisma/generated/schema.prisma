@@ -68,8 +68,9 @@ model ExperimentRun {
   filteringParameters String?        @map("filtering_parameters") // JSON string for SQLite
   status              String         @default("CONFIGURING") @map("status") // "CONFIGURING", "LABELING", "COMPLETED"
   candidateCount      Int?           @map("candidate_count")
+  totalDataPoolSize   Int?           @map("total_data_pool_size") // Total number of all selected dataset records combined
   positiveLabelCount  Int?           @map("positive_label_count")
-  negativeLabelCount  Int?           @map("negative_label_count")
+  negativeLabelCount  Int?           @map("negative_label_count") // Calculated as totalDataPoolSize - positiveLabelCount
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
   candidateStats      String?        @map("candidate_stats") // JSON string for SQLite
@@ -133,20 +134,33 @@ model EventLabelLink {
 
 /// 記錄一次完整的模型訓練事件
 model TrainedModel {
-  id               String          @id @default(cuid())
-  name             String
-  scenarioType     String          @map("scenario_type") // "ERM_BASELINE", "GENERALIZATION_CHALLENGE", "DOMAIN_ADAPTATION"
-  status           String // "PENDING", "RUNNING", "COMPLETED", "FAILED"
-  experimentRunId  String          @map("experiment_run_id")
-  experimentRun    ExperimentRun   @relation(fields: [experimentRunId], references: [id])
-  modelConfig      String          @map("model_config") // JSON string for SQLite
-  dataSourceConfig String          @map("data_source_config") // JSON string for SQLite
-  modelPath        String?         @map("model_path")
-  trainingMetrics  String?         @map("training_metrics") // JSON string for SQLite
-  jobId            String?         @map("job_id") // Training job tracking ID
-  createdAt        DateTime        @default(now()) @map("created_at")
-  completedAt      DateTime?       @map("completed_at")
-  evaluationRuns   EvaluationRun[]
+  id              String        @id @default(cuid())
+  name            String
+  scenarioType    String        @map("scenario_type") // "ERM_BASELINE", "GENERALIZATION_CHALLENGE", "DOMAIN_ADAPTATION"
+  status          String // "PENDING", "RUNNING", "COMPLETED", "FAILED"
+  experimentRunId String        @map("experiment_run_id")
+  experimentRun   ExperimentRun @relation(fields: [experimentRunId], references: [id])
+
+  // nnPU 完整超參數配置（JSON 格式）
+  modelConfig      String @map("model_config") // Complete nnPU hyperparameters as JSON
+  dataSourceConfig String @map("data_source_config") // Data split configuration as JSON
+
+  // 訓練結果和狀態
+  modelPath         String? @map("model_path")
+  trainingMetrics   String? @map("training_metrics") // JSON string with loss, accuracy, etc.
+  validationMetrics String? @map("validation_metrics") // JSON string with validation metrics
+  trainingLogs      String? @map("training_logs") // Detailed training logs
+  jobId             String? @map("job_id") // Training job tracking ID
+
+  // 訓練數據詳細信息（JSON 格式）
+  trainingDataInfo String? @map("training_data_info") // JSON with P/U data sources, counts, and split details
+
+  // 時間戳記
+  createdAt   DateTime  @default(now()) @map("created_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  evaluationRuns EvaluationRun[]
 
   @@map("trained_models")
 }

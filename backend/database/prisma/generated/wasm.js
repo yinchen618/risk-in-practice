@@ -155,6 +155,7 @@ exports.Prisma.ExperimentRunScalarFieldEnum = {
   filteringParameters: 'filteringParameters',
   status: 'status',
   candidateCount: 'candidateCount',
+  totalDataPoolSize: 'totalDataPoolSize',
   positiveLabelCount: 'positiveLabelCount',
   negativeLabelCount: 'negativeLabelCount',
   createdAt: 'createdAt',
@@ -209,6 +210,7 @@ exports.Prisma.TrainedModelScalarFieldEnum = {
   validationMetrics: 'validationMetrics',
   trainingLogs: 'trainingLogs',
   jobId: 'jobId',
+  trainingDataInfo: 'trainingDataInfo',
   createdAt: 'createdAt',
   startedAt: 'startedAt',
   completedAt: 'completedAt'

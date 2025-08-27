@@ -102,7 +102,7 @@ importers:
         version: 1.54.4
       '@xyflow/react':
         specifier: ^12.8.1
-        version: 12.8.2(@types/react@19.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 12.8.2(@types/react@19.0.0)(immer@10.1.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       chart.js:
         specifier: ^4.5.0
         version: 4.5.0
@@ -169,6 +169,9 @@ importers:
       react-plotly.js:
         specifier: ^2.6.0
         version: 2.6.0(plotly.js@3.0.3(mapbox-gl@1.13.3))(react@19.1.0)
+      recharts:
+        specifier: ^3.1.2
+        version: 3.1.2(@types/react@19.0.0)(react-dom@19.1.0(react@19.1.0))(react-is@16.13.1)(react@19.1.0)(redux@5.0.1)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -2396,6 +2399,17 @@ packages:
     peerDependencies:
       react: ^18.0 || ^19.0 || ^19.0.0-rc
 
+  '@reduxjs/toolkit@2.8.2':
+    resolution: {integrity: sha512-MYlOhQ0sLdw4ud48FoC5w0dH9VfWQjtCjreKwYTT3l+r427qYC5Y8PihNutepr8XrNaBUDQo9khWUwQxZaqt5A==}
+    peerDependencies:
+      react: ^16.9.0 || ^17.0.0 || ^18 || ^19
+      react-redux: ^7.2.1 || ^8.1.3 || ^9.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-redux:
+        optional: true
+
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
@@ -2661,6 +2675,12 @@ packages:
 
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
+
+  '@standard-schema/spec@1.0.0':
+    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@standard-schema/utils@0.3.0':
+    resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
   '@swc/counter@0.1.3':
     resolution: {integrity: sha512-e2BR4lsJkkRlKZ/qCHPw9ZaSxc0MVUd7gtbtaB7aMvHeJVYe8sOB8DBZkP2DtISHGSku9sCK6T6cnY0CtXrOCQ==}
@@ -2962,6 +2982,9 @@ packages:
 
   '@types/supercluster@7.1.3':
     resolution: {integrity: sha512-Z0pOY34GDFl3Q6hUFYf3HkTwKEE02e7QgtJppBt+beEAxnyOpJua+voGFvxINBHa06GwLFFym7gRPY2SiKIfIA==}
+
+  '@types/use-sync-external-store@0.0.6':
+    resolution: {integrity: sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg==}
 
   '@typescript-eslint/eslint-plugin@8.39.0':
     resolution: {integrity: sha512-bhEz6OZeUR+O/6yx9Jk6ohX6H9JSFTaiY0v9/PuKT3oGK0rn0jNplLmyFUGV+a9gfYnVNwGDwS/UkLIuXNb2Rw==}
@@ -3754,6 +3777,9 @@ packages:
       supports-color:
         optional: true
 
+  decimal.js-light@2.5.1:
+    resolution: {integrity: sha512-qIMFpTMZmny+MMIitAB6D7iVPEorVw6YQRWkvarTkT4tBeSLLiHzcwj6q0MmYSFCiVpiqPJTJEYIrpcPzVEIvg==}
+
   decimal.js@10.5.0:
     resolution: {integrity: sha512-8vDa8Qxvr/+d94hSh5P3IJwI5t8/c0KsMp+g8bNw9cY2icONa5aPfvKeieW1WlG0WQYwwhJ7mjui2xtiePQSXw==}
 
@@ -4031,6 +4057,9 @@ packages:
     resolution: {integrity: sha512-w+5mJ3GuFL+NjVtJlvydShqE1eN3h3PbI7/5LAsYJP/2qtuMXjfL2LpHSRqo4b4eSF5K/DH1JXKUAHSB2UW50g==}
     engines: {node: '>= 0.4'}
 
+  es-toolkit@1.39.10:
+    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
+
   es5-ext@0.10.64:
     resolution: {integrity: sha512-p2snDhiLaXe6dahss1LddxqEm+SkuDvV8dnIQG0MWjyHpcMNfXKPE+/Cc0y+PhxJX3A4xGNeFCj5oc0BUh6deg==}
     engines: {node: '>=0.10'}
@@ -4200,6 +4229,9 @@ packages:
 
   event-emitter@0.3.5:
     resolution: {integrity: sha512-D9rRn9y7kLPnJ+hMq7S/nhvoKwwvVJahBi2BPmx3bvbsEdK3W9ii8cBSGjP+72/LnM4n6fo3+dkCX5FeTQruXA==}
+
+  eventemitter3@5.0.1:
+    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
 
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
@@ -4578,6 +4610,9 @@ packages:
   ignore@7.0.5:
     resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
     engines: {node: '>= 4'}
+
+  immer@10.1.1:
+    resolution: {integrity: sha512-s2MPrmjovJcoMaHtx6K11Ra7oD05NT97w1IC5zpMkT6Atjr7H8LjaDd81iIxUYpMKSRRNMJE703M1Fhr/TctHw==}
 
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
@@ -5565,6 +5600,18 @@ packages:
   react-promise-suspense@0.3.4:
     resolution: {integrity: sha512-I42jl7L3Ze6kZaq+7zXWSunBa3b1on5yfvUW6Eo/3fFOj6dZ5Bqmcd264nJbTK/gn1HjjILAjSwnZbV4RpSaNQ==}
 
+  react-redux@9.2.0:
+    resolution: {integrity: sha512-ROY9fvHhwOD9ySfrF0wmvu//bKCQ6AeZZq1nJNtbDC+kk5DuSuNX/n6YWYF/SYy7bSba4D4FSz8DJeKY/S/r+g==}
+    peerDependencies:
+      '@types/react': 19.0.0
+      react: ^18.0 || ^19
+      redux: ^5.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      redux:
+        optional: true
+
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
     engines: {node: '>=10'}
@@ -5609,6 +5656,22 @@ packages:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
     engines: {node: '>= 14.18.0'}
 
+  recharts@3.1.2:
+    resolution: {integrity: sha512-vhNbYwaxNbk/IATK0Ki29k3qvTkGqwvCgyQAQ9MavvvBwjvKnMTswdbklJpcOAoMPN/qxF3Lyqob0zO+ZXkZ4g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-is: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  redux-thunk@3.1.0:
+    resolution: {integrity: sha512-NW2r5T6ksUKXCabzhL9z+h206HQw/NJkcLm1GPImRQ8IzfXwRGqjVhKJGauHirT0DAuyy6hjdnMZaRoAcy0Klw==}
+    peerDependencies:
+      redux: ^5.0.0
+
+  redux@5.0.1:
+    resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
+
   reflect.getprototypeof@1.0.10:
     resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
     engines: {node: '>= 0.4'}
@@ -5631,6 +5694,9 @@ packages:
 
   regl@2.1.1:
     resolution: {integrity: sha512-+IOGrxl3FZ8ZM9ixCWQZzFRiRn7Rzn9bu3iFHwg/yz4tlOUQgbO4PHLgG+1ZT60zcIV8tief6Qrmyl8qcoJP0g==}
+
+  reselect@5.1.1:
+    resolution: {integrity: sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==}
 
   resolve-from@4.0.0:
     resolution: {integrity: sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g==}
@@ -5987,6 +6053,9 @@ packages:
   through2@2.0.5:
     resolution: {integrity: sha512-/mrRod8xqpA+IHSLyGCQ2s8SPHiCDEeQJSep1jqLYeEUClOFG2Qsh+4FU6G9VeqpZnGW/Su8LQGc4YKni5rYSQ==}
 
+  tiny-invariant@1.3.3:
+    resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
+
   tinycolor2@1.6.0:
     resolution: {integrity: sha512-XPaBkWQJdsf3pLKJV9p4qN/S+fm2Oj8AIPo1BTUhg5oxkvm9+SVEGFdhyOz7tTdUTfvxMiAs4sp6/eZO2Ew+pw==}
 
@@ -6187,6 +6256,9 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  victory-vendor@37.3.6:
+    resolution: {integrity: sha512-SbPDPdDBYp+5MJHhBCAyI7wKM3d5ivekigc2Dk2s7pgbZ9wIgIBYGVw4zGHBml/qTFbexrofXW6Gu4noGxrOwQ==}
 
   vt-pbf@3.1.3:
     resolution: {integrity: sha512-2LzDFzt0mZKZ9IpVF2r69G9bXaP2Q2sArJCmcCgvfTdCCZzSyz4aCLoQyUilu37Ll56tCblIZrXFIjNUpGIlmA==}
@@ -8243,6 +8315,18 @@ snapshots:
     dependencies:
       react: 19.1.0
 
+  '@reduxjs/toolkit@2.8.2(react-redux@9.2.0(@types/react@19.0.0)(react@19.1.0)(redux@5.0.1))(react@19.1.0)':
+    dependencies:
+      '@standard-schema/spec': 1.0.0
+      '@standard-schema/utils': 0.3.0
+      immer: 10.1.1
+      redux: 5.0.1
+      redux-thunk: 3.1.0(redux@5.0.1)
+      reselect: 5.1.1
+    optionalDependencies:
+      react: 19.1.0
+      react-redux: 9.2.0(@types/react@19.0.0)(react@19.1.0)(redux@5.0.1)
+
   '@rtsao/scc@1.1.0': {}
 
   '@rushstack/eslint-patch@1.12.0': {}
@@ -8634,6 +8718,10 @@ snapshots:
 
   '@stablelib/base64@1.0.1': {}
 
+  '@standard-schema/spec@1.0.0': {}
+
+  '@standard-schema/utils@0.3.0': {}
+
   '@swc/counter@0.1.3': {}
 
   '@swc/helpers@0.5.15':
@@ -8961,6 +9049,8 @@ snapshots:
     dependencies:
       '@types/geojson': 7946.0.16
 
+  '@types/use-sync-external-store@0.0.6': {}
+
   '@typescript-eslint/eslint-plugin@8.39.0(@typescript-eslint/parser@8.39.0(eslint@9.32.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.32.0(jiti@2.4.2))(typescript@5.8.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
@@ -9118,13 +9208,13 @@ snapshots:
       valibot: 1.0.0-beta.15(typescript@5.8.3)
     optional: true
 
-  '@xyflow/react@12.8.2(@types/react@19.0.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@xyflow/react@12.8.2(@types/react@19.0.0)(immer@10.1.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@xyflow/system': 0.0.66
       classcat: 5.0.5
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
-      zustand: 4.5.7(@types/react@19.0.0)(react@19.1.0)
+      zustand: 4.5.7(@types/react@19.0.0)(immer@10.1.1)(react@19.1.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -9799,6 +9889,8 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  decimal.js-light@2.5.1: {}
+
   decimal.js@10.5.0: {}
 
   deep-is@0.1.4: {}
@@ -10072,6 +10164,8 @@ snapshots:
       is-callable: 1.2.7
       is-date-object: 1.1.0
       is-symbol: 1.1.1
+
+  es-toolkit@1.39.10: {}
 
   es5-ext@0.10.64:
     dependencies:
@@ -10380,6 +10474,8 @@ snapshots:
     dependencies:
       d: 1.0.2
       es5-ext: 0.10.64
+
+  eventemitter3@5.0.1: {}
 
   events@3.3.0: {}
 
@@ -10801,6 +10897,8 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.5: {}
+
+  immer@10.1.1: {}
 
   import-fresh@3.3.1:
     dependencies:
@@ -11795,6 +11893,15 @@ snapshots:
     dependencies:
       fast-deep-equal: 2.0.1
 
+  react-redux@9.2.0(@types/react@19.0.0)(react@19.1.0)(redux@5.0.1):
+    dependencies:
+      '@types/use-sync-external-store': 0.0.6
+      react: 19.1.0
+      use-sync-external-store: 1.5.0(react@19.1.0)
+    optionalDependencies:
+      '@types/react': 19.0.0
+      redux: 5.0.1
+
   react-remove-scroll-bar@2.3.8(@types/react@19.0.0)(react@19.1.0):
     dependencies:
       react: 19.1.0
@@ -11842,6 +11949,32 @@ snapshots:
       util-deprecate: 1.0.2
 
   readdirp@4.1.2: {}
+
+  recharts@3.1.2(@types/react@19.0.0)(react-dom@19.1.0(react@19.1.0))(react-is@16.13.1)(react@19.1.0)(redux@5.0.1):
+    dependencies:
+      '@reduxjs/toolkit': 2.8.2(react-redux@9.2.0(@types/react@19.0.0)(react@19.1.0)(redux@5.0.1))(react@19.1.0)
+      clsx: 2.1.1
+      decimal.js-light: 2.5.1
+      es-toolkit: 1.39.10
+      eventemitter3: 5.0.1
+      immer: 10.1.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      react-is: 16.13.1
+      react-redux: 9.2.0(@types/react@19.0.0)(react@19.1.0)(redux@5.0.1)
+      reselect: 5.1.1
+      tiny-invariant: 1.3.3
+      use-sync-external-store: 1.5.0(react@19.1.0)
+      victory-vendor: 37.3.6
+    transitivePeerDependencies:
+      - '@types/react'
+      - redux
+
+  redux-thunk@3.1.0(redux@5.0.1):
+    dependencies:
+      redux: 5.0.1
+
+  redux@5.0.1: {}
 
   reflect.getprototypeof@1.0.10:
     dependencies:
@@ -11917,6 +12050,8 @@ snapshots:
       regl-scatter2d: 3.3.1
 
   regl@2.1.1: {}
+
+  reselect@5.1.1: {}
 
   resolve-from@4.0.0: {}
 
@@ -12348,6 +12483,8 @@ snapshots:
       readable-stream: 2.3.8
       xtend: 4.0.2
 
+  tiny-invariant@1.3.3: {}
+
   tinycolor2@1.6.0: {}
 
   tinyglobby@0.2.14:
@@ -12560,6 +12697,23 @@ snapshots:
 
   vary@1.1.2: {}
 
+  victory-vendor@37.3.6:
+    dependencies:
+      '@types/d3-array': 3.2.1
+      '@types/d3-ease': 3.0.2
+      '@types/d3-interpolate': 3.0.4
+      '@types/d3-scale': 4.0.9
+      '@types/d3-shape': 3.1.7
+      '@types/d3-time': 3.0.4
+      '@types/d3-timer': 3.0.2
+      d3-array: 3.2.4
+      d3-ease: 3.0.1
+      d3-interpolate: 3.0.1
+      d3-scale: 4.0.2
+      d3-shape: 3.2.0
+      d3-time: 3.1.0
+      d3-timer: 3.0.1
+
   vt-pbf@3.1.3:
     dependencies:
       '@mapbox/point-geometry': 0.1.0
@@ -12675,9 +12829,10 @@ snapshots:
 
   zod@3.25.48: {}
 
-  zustand@4.5.7(@types/react@19.0.0)(react@19.1.0):
+  zustand@4.5.7(@types/react@19.0.0)(immer@10.1.1)(react@19.1.0):
     dependencies:
       use-sync-external-store: 1.5.0(react@19.1.0)
     optionalDependencies:
       '@types/react': 19.0.0
+      immer: 10.1.1
       react: 19.1.0

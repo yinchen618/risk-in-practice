@@ -4,18 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-	ArrowRight,
-	Building,
-	Database,
-	Filter,
-	Loader2,
-	MapPin,
-} from "lucide-react";
+import { ArrowRight, Building, Database, Loader2, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { D3ParameterChart } from "../../case-study/components/D3ParameterChart";
@@ -36,14 +27,8 @@ interface AnalysisDataset {
 }
 
 interface FilterParams {
-	// Dataset selection - Support multiple dataset selection
+	// Direct dataset selection
 	selectedDatasetIds: string[];
-
-	// Multi-dimensional filtering criteria
-	buildings: string[];
-	floors: string[];
-	rooms: string[];
-	occupantTypes: string[];
 
 	// Value-based anomaly rules
 	zScoreThreshold: number;
@@ -85,14 +70,8 @@ export function Stage1CandidateGeneration({
 	const queryClient = useQueryClient();
 
 	const [filterParams, setFilterParams] = useState<FilterParams>({
-		// Dataset selection - Support multiple dataset selection
+		// Direct dataset selection
 		selectedDatasetIds: [],
-
-		// Multi-dimensional filtering criteria
-		buildings: [],
-		floors: [],
-		rooms: [],
-		occupantTypes: [],
 
 		// Value-based anomaly rules
 		zScoreThreshold: 2.8,
@@ -151,47 +130,123 @@ export function Stage1CandidateGeneration({
 		status: string;
 	} | null>(null);
 
-	// Automatically update selected datasets based on filter criteria
-	useEffect(() => {
-		const filteredDatasets = availableDatasets.filter((dataset) => {
-			const buildingMatch =
-				filterParams.buildings.length === 0 ||
-				filterParams.buildings.includes(dataset.building);
-			const floorMatch =
-				filterParams.floors.length === 0 ||
-				filterParams.floors.includes(dataset.floor);
-			const roomMatch =
-				filterParams.rooms.length === 0 ||
-				filterParams.rooms.includes(dataset.room);
-			const typeMatch =
-				filterParams.occupantTypes.length === 0 ||
-				filterParams.occupantTypes.includes(dataset.occupantType);
-
-			return buildingMatch && floorMatch && roomMatch && typeMatch;
-		});
-
-		const filteredIds = filteredDatasets.map((d) => d.id);
-		if (
-			JSON.stringify(filteredIds.sort()) !==
-			JSON.stringify(filterParams.selectedDatasetIds.sort())
-		) {
-			setFilterParams((prev) => ({
-				...prev,
-				selectedDatasetIds: filteredIds,
-			}));
-		}
-	}, [
-		filterParams.buildings,
-		filterParams.floors,
-		filterParams.rooms,
-		filterParams.occupantTypes,
-		availableDatasets,
-	]);
+	// Selected datasets based on direct selection
+	const selectedDatasets = useMemo(() => {
+		return availableDatasets.filter((dataset) =>
+			filterParams.selectedDatasetIds.includes(dataset.id),
+		);
+	}, [availableDatasets, filterParams.selectedDatasetIds]);
 
 	// Fetch available datasets on component mount
 	useEffect(() => {
 		fetchAvailableDatasets();
 	}, []);
+
+	// Load filtering parameters from ExperimentRun if available
+	// This runs AFTER availableDatasets is loaded to avoid being overwritten
+	useEffect(() => {
+		// Only proceed if we have both filteringParameters and availableDatasets
+		const filteringParamsData = (initialExperimentRun as any)
+			?.filteringParameters;
+
+		if (filteringParamsData && availableDatasets.length > 0) {
+			try {
+				// Handle both string and object formats for compatibility
+				let savedParams: any;
+				if (typeof filteringParamsData === "string") {
+					savedParams = JSON.parse(filteringParamsData);
+				} else {
+					savedParams = filteringParamsData;
+				}
+
+				console.log(
+					"🔍 Loading saved filtering parameters:",
+					savedParams,
+				);
+				console.log(
+					"📊 Available datasets for reference:",
+					availableDatasets.map((d) => ({
+						id: d.id,
+						building: d.building,
+						floor: d.floor,
+						room: d.room,
+						occupantType: d.occupantType,
+					})),
+				);
+
+				// Set the filter parameters from saved data
+				setFilterParams((prev) => {
+					const newParams = {
+						...prev,
+						// Selected datasets - primary filter mechanism
+						selectedDatasetIds:
+							savedParams.selectedDatasetIds || [],
+
+						// Value-based anomaly rules
+						zScoreThreshold:
+							savedParams.zScoreThreshold || prev.zScoreThreshold,
+						spikeThreshold:
+							savedParams.spikeThreshold || prev.spikeThreshold,
+
+						// Time-based anomaly rules
+						minEventDuration:
+							savedParams.minEventDuration ||
+							prev.minEventDuration,
+						weekendPatternEnabled:
+							savedParams.weekendPatternEnabled !== undefined
+								? savedParams.weekendPatternEnabled
+								: prev.weekendPatternEnabled,
+						holidayPatternEnabled:
+							savedParams.holidayPatternEnabled !== undefined
+								? savedParams.holidayPatternEnabled
+								: prev.holidayPatternEnabled,
+
+						// Data integrity rules
+						maxTimeGap: savedParams.maxTimeGap || prev.maxTimeGap,
+
+						// Peer comparison rules
+						aggregationWindow:
+							savedParams.aggregationWindow ||
+							prev.aggregationWindow,
+						peerExceedThreshold:
+							savedParams.peerExceedThreshold ||
+							prev.peerExceedThreshold,
+
+						// Time range
+						startDate: savedParams.startDate || prev.startDate,
+						startTime: savedParams.startTime || prev.startTime,
+						endDate: savedParams.endDate || prev.endDate,
+						endTime: savedParams.endTime || prev.endTime,
+
+						// Building selection
+						buildingA: savedParams.buildingA || prev.buildingA,
+						buildingB: savedParams.buildingB || prev.buildingB,
+					};
+
+					console.log(
+						"✅ Filter parameters loaded from saved data:",
+						{
+							selectedDatasetIds: newParams.selectedDatasetIds,
+							previous: prev.selectedDatasetIds,
+						},
+					);
+
+					return newParams;
+				});
+			} catch (error) {
+				console.error(
+					"❌ Failed to load saved filtering parameters:",
+					error,
+				);
+			}
+		} else {
+			console.log("⚠️ Skipping filter parameter loading:", {
+				hasFilteringParams: !!filteringParamsData,
+				availableDatasetsCount: availableDatasets.length,
+				filteringParamsData,
+			});
+		}
+	}, [initialExperimentRun, availableDatasets]); // Include availableDatasets as dependency
 
 	const fetchAvailableDatasets = async () => {
 		setIsLoadingDatasets(true);
@@ -203,23 +258,22 @@ export function Stage1CandidateGeneration({
 				const datasets = await response.json();
 				setAvailableDatasets(datasets);
 
-				// Auto-select first dataset if available and no filtering criteria set
+				// Only auto-select first dataset if:
+				// 1. No initial experiment run with filtering parameters
+				// 2. No filtering criteria currently set
+				// 3. Datasets are available
+				const hasInitialFilteringParams = (initialExperimentRun as any)
+					?.filteringParameters;
+
 				if (
+					!hasInitialFilteringParams &&
 					datasets.length > 0 &&
-					filterParams.selectedDatasetIds.length === 0 &&
-					filterParams.buildings.length === 0 &&
-					filterParams.floors.length === 0 &&
-					filterParams.rooms.length === 0 &&
-					filterParams.occupantTypes.length === 0
+					filterParams.selectedDatasetIds.length === 0
 				) {
 					const firstDataset = datasets[0];
 					setFilterParams((prev) => ({
 						...prev,
 						selectedDatasetIds: [firstDataset.id],
-						buildings: [firstDataset.building],
-						floors: [firstDataset.floor],
-						rooms: [firstDataset.room],
-						occupantTypes: [firstDataset.occupantType],
 					}));
 				}
 			}
@@ -272,9 +326,12 @@ export function Stage1CandidateGeneration({
 			// Update existing experiment run with preview results
 			const updatedExperimentRun: ExperimentRun = {
 				...experimentRun,
-				name: `Preview - ${data.candidate_count || 0} candidates`,
+				name: `Preview - ${data.candidate_count || 0} candidates from ${data.total_data_pool_size || 0} records`,
 				status: "COMPLETED",
 				candidate_count: data.candidate_count || 0,
+				total_data_pool_size: data.total_data_pool_size || 0,
+				positive_label_count: data.positive_label_count || 0,
+				negative_label_count: data.negative_label_count || 0,
 				updated_at: new Date().toISOString(),
 			};
 
@@ -342,6 +399,9 @@ export function Stage1CandidateGeneration({
 				...experimentRun,
 				status: data.status as "CONFIGURING" | "LABELING" | "COMPLETED", // Use backend returned status
 				candidate_count: data.candidate_count,
+				total_data_pool_size: data.total_data_pool_size || 0,
+				positive_label_count: data.positive_label_count || 0,
+				negative_label_count: data.negative_label_count || 0,
 				updated_at: new Date().toISOString(),
 			};
 
@@ -366,8 +426,12 @@ export function Stage1CandidateGeneration({
 			// Show success message with detailed information
 			const eventsCreated =
 				data.anomaly_events_created || data.candidate_count;
+			const dataPoolInfo = data.data_pool_summary
+				? `\n📊 Total Data Pool: ${data.data_pool_summary.total_pool_size.toLocaleString()} records\n🟢 Positive Labels: ${data.data_pool_summary.positive_labels}\n🔴 Negative Labels: ${data.data_pool_summary.negative_labels}\n📈 Positive Ratio: ${data.data_pool_summary.positive_ratio}%`
+				: "";
+
 			alert(
-				`✅ Successfully created ${eventsCreated} anomaly event labels!\n\n📊 Total candidates: ${data.candidate_count}\n🆔 Experiment ID: ${data.experiment_run_id}\n📍 Datasets processed: ${data.filtered_datasets_count}\n\n🎯 Status: ${data.status} - Ready for labeling phase (Stage 2)`,
+				`✅ Successfully created ${eventsCreated} anomaly event labels!${dataPoolInfo}\n\n🎯 Candidates: ${data.candidate_count}\n🆔 Experiment ID: ${data.experiment_run_id}\n📍 Datasets processed: ${data.filtered_datasets_count}\n\n📍 Status: ${data.status} - Ready for labeling phase (Stage 2)`,
 			);
 
 			// Call onComplete to navigate to Stage 2 when status is LABELING
@@ -398,28 +462,6 @@ export function Stage1CandidateGeneration({
 		}
 	};
 
-	// Calculate selected datasets
-	const selectedDatasets = availableDatasets.filter((d) =>
-		filterParams.selectedDatasetIds.includes(d.id),
-	);
-
-	// Get available filter options - show ALL available options from all datasets
-	const filterOptions = useMemo(() => {
-		// Show all possible options from all available datasets, not just selected ones
-		const buildings = [
-			...new Set(availableDatasets.map((d) => d.building)),
-		].sort();
-		const floors = [
-			...new Set(availableDatasets.map((d) => d.floor)),
-		].sort();
-		const rooms = [...new Set(availableDatasets.map((d) => d.room))].sort();
-		const occupantTypes = [
-			...new Set(availableDatasets.map((d) => d.occupantType)),
-		].sort();
-
-		return { buildings, floors, rooms, occupantTypes };
-	}, [availableDatasets]); // Only depend on availableDatasets, not selected ones
-
 	return (
 		<div className="space-y-6">
 			{/* Page Header */}
@@ -435,232 +477,78 @@ export function Stage1CandidateGeneration({
 				</CardHeader>
 			</Card>
 
-			{/* Multi-Dimensional Dataset Selection */}
+			{/* Direct Dataset Selection */}
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
-						<Filter className="h-5 w-5" />
-						Dataset Selection & Filtering Configuration
+						<Database className="h-5 w-5" />
+						Analysis Dataset Selection
 					</CardTitle>
 					<p className="text-sm text-muted-foreground">
-						Configure spatial and temporal filtering parameters for
-						multi-dimensional anomaly detection
+						Select specific analysis datasets for anomaly candidate
+						generation
 					</p>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					{/* Filter Criteria */}
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-						{/* Building Filter */}
-						<div className="space-y-2">
-							<Label className="text-sm font-medium flex items-center gap-2">
-								<Building className="h-4 w-4" />
-								Building
-							</Label>
-							<div className="space-y-2 max-h-32 overflow-y-auto">
-								{filterOptions.buildings.map((building) => (
-									<div
-										key={building}
-										className="flex items-center space-x-2"
-									>
-										<Checkbox
-											id={`building-${building}`}
-											checked={filterParams.buildings.includes(
-												building,
-											)}
-											onCheckedChange={(checked) => {
-												const newBuildings = checked
-													? [
-															...filterParams.buildings,
-															building,
-														]
-													: filterParams.buildings.filter(
-															(b) =>
-																b !== building,
-														);
-												onFilterParamChange(
-													"buildings",
-													newBuildings,
-												);
-											}}
-										/>
-										<Label
-											htmlFor={`building-${building}`}
-											className="text-sm cursor-pointer"
-										>
-											{building}
-										</Label>
-									</div>
-								))}
-							</div>
+					{/* Selection Summary */}
+					<div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+						<div className="space-y-1">
+							<h4 className="text-sm font-medium text-blue-800">
+								Total Data Pool Configuration
+							</h4>
+							<p className="text-xs text-blue-600">
+								{selectedDatasets.length > 0 ? (
+									<>
+										Combined {selectedDatasets.length}{" "}
+										dataset(s) into total data pool of{" "}
+										{selectedDatasets
+											.reduce(
+												(sum, d) =>
+													sum + d.totalRecords,
+												0,
+											)
+											.toLocaleString()}{" "}
+										records (
+										{selectedDatasets.reduce(
+											(sum, d) => sum + d.positiveLabels,
+											0,
+										)}{" "}
+										positive labels,{" "}
+										{(
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.totalRecords,
+												0,
+											) -
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.positiveLabels,
+												0,
+											)
+										).toLocaleString()}{" "}
+										negative labels)
+									</>
+								) : (
+									<>
+										No datasets selected. Choose from{" "}
+										{availableDatasets.length} available
+										datasets to form your total data pool.
+									</>
+								)}
+							</p>
 						</div>
-
-						{/* Floor Filter */}
-						<div className="space-y-2">
-							<Label className="text-sm font-medium flex items-center gap-2">
-								<MapPin className="h-4 w-4" />
-								Floor
-							</Label>
-							<div className="space-y-2 max-h-32 overflow-y-auto">
-								{filterOptions.floors.map((floor) => (
-									<div
-										key={floor}
-										className="flex items-center space-x-2"
-									>
-										<Checkbox
-											id={`floor-${floor}`}
-											checked={filterParams.floors.includes(
-												floor,
-											)}
-											onCheckedChange={(checked) => {
-												const newFloors = checked
-													? [
-															...filterParams.floors,
-															floor,
-														]
-													: filterParams.floors.filter(
-															(f) => f !== floor,
-														);
-												onFilterParamChange(
-													"floors",
-													newFloors,
-												);
-											}}
-										/>
-										<Label
-											htmlFor={`floor-${floor}`}
-											className="text-sm cursor-pointer"
-										>
-											{floor}
-										</Label>
-									</div>
-								))}
-							</div>
-						</div>
-
-						{/* Room Filter */}
-						<div className="space-y-2">
-							<Label className="text-sm font-medium">Room</Label>
-							<div className="space-y-2 max-h-32 overflow-y-auto">
-								{filterOptions.rooms.map((room) => (
-									<div
-										key={room}
-										className="flex items-center space-x-2"
-									>
-										<Checkbox
-											id={`room-${room}`}
-											checked={filterParams.rooms.includes(
-												room,
-											)}
-											onCheckedChange={(checked) => {
-												const newRooms = checked
-													? [
-															...filterParams.rooms,
-															room,
-														]
-													: filterParams.rooms.filter(
-															(r) => r !== room,
-														);
-												onFilterParamChange(
-													"rooms",
-													newRooms,
-												);
-											}}
-										/>
-										<Label
-											htmlFor={`room-${room}`}
-											className="text-sm cursor-pointer"
-										>
-											{room}
-										</Label>
-									</div>
-								))}
-							</div>
-						</div>
-
-						{/* Occupant Type Filter */}
-						<div className="space-y-2">
-							<Label className="text-sm font-medium">
-								Occupant Type
-							</Label>
-							<div className="space-y-2 max-h-32 overflow-y-auto">
-								{filterOptions.occupantTypes.map((type) => (
-									<div
-										key={type}
-										className="flex items-center space-x-2"
-									>
-										<Checkbox
-											id={`type-${type}`}
-											checked={filterParams.occupantTypes.includes(
-												type,
-											)}
-											onCheckedChange={(checked) => {
-												const newTypes = checked
-													? [
-															...filterParams.occupantTypes,
-															type,
-														]
-													: filterParams.occupantTypes.filter(
-															(t) => t !== type,
-														);
-												onFilterParamChange(
-													"occupantTypes",
-													newTypes,
-												);
-											}}
-										/>
-										<Label
-											htmlFor={`type-${type}`}
-											className="text-sm cursor-pointer"
-										>
-											{type}
-										</Label>
-									</div>
-								))}
-							</div>
-						</div>
-					</div>
-
-					<Separator />
-
-					{/* Filter Results Preview */}
-					<div className="space-y-4">
-						<div className="flex items-center justify-between">
-							<div>
-								<h4 className="text-sm font-medium">
-									Dataset Selection Results
-								</h4>
-								<p className="text-xs text-muted-foreground mt-1">
-									{selectedDatasets.length > 0 ? (
-										<>
-											Selected{" "}
-											{selectedDatasets
-												.reduce(
-													(sum, dataset) =>
-														sum +
-														dataset.totalRecords,
-													0,
-												)
-												.toLocaleString()}{" "}
-											records from{" "}
-											{selectedDatasets.length} of{" "}
-											{availableDatasets.length} available
-											datasets
-										</>
-									) : (
-										<>
-											{availableDatasets.length} datasets
-											available. Please configure
-											filtering criteria above.
-										</>
-									)}
-								</p>
-							</div>
-							<div className="flex items-center gap-2">
-								<Badge variant="outline">
-									{selectedDatasets.length} /{" "}
-									{availableDatasets.length} datasets
-								</Badge>
-								{selectedDatasets.length > 0 && (
+						<div className="flex items-center gap-2">
+							<Badge
+								variant={
+									selectedDatasets.length > 0
+										? "default"
+										: "outline"
+								}
+							>
+								{selectedDatasets.length} dataset(s)
+							</Badge>
+							{selectedDatasets.length > 0 && (
+								<>
 									<Badge variant="secondary">
 										{selectedDatasets
 											.reduce(
@@ -669,105 +557,315 @@ export function Stage1CandidateGeneration({
 												0,
 											)
 											.toLocaleString()}{" "}
-										records
+										total pool
 									</Badge>
-								)}
+									<Badge
+										variant="outline"
+										className="text-orange-600 border-orange-300"
+									>
+										{selectedDatasets.reduce(
+											(sum, d) => sum + d.positiveLabels,
+											0,
+										)}{" "}
+										positive
+									</Badge>
+									<Badge
+										variant="outline"
+										className="text-red-600 border-red-300"
+									>
+										{(
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.totalRecords,
+												0,
+											) -
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.positiveLabels,
+												0,
+											)
+										).toLocaleString()}{" "}
+										negative
+									</Badge>
+								</>
+							)}
+						</div>
+					</div>
+
+					{/* Bulk Selection Controls */}
+					{availableDatasets.length > 0 && (
+						<div className="flex items-center gap-2 pb-2 border-b">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									const allIds = availableDatasets.map(
+										(d) => d.id,
+									);
+									setFilterParams((prev) => ({
+										...prev,
+										selectedDatasetIds: allIds,
+									}));
+								}}
+								disabled={
+									selectedDatasets.length ===
+									availableDatasets.length
+								}
+							>
+								Select All
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setFilterParams((prev) => ({
+										...prev,
+										selectedDatasetIds: [],
+									}));
+								}}
+								disabled={selectedDatasets.length === 0}
+							>
+								Clear All
+							</Button>
+							<div className="text-xs text-gray-500 ml-4">
+								Click individual datasets below to
+								select/deselect
 							</div>
 						</div>
+					)}
 
-						{selectedDatasets.length > 0 ? (
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto">
-								{selectedDatasets.map((dataset) => (
+					{/* Dataset Grid */}
+					{isLoadingDatasets ? (
+						<div className="text-center py-8">
+							<Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+							<p className="text-sm text-gray-600">
+								Loading available datasets...
+							</p>
+						</div>
+					) : availableDatasets.length === 0 ? (
+						<div className="text-center py-8 text-gray-500">
+							<Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+							<div className="space-y-2">
+								<p className="font-medium">
+									No Analysis Datasets Available
+								</p>
+								<p className="text-sm">
+									Please ensure analysis datasets are created
+									and available in the system.
+								</p>
+							</div>
+						</div>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+							{availableDatasets.map((dataset) => {
+								const isSelected =
+									filterParams.selectedDatasetIds.includes(
+										dataset.id,
+									);
+								return (
 									<Card
 										key={dataset.id}
-										className="border border-blue-200 bg-blue-50"
+										className={`cursor-pointer transition-all hover:shadow-md ${
+											isSelected
+												? "border-blue-500 bg-blue-50 shadow-sm"
+												: "border-gray-200 bg-white hover:border-gray-300"
+										}`}
+										onClick={() => {
+											const newSelectedIds = isSelected
+												? filterParams.selectedDatasetIds.filter(
+														(id) =>
+															id !== dataset.id,
+													)
+												: [
+														...filterParams.selectedDatasetIds,
+														dataset.id,
+													];
+											setFilterParams((prev) => ({
+												...prev,
+												selectedDatasetIds:
+													newSelectedIds,
+											}));
+										}}
 									>
 										<CardContent className="p-4">
-											<div className="space-y-2">
-												<div className="text-sm font-medium">
-													{dataset.name}
+											<div className="space-y-3">
+												{/* Header with checkbox */}
+												<div className="flex items-start justify-between">
+													<div className="flex items-center space-x-2">
+														<Checkbox
+															checked={isSelected}
+															className="pointer-events-none"
+														/>
+														<div className="text-sm font-medium">
+															{dataset.name}
+														</div>
+													</div>
+													{isSelected && (
+														<span className="text-green-600 text-sm">
+															✓
+														</span>
+													)}
 												</div>
+
+												{/* Dataset Details */}
 												<div className="text-xs text-gray-600 space-y-1">
-													<div>
-														📍 Location:{" "}
-														{dataset.building} -{" "}
-														{dataset.floor} -{" "}
-														{dataset.room}
+													<div className="flex items-center gap-1">
+														<Building className="h-3 w-3" />
+														<span className="font-medium">
+															Location:
+														</span>
+														<span>
+															{dataset.building} -{" "}
+															{dataset.floor} -{" "}
+															{dataset.room}
+														</span>
 													</div>
-													<div>
-														👥 Occupant Type:{" "}
-														{dataset.occupantType}
+													<div className="flex items-center gap-1">
+														<MapPin className="h-3 w-3" />
+														<span className="font-medium">
+															Type:
+														</span>
+														<span>
+															{
+																dataset.occupantType
+															}
+														</span>
 													</div>
-													<div>
-														📊 Total Records:{" "}
-														{dataset.totalRecords.toLocaleString()}
+													<div className="flex items-center gap-1">
+														<span className="font-medium">
+															Period:
+														</span>
+														<span>
+															{new Date(
+																dataset.startDate,
+															).toLocaleDateString()}{" "}
+															-{" "}
+															{new Date(
+																dataset.endDate,
+															).toLocaleDateString()}
+														</span>
 													</div>
-													<div>
-														⚠️ Known Anomalies:{" "}
-														{dataset.positiveLabels}
+													<div className="flex items-center gap-1">
+														<span className="font-medium">
+															Records:
+														</span>
+														<span className="text-blue-600">
+															{dataset.totalRecords.toLocaleString()}
+														</span>
+													</div>
+													<div className="flex items-center gap-1">
+														<span className="font-medium">
+															Known Anomalies:
+														</span>
+														<span className="text-orange-600">
+															{
+																dataset.positiveLabels
+															}
+														</span>
 													</div>
 												</div>
+
+												{/* Additional Info */}
+												{dataset.description && (
+													<div className="text-xs text-gray-500 italic">
+														{dataset.description}
+													</div>
+												)}
 											</div>
 										</CardContent>
 									</Card>
-								))}
-							</div>
-						) : (
-							<div className="text-center py-8 text-gray-500">
-								<Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-								<div className="space-y-2">
-									<p className="font-medium">
-										No Filtering Criteria Configured
-									</p>
-									<p className="text-sm">
-										Configure spatial and temporal filters
-										above to select datasets for analysis
-									</p>
-									<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-xs">
-										<div className="bg-gray-50 p-2 rounded">
-											<div className="font-medium">
-												Buildings
-											</div>
-											<div>
-												{filterOptions.buildings.length}{" "}
-												available
-											</div>
-										</div>
-										<div className="bg-gray-50 p-2 rounded">
-											<div className="font-medium">
-												Floors
-											</div>
-											<div>
-												{filterOptions.floors.length}{" "}
-												available
-											</div>
-										</div>
-										<div className="bg-gray-50 p-2 rounded">
-											<div className="font-medium">
-												Rooms
-											</div>
-											<div>
-												{filterOptions.rooms.length}{" "}
-												available
-											</div>
-										</div>
-										<div className="bg-gray-50 p-2 rounded">
-											<div className="font-medium">
-												Occupant Types
-											</div>
-											<div>
-												{
-													filterOptions.occupantTypes
-														.length
-												}{" "}
-												available
-											</div>
-										</div>
+								);
+							})}
+						</div>
+					)}
+
+					{/* Selected Datasets Summary */}
+					{selectedDatasets.length > 0 && (
+						<div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+							<h5 className="text-sm font-medium text-gray-800 mb-3">
+								Total Data Pool Summary (
+								{selectedDatasets.length} datasets selected)
+							</h5>
+							<div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
+								<div className="text-center">
+									<div className="font-medium text-blue-600">
+										{selectedDatasets
+											.reduce(
+												(sum, d) =>
+													sum + d.totalRecords,
+												0,
+											)
+											.toLocaleString()}
+									</div>
+									<div className="text-gray-600">
+										Total Data Pool Size
+									</div>
+								</div>
+								<div className="text-center">
+									<div className="font-medium text-orange-600">
+										{selectedDatasets.reduce(
+											(sum, d) => sum + d.positiveLabels,
+											0,
+										)}
+									</div>
+									<div className="text-gray-600">
+										Positive Labels
+									</div>
+								</div>
+								<div className="text-center">
+									<div className="font-medium text-red-600">
+										{(
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.totalRecords,
+												0,
+											) -
+											selectedDatasets.reduce(
+												(sum, d) =>
+													sum + d.positiveLabels,
+												0,
+											)
+										).toLocaleString()}
+									</div>
+									<div className="text-gray-600">
+										Unlabeled Labels
+									</div>
+								</div>
+								<div className="text-center">
+									<div className="font-medium text-green-600">
+										{
+											[
+												...new Set(
+													selectedDatasets.map(
+														(d) => d.building,
+													),
+												),
+											].length
+										}
+									</div>
+									<div className="text-gray-600">
+										Buildings
+									</div>
+								</div>
+								<div className="text-center">
+									<div className="font-medium text-purple-600">
+										{
+											[
+												...new Set(
+													selectedDatasets.map(
+														(d) => d.occupantType,
+													),
+												),
+											].length
+										}
+									</div>
+									<div className="text-gray-600">
+										Occupant Types
 									</div>
 								</div>
 							</div>
-						)}
-					</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 

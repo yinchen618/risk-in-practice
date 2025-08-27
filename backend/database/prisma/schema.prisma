@@ -68,8 +68,9 @@ model ExperimentRun {
     filteringParameters String?        @map("filtering_parameters") // JSON string for SQLite
     status              String         @default("CONFIGURING") @map("status") // "CONFIGURING", "LABELING", "COMPLETED"
     candidateCount      Int?           @map("candidate_count")
+    totalDataPoolSize   Int?           @map("total_data_pool_size") // Total number of all selected dataset records combined
     positiveLabelCount  Int?           @map("positive_label_count")
-    negativeLabelCount  Int?           @map("negative_label_count")
+    negativeLabelCount  Int?           @map("negative_label_count") // Calculated as totalDataPoolSize - positiveLabelCount
     createdAt           DateTime       @default(now()) @map("created_at")
     updatedAt           DateTime       @updatedAt @map("updated_at")
     candidateStats      String?        @map("candidate_stats") // JSON string for SQLite
@@ -150,6 +151,9 @@ model TrainedModel {
     validationMetrics String? @map("validation_metrics") // JSON string with validation metrics
     trainingLogs      String? @map("training_logs") // Detailed training logs
     jobId             String? @map("job_id") // Training job tracking ID
+
+    // 訓練數據詳細信息（JSON 格式）
+    trainingDataInfo String? @map("training_data_info") // JSON with P/U data sources, counts, and split details
 
     // 時間戳記
     createdAt   DateTime  @default(now()) @map("created_at")

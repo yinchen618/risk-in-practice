@@ -19,7 +19,12 @@ import os
 import logging
 import time
 import psutil
+import sys
+import signal
+import threading
 from datetime import datetime
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 from cron_ammeter import start_cron, manual_fetch
 
 # 設置日誌記錄
@@ -29,11 +34,97 @@ logger = logging.getLogger(__name__)
 
 # 全域變數控制 cron 啟動
 ENABLE_CRON = False
+ENABLE_AUTO_RELOAD = False
 
 def set_cron_enabled(enabled: bool):
     """設定 cron 任務啟用狀態"""
     global ENABLE_CRON
     ENABLE_CRON = enabled
+
+def set_auto_reload_enabled(enabled: bool):
+    """設定自動重載啟用狀態"""
+    global ENABLE_AUTO_RELOAD
+    ENABLE_AUTO_RELOAD = enabled
+
+class FileChangeHandler(FileSystemEventHandler):
+    """檔案變更監控處理器"""
+    def __init__(self):
+        self.last_modified = {}
+        self.debounce_time = 1.0  # 防抖時間（秒）
+
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+
+        # 只監控 Python 檔案
+        if not event.src_path.endswith('.py'):
+            return
+
+        # 忽略 __pycache__ 和 .pyc 檔案
+        if '__pycache__' in event.src_path or event.src_path.endswith('.pyc'):
+            return
+
+        current_time = time.time()
+        file_path = event.src_path
+
+        # 防抖：如果檔案在短時間內多次修改，只處理最後一次
+        if file_path in self.last_modified:
+            if current_time - self.last_modified[file_path] < self.debounce_time:
+                return
+
+        self.last_modified[file_path] = current_time
+
+        print(f"\n🔄 檔案變更偵測: {file_path}")
+        print(f"⏰ 時間: {datetime.fromtimestamp(current_time).strftime('%H:%M:%S')}")
+        print("🔄 正在重啟伺服器...")
+
+        # 延遲重啟，給檔案時間完成寫入
+        threading.Timer(0.5, self._restart_server).start()
+
+    def _restart_server(self):
+        """重啟伺服器"""
+        try:
+            # 發送 SIGTERM 信號給當前進程
+            os.kill(os.getpid(), signal.SIGTERM)
+        except Exception as e:
+            print(f"⚠️ 重啟伺服器時發生錯誤: {e}")
+
+def setup_file_watcher():
+    """設置檔案監控"""
+    if not ENABLE_AUTO_RELOAD:
+        return None
+
+    backend_path = os.path.dirname(os.path.abspath(__file__))
+
+    # 要監控的目錄
+    watch_paths = [
+        os.path.join(backend_path, 'routes'),
+        os.path.join(backend_path, 'core'),
+        os.path.join(backend_path, 'coding'),
+        backend_path  # 監控 backend 根目錄的 .py 檔案
+    ]
+
+    # 過濾存在的目錄
+    existing_paths = [path for path in watch_paths if os.path.exists(path)]
+
+    if not existing_paths:
+        print("⚠️ 找不到要監控的目錄，跳過檔案監控設置")
+        return None
+
+    print(f"📁 設置檔案監控:")
+    for path in existing_paths:
+        print(f"   - {path}")
+
+    event_handler = FileChangeHandler()
+    observer = Observer()
+
+    for path in existing_paths:
+        observer.schedule(event_handler, path, recursive=True)
+
+    observer.start()
+    print("👁️ 檔案監控已啟動 (自動重載已開啟)")
+
+    return observer
 
 def find_processes_using_port(port):
     """找到使用指定端口的所有進程"""
@@ -120,9 +211,17 @@ async def lifespan(app: FastAPI):
     else:
         print("Cron 任務已停用")
 
+    # 設置檔案監控（如果啟用）
+    file_observer = setup_file_watcher()
+
     yield
 
     # 關閉時執行
+    if file_observer:
+        print("🛑 停止檔案監控...")
+        file_observer.stop()
+        file_observer.join()
+
     try:
         await cleanup_case_study_v2()
     except Exception as e:
@@ -138,7 +237,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","http://localhost:3001","https://pu-in-practice.vercel.app"],
+    allow_origins=["http://localhost:3000","http://localhost:3001","http://localhost:3003","https://pu-in-practice.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -227,6 +326,11 @@ if __name__ == "__main__":
         help="啟用 cron 任務（預設停用）"
     )
     parser.add_argument(
+        "--auto-reload",
+        action="store_true",
+        help="啟用自動重載，檔案變更時自動重啟（預設停用）"
+    )
+    parser.add_argument(
         "--host",
         default="0.0.0.0",
         help="服務器主機地址（預設: 0.0.0.0）"
@@ -247,6 +351,7 @@ if __name__ == "__main__":
 
     # 設定全域變數
     set_cron_enabled(args.enable_cron)
+    set_auto_reload_enabled(args.auto_reload)
 
     print(f"🎯" + "="*60)
     print(f"🚀 AI 學習平台後端服務")
@@ -255,6 +360,7 @@ if __name__ == "__main__":
     print(f"主機: {args.host}")
     print(f"端口: {args.port}")
     print(f"Cron 任務: {'啟用' if ENABLE_CRON else '停用'}")
+    print(f"自動重載: {'啟用' if ENABLE_AUTO_RELOAD else '停用'}")
     print(f"包含模組: 電表管理, AI 訓練, PU Learning, Case Study v2, Testbed, Coding Assistant")
 
     # 端口清理（除非明確跳過）
@@ -267,7 +373,26 @@ if __name__ == "__main__":
     else:
         print(f"\n⚠️ 跳過端口清理，直接啟動服務器")
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    # 設置信號處理器處理優雅關閉和重啟
+    def signal_handler(signum, frame):
+        print(f"\n📤 收到信號 {signum}")
+        if ENABLE_AUTO_RELOAD and signum == signal.SIGTERM:
+            print("🔄 檔案變更觸發重啟...")
+            # 重新執行當前腳本
+            python = sys.executable
+            os.execv(python, [python] + sys.argv)
+        else:
+            print("🛑 正常關閉服務器...")
+            sys.exit(0)
+
+    # 註冊信號處理器
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    try:
+        uvicorn.run(app, host=args.host, port=args.port)
+    except KeyboardInterrupt:
+        print("\n🛑 用戶中斷，關閉服務器...")
 
 """
 使用方式：
@@ -278,22 +403,33 @@ if __name__ == "__main__":
 2. 啟用 cron 任務
    python3 main.py --enable-cron
 
-3. 自定義主機和端口
+3. 啟用自動重載（檔案變更時自動重啟）
+   python3 main.py --auto-reload
+
+4. 自定義主機和端口
    python3 main.py --host 127.0.0.1 --port 8080
 
-4. 跳過端口清理（快速啟動）
+5. 跳過端口清理（快速啟動）
    python3 main.py --skip-port-cleanup
 
-5. 完整參數
-   python3 main.py --enable-cron --host 0.0.0.0 --port 8000
+6. 完整參數（推薦開發模式）
+   python3 main.py --enable-cron --auto-reload --host 0.0.0.0 --port 8000
 
 參數說明：
 - --enable-cron：啟用 cron 任務（預設停用）
+- --auto-reload：啟用自動重載，檔案變更時自動重啟（預設停用）
 - --host：服務器主機地址（預設：0.0.0.0）
 - --port：服務器端口（預設：8000）
 - --skip-port-cleanup：跳過端口清理，直接啟動（預設會清理端口）
 
 新增功能：
 - 自動端口清理：啟動前自動清理佔用的端口
+- 檔案自動重載：監控 routes/, core/, coding/ 目錄及根目錄的 .py 檔案變更
 - Coding Assistant API：/coding/chat, /coding/health
+
+自動重載功能：
+- 監控目錄：routes/, core/, coding/, backend/
+- 監控檔案類型：.py 檔案
+- 防抖機制：1 秒內的重複變更只觸發一次重啟
+- 優雅重啟：檔案變更後延遲 0.5 秒重啟，確保檔案寫入完成
 """

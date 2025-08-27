@@ -1565,3 +1565,171 @@ async def get_trained_models(run_id: str):
         import traceback
         logger.error(f"Detailed error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to get trained models: {str(e)}")
+
+
+@router.get("/{run_id}/history")
+async def get_experiment_history(run_id: str):
+    """
+    獲取實驗歷史，包括訓練模型和評估結果
+    """
+    try:
+        async with async_session() as session:
+            # 獲取實驗運行基本信息
+            experiment_query = text("""
+                SELECT
+                    id, name, description, status, "filteringParameters",
+                    "candidateCount", "candidateStats", "positiveLabelCount", "negativeLabelCount",
+                    "createdAt", "updatedAt"
+                FROM experiment_run
+                WHERE id = :run_id
+            """)
+
+            experiment_result = await session.execute(experiment_query, {"run_id": run_id})
+            experiment_row = experiment_result.fetchone()
+
+            if not experiment_row:
+                raise HTTPException(status_code=404, detail="Experiment run not found")
+
+            # 獲取訓練模型
+            models_query = text("""
+                SELECT
+                    id, name, status, "scenarioType", "modelType", "modelConfig",
+                    "dataSourceConfig", "modelPath", "trainingMetrics", "validationMetrics",
+                    "trainingLogs", "jobId", "trainingDataInfo", "createdAt", "startedAt", "completedAt"
+                FROM trained_models
+                WHERE "experimentRunId" = :run_id
+                ORDER BY "createdAt" DESC
+            """)
+
+            models_result = await session.execute(models_query, {"run_id": run_id})
+            models_rows = models_result.fetchall()
+
+            trained_models = []
+            evaluation_runs = []
+
+            for model_row in models_rows:
+                # 解析 JSON 字段
+                model_config = None
+                training_metrics = None
+                validation_metrics = None
+                training_data_info = None
+
+                try:
+                    if model_row.modelConfig:
+                        model_config = json.loads(model_row.modelConfig)
+                except:
+                    pass
+
+                try:
+                    if model_row.trainingMetrics:
+                        training_metrics = json.loads(model_row.trainingMetrics)
+                except:
+                    pass
+
+                try:
+                    if model_row.validationMetrics:
+                        validation_metrics = json.loads(model_row.validationMetrics)
+                except:
+                    pass
+
+                try:
+                    if model_row.trainingDataInfo:
+                        training_data_info = json.loads(model_row.trainingDataInfo)
+                except:
+                    pass
+
+                trained_model = {
+                    "id": model_row.id,
+                    "name": model_row.name,
+                    "status": model_row.status,
+                    "scenarioType": model_row.scenarioType,
+                    "modelType": model_row.modelType,
+                    "modelConfig": model_config,
+                    "dataSourceConfig": model_row.dataSourceConfig,
+                    "modelPath": model_row.modelPath,
+                    "trainingMetrics": training_metrics,
+                    "validationMetrics": validation_metrics,
+                    "trainingLogs": model_row.trainingLogs,
+                    "jobId": model_row.jobId,
+                    "trainingDataInfo": training_data_info,
+                    "createdAt": model_row.createdAt.isoformat() if model_row.createdAt else None,
+                    "startedAt": model_row.startedAt.isoformat() if model_row.startedAt else None,
+                    "completedAt": model_row.completedAt.isoformat() if model_row.completedAt else None
+                }
+                trained_models.append(trained_model)
+
+                # 獲取此模型的評估結果
+                eval_query = text("""
+                    SELECT
+                        id, name, "scenarioType", status, "trainedModelId", "testSetSource",
+                        "evaluationMetrics", "jobId", "createdAt", "completedAt"
+                    FROM evaluation_runs
+                    WHERE "trainedModelId" = :model_id
+                    ORDER BY "createdAt" DESC
+                """)
+
+                eval_result = await session.execute(eval_query, {"model_id": model_row.id})
+                eval_rows = eval_result.fetchall()
+
+                for eval_row in eval_rows:
+                    # 解析評估指標 JSON
+                    evaluation_metrics = None
+                    test_set_source = None
+
+                    try:
+                        if eval_row.evaluationMetrics:
+                            evaluation_metrics = json.loads(eval_row.evaluationMetrics)
+                    except:
+                        pass
+
+                    try:
+                        if eval_row.testSetSource:
+                            test_set_source = json.loads(eval_row.testSetSource)
+                    except:
+                        pass
+
+                    evaluation_run = {
+                        "id": eval_row.id,
+                        "name": eval_row.name,
+                        "scenario_type": eval_row.scenarioType,
+                        "status": eval_row.status,
+                        "trained_model_id": eval_row.trainedModelId,
+                        "test_set_source": test_set_source,
+                        "evaluation_metrics": evaluation_metrics,
+                        "job_id": eval_row.jobId,
+                        "created_at": eval_row.createdAt.isoformat() if eval_row.createdAt else None,
+                        "completed_at": eval_row.completedAt.isoformat() if eval_row.completedAt else None
+                    }
+                    evaluation_runs.append(evaluation_run)
+
+            # 構建實驗歷史響應
+            experiment_history = {
+                "experiment_run": {
+                    "id": experiment_row.id,
+                    "name": experiment_row.name,
+                    "description": experiment_row.description,
+                    "status": experiment_row.status,
+                    "filteringParameters": experiment_row.filteringParameters,
+                    "candidateCount": experiment_row.candidateCount,
+                    "positiveLabelCount": experiment_row.positiveLabelCount,
+                    "negativeLabelCount": experiment_row.negativeLabelCount,
+                    "createdAt": experiment_row.createdAt.isoformat() if experiment_row.createdAt else None,
+                    "updatedAt": experiment_row.updatedAt.isoformat() if experiment_row.updatedAt else None
+                },
+                "trained_models": trained_models,
+                "evaluation_runs": evaluation_runs
+            }
+
+            return {
+                "success": True,
+                "data": experiment_history,
+                "message": "Successfully retrieved experiment history"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting experiment history: {e}")
+        import traceback
+        logger.error(f"Detailed error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to get experiment history: {str(e)}")

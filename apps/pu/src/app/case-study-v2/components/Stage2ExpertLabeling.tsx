@@ -793,6 +793,7 @@ export function Stage2ExpertLabeling({
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
+					{/* Candidate Review Statistics */}
 					<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">
@@ -800,6 +801,9 @@ export function Stage2ExpertLabeling({
 							</div>
 							<div className="text-sm text-muted-foreground">
 								Total Candidates
+							</div>
+							<div className="text-xs text-gray-500 mt-1">
+								From total data pool
 							</div>
 						</div>
 						<div className="text-center">
@@ -816,6 +820,9 @@ export function Stage2ExpertLabeling({
 							<div className="text-sm text-muted-foreground">
 								Pending Review
 							</div>
+							<div className="text-xs text-gray-500 mt-1">
+								Need manual labeling
+							</div>
 						</div>
 						<div className="text-center">
 							<div className="text-2xl font-bold text-green-600">
@@ -824,6 +831,9 @@ export function Stage2ExpertLabeling({
 							<div className="text-sm text-muted-foreground">
 								Confirmed Anomalies
 							</div>
+							<div className="text-xs text-gray-500 mt-1">
+								Expert validated positive
+							</div>
 						</div>
 						<div className="text-center">
 							<div className="text-2xl font-bold text-blue-600">
@@ -831,6 +841,9 @@ export function Stage2ExpertLabeling({
 							</div>
 							<div className="text-sm text-muted-foreground">
 								Confirmed Normal
+							</div>
+							<div className="text-xs text-gray-500 mt-1">
+								Expert validated negative
 							</div>
 						</div>
 					</div>
@@ -845,6 +858,32 @@ export function Stage2ExpertLabeling({
 								/ {experimentRun.candidate_count || 0} labeled
 							</Badge>
 						</div>
+						{(experimentRun.total_data_pool_size || 0) > 0 && (
+							<div className="flex items-center justify-between mt-2">
+								<span className="text-sm text-gray-600">
+									Data Pool Coverage:
+								</span>
+								<Badge variant="secondary">
+									{experimentRun.candidate_count || 0}{" "}
+									candidates from{" "}
+									{(
+										experimentRun.total_data_pool_size || 0
+									).toLocaleString()}{" "}
+									total records (
+									{(experimentRun.total_data_pool_size || 0) >
+									0
+										? (
+												((experimentRun.candidate_count ||
+													0) /
+													(experimentRun.total_data_pool_size ||
+														1)) *
+												100
+											).toFixed(3)
+										: 0}
+									%)
+								</Badge>
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>

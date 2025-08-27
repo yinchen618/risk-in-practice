@@ -33,6 +33,7 @@ export interface ExperimentRun {
 	filtering_parameters?: FilteringParameters;
 	status: "CONFIGURING" | "LABELING" | "COMPLETED";
 	candidate_count?: number;
+	total_data_pool_size?: number;
 	positive_label_count?: number;
 	negative_label_count?: number;
 	created_at: string;
@@ -89,7 +90,7 @@ export interface DataSourceConfig {
 export interface TrainedModel {
 	id: string;
 	name: string;
-	scenario_type:
+	scenarioType:
 		| "ERM_BASELINE"
 		| "GENERALIZATION_CHALLENGE"
 		| "DOMAIN_ADAPTATION";
@@ -106,6 +107,43 @@ export interface TrainedModel {
 		total_epochs: number;
 		model_parameters: any;
 		convergence_epoch: number;
+	};
+	training_data_info?: {
+		p_data_sources: {
+			dataset_ids: string[];
+			dataset_info: Record<string, {
+				total_samples: number;
+				train_samples: number;
+				validation_samples: number;
+				test_samples: number;
+			}>;
+			dataset_names: Record<string, string>;
+			total_samples: number;
+			total_train_samples: number;
+			total_validation_samples: number;
+			total_test_samples: number;
+		};
+		u_data_sources: {
+			dataset_ids: string[];
+			dataset_info: Record<string, {
+				total_samples: number;
+				train_samples: number;
+				validation_samples: number;
+				test_samples: number;
+			}>;
+			dataset_names: Record<string, string>;
+			total_samples: number;
+			total_train_samples: number;
+			total_validation_samples: number;
+			total_test_samples: number;
+		};
+		data_split_ratios: {
+			train_ratio: number;
+			validation_ratio: number;
+			test_ratio: number;
+		};
+		overlap_removal: boolean;
+		u_sampling_applied: boolean;
 	};
 	job_id?: string;
 	created_at: string;

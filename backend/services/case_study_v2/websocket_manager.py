@@ -82,6 +82,47 @@ class WebSocketManager:
                 # Remove failed connection
                 self.evaluation_connections[job_id].discard(websocket)
 
+    async def send_training_log(self, job_id: str, data: dict):
+        """Send a structured log message to all connected training job websockets"""
+        import json
+        message = json.dumps(data)
+        await self.broadcast_training_log(job_id, message)
+
+    async def send_evaluation_log(self, job_id: str, data: dict):
+        """Send a structured log message to all connected evaluation job websockets"""
+        import json
+        message = json.dumps(data)
+        await self.broadcast_evaluation_log(job_id, message)
+
+    async def broadcast(self, data: dict):
+        """Broadcast a message to all connected websockets (both training and evaluation)"""
+        import json
+        message = json.dumps(data)
+
+        # Broadcast to all training connections
+        all_training_connections = set()
+        for connections in self.training_connections.values():
+            all_training_connections.update(connections)
+
+        # Broadcast to all evaluation connections
+        all_evaluation_connections = set()
+        for connections in self.evaluation_connections.values():
+            all_evaluation_connections.update(connections)
+
+        # Combine all connections and remove duplicates
+        all_connections = all_training_connections.union(all_evaluation_connections)
+
+        for websocket in all_connections:
+            try:
+                await websocket.send_text(message)
+            except Exception as e:
+                logger.error(f"Error broadcasting message to websocket: {e}")
+                # Remove failed connections from all collections
+                for job_connections in self.training_connections.values():
+                    job_connections.discard(websocket)
+                for job_connections in self.evaluation_connections.values():
+                    job_connections.discard(websocket)
+
     def get_training_connection_count(self, job_id: str) -> int:
         """Get the number of active connections for a training job"""
         return len(self.training_connections.get(job_id, set()))

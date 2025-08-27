@@ -20,7 +20,7 @@ import { ExperimentRunSelector } from "./components/ExperimentRunSelector";
 import { Stage1CandidateGeneration } from "./components/Stage1CandidateGeneration";
 import { Stage2ExpertLabeling } from "./components/Stage2ExpertLabeling";
 import { Stage3TrainingWorkbench } from "./components/Stage3TrainingWorkbench";
-import { Stage4ResultsAnalysis } from "./components/Stage4ResultsAnalysis";
+import Stage4ResultsAnalysis from "./components/Stage4ResultsAnalysis";
 
 import { useExperimentHistory } from "./hooks/useExperimentHistory";
 import { useExperimentRun } from "./hooks/useExperimentRun";
@@ -37,6 +37,7 @@ export default function CaseStudyV2Page() {
 		data: selectedRun,
 		isLoading: runLoading,
 		error: runError,
+		refetch: refetchExperimentRun,
 	} = useExperimentRun(selectedRunId !== "new" ? selectedRunId : undefined);
 	const { data: history, isLoading: historyLoading } = useExperimentHistory(
 		selectedRunId !== "new" ? selectedRunId : undefined,
@@ -64,6 +65,11 @@ export default function CaseStudyV2Page() {
 	const handleStageChange = (newStage: string) => {
 		setActiveStage(newStage);
 		updateURL(selectedRunId, newStage);
+
+		// Refetch experiment data to ensure UI reflects latest status
+		if (selectedRunId !== "new" && refetchExperimentRun) {
+			refetchExperimentRun();
+		}
 	};
 
 	// Auto-navigate based on experiment status
@@ -321,10 +327,9 @@ export default function CaseStudyV2Page() {
 					</TabsContent>
 
 					<TabsContent value="stage-4" className="space-y-4">
-						{selectedRun && (
+						{selectedRun && history && (
 							<Stage4ResultsAnalysis
-								experimentRun={selectedRun}
-								history={history}
+								experiments={[history]}
 							/>
 						)}
 					</TabsContent>

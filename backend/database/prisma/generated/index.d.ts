@@ -4431,12 +4431,14 @@ export namespace Prisma {
 
   export type ExperimentRunAvgAggregateOutputType = {
     candidateCount: number | null
+    totalDataPoolSize: number | null
     positiveLabelCount: number | null
     negativeLabelCount: number | null
   }
 
   export type ExperimentRunSumAggregateOutputType = {
     candidateCount: number | null
+    totalDataPoolSize: number | null
     positiveLabelCount: number | null
     negativeLabelCount: number | null
   }
@@ -4448,6 +4450,7 @@ export namespace Prisma {
     filteringParameters: string | null
     status: string | null
     candidateCount: number | null
+    totalDataPoolSize: number | null
     positiveLabelCount: number | null
     negativeLabelCount: number | null
     createdAt: Date | null
@@ -4462,6 +4465,7 @@ export namespace Prisma {
     filteringParameters: string | null
     status: string | null
     candidateCount: number | null
+    totalDataPoolSize: number | null
     positiveLabelCount: number | null
     negativeLabelCount: number | null
     createdAt: Date | null
@@ -4476,6 +4480,7 @@ export namespace Prisma {
     filteringParameters: number
     status: number
     candidateCount: number
+    totalDataPoolSize: number
     positiveLabelCount: number
     negativeLabelCount: number
     createdAt: number
@@ -4487,12 +4492,14 @@ export namespace Prisma {
 
   export type ExperimentRunAvgAggregateInputType = {
     candidateCount?: true
+    totalDataPoolSize?: true
     positiveLabelCount?: true
     negativeLabelCount?: true
   }
 
   export type ExperimentRunSumAggregateInputType = {
     candidateCount?: true
+    totalDataPoolSize?: true
     positiveLabelCount?: true
     negativeLabelCount?: true
   }
@@ -4504,6 +4511,7 @@ export namespace Prisma {
     filteringParameters?: true
     status?: true
     candidateCount?: true
+    totalDataPoolSize?: true
     positiveLabelCount?: true
     negativeLabelCount?: true
     createdAt?: true
@@ -4518,6 +4526,7 @@ export namespace Prisma {
     filteringParameters?: true
     status?: true
     candidateCount?: true
+    totalDataPoolSize?: true
     positiveLabelCount?: true
     negativeLabelCount?: true
     createdAt?: true
@@ -4532,6 +4541,7 @@ export namespace Prisma {
     filteringParameters?: true
     status?: true
     candidateCount?: true
+    totalDataPoolSize?: true
     positiveLabelCount?: true
     negativeLabelCount?: true
     createdAt?: true
@@ -4633,6 +4643,7 @@ export namespace Prisma {
     filteringParameters: string | null
     status: string
     candidateCount: number | null
+    totalDataPoolSize: number | null
     positiveLabelCount: number | null
     negativeLabelCount: number | null
     createdAt: Date
@@ -4666,6 +4677,7 @@ export namespace Prisma {
     filteringParameters?: boolean
     status?: boolean
     candidateCount?: boolean
+    totalDataPoolSize?: boolean
     positiveLabelCount?: boolean
     negativeLabelCount?: boolean
     createdAt?: boolean
@@ -4683,6 +4695,7 @@ export namespace Prisma {
     filteringParameters?: boolean
     status?: boolean
     candidateCount?: boolean
+    totalDataPoolSize?: boolean
     positiveLabelCount?: boolean
     negativeLabelCount?: boolean
     createdAt?: boolean
@@ -4697,6 +4710,7 @@ export namespace Prisma {
     filteringParameters?: boolean
     status?: boolean
     candidateCount?: boolean
+    totalDataPoolSize?: boolean
     positiveLabelCount?: boolean
     negativeLabelCount?: boolean
     createdAt?: boolean
@@ -4711,6 +4725,7 @@ export namespace Prisma {
     filteringParameters?: boolean
     status?: boolean
     candidateCount?: boolean
+    totalDataPoolSize?: boolean
     positiveLabelCount?: boolean
     negativeLabelCount?: boolean
     createdAt?: boolean
@@ -4718,7 +4733,7 @@ export namespace Prisma {
     candidateStats?: boolean
   }
 
-  export type ExperimentRunOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "filteringParameters" | "status" | "candidateCount" | "positiveLabelCount" | "negativeLabelCount" | "createdAt" | "updatedAt" | "candidateStats", ExtArgs["result"]["experimentRun"]>
+  export type ExperimentRunOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "filteringParameters" | "status" | "candidateCount" | "totalDataPoolSize" | "positiveLabelCount" | "negativeLabelCount" | "createdAt" | "updatedAt" | "candidateStats", ExtArgs["result"]["experimentRun"]>
   export type ExperimentRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     anomalyEvents?: boolean | ExperimentRun$anomalyEventsArgs<ExtArgs>
     trainedModels?: boolean | ExperimentRun$trainedModelsArgs<ExtArgs>
@@ -4740,6 +4755,7 @@ export namespace Prisma {
       filteringParameters: string | null
       status: string
       candidateCount: number | null
+      totalDataPoolSize: number | null
       positiveLabelCount: number | null
       negativeLabelCount: number | null
       createdAt: Date
@@ -5176,6 +5192,7 @@ export namespace Prisma {
     readonly filteringParameters: FieldRef<"ExperimentRun", 'String'>
     readonly status: FieldRef<"ExperimentRun", 'String'>
     readonly candidateCount: FieldRef<"ExperimentRun", 'Int'>
+    readonly totalDataPoolSize: FieldRef<"ExperimentRun", 'Int'>
     readonly positiveLabelCount: FieldRef<"ExperimentRun", 'Int'>
     readonly negativeLabelCount: FieldRef<"ExperimentRun", 'Int'>
     readonly createdAt: FieldRef<"ExperimentRun", 'DateTime'>
@@ -9065,6 +9082,7 @@ export namespace Prisma {
     validationMetrics: string | null
     trainingLogs: string | null
     jobId: string | null
+    trainingDataInfo: string | null
     createdAt: Date | null
     startedAt: Date | null
     completedAt: Date | null
@@ -9083,6 +9101,7 @@ export namespace Prisma {
     validationMetrics: string | null
     trainingLogs: string | null
     jobId: string | null
+    trainingDataInfo: string | null
     createdAt: Date | null
     startedAt: Date | null
     completedAt: Date | null
@@ -9101,6 +9120,7 @@ export namespace Prisma {
     validationMetrics: number
     trainingLogs: number
     jobId: number
+    trainingDataInfo: number
     createdAt: number
     startedAt: number
     completedAt: number
@@ -9121,6 +9141,7 @@ export namespace Prisma {
     validationMetrics?: true
     trainingLogs?: true
     jobId?: true
+    trainingDataInfo?: true
     createdAt?: true
     startedAt?: true
     completedAt?: true
@@ -9139,6 +9160,7 @@ export namespace Prisma {
     validationMetrics?: true
     trainingLogs?: true
     jobId?: true
+    trainingDataInfo?: true
     createdAt?: true
     startedAt?: true
     completedAt?: true
@@ -9157,6 +9179,7 @@ export namespace Prisma {
     validationMetrics?: true
     trainingLogs?: true
     jobId?: true
+    trainingDataInfo?: true
     createdAt?: true
     startedAt?: true
     completedAt?: true
@@ -9248,6 +9271,7 @@ export namespace Prisma {
     validationMetrics: string | null
     trainingLogs: string | null
     jobId: string | null
+    trainingDataInfo: string | null
     createdAt: Date
     startedAt: Date | null
     completedAt: Date | null
@@ -9283,6 +9307,7 @@ export namespace Prisma {
     validationMetrics?: boolean
     trainingLogs?: boolean
     jobId?: boolean
+    trainingDataInfo?: boolean
     createdAt?: boolean
     startedAt?: boolean
     completedAt?: boolean
@@ -9304,6 +9329,7 @@ export namespace Prisma {
     validationMetrics?: boolean
     trainingLogs?: boolean
     jobId?: boolean
+    trainingDataInfo?: boolean
     createdAt?: boolean
     startedAt?: boolean
     completedAt?: boolean
@@ -9323,6 +9349,7 @@ export namespace Prisma {
     validationMetrics?: boolean
     trainingLogs?: boolean
     jobId?: boolean
+    trainingDataInfo?: boolean
     createdAt?: boolean
     startedAt?: boolean
     completedAt?: boolean
@@ -9342,12 +9369,13 @@ export namespace Prisma {
     validationMetrics?: boolean
     trainingLogs?: boolean
     jobId?: boolean
+    trainingDataInfo?: boolean
     createdAt?: boolean
     startedAt?: boolean
     completedAt?: boolean
   }
 
-  export type TrainedModelOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "scenarioType" | "status" | "experimentRunId" | "modelConfig" | "dataSourceConfig" | "modelPath" | "trainingMetrics" | "validationMetrics" | "trainingLogs" | "jobId" | "createdAt" | "startedAt" | "completedAt", ExtArgs["result"]["trainedModel"]>
+  export type TrainedModelOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "scenarioType" | "status" | "experimentRunId" | "modelConfig" | "dataSourceConfig" | "modelPath" | "trainingMetrics" | "validationMetrics" | "trainingLogs" | "jobId" | "trainingDataInfo" | "createdAt" | "startedAt" | "completedAt", ExtArgs["result"]["trainedModel"]>
   export type TrainedModelInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     experimentRun?: boolean | ExperimentRunDefaultArgs<ExtArgs>
     evaluationRuns?: boolean | TrainedModel$evaluationRunsArgs<ExtArgs>
@@ -9379,6 +9407,7 @@ export namespace Prisma {
       validationMetrics: string | null
       trainingLogs: string | null
       jobId: string | null
+      trainingDataInfo: string | null
       createdAt: Date
       startedAt: Date | null
       completedAt: Date | null
@@ -9819,6 +9848,7 @@ export namespace Prisma {
     readonly validationMetrics: FieldRef<"TrainedModel", 'String'>
     readonly trainingLogs: FieldRef<"TrainedModel", 'String'>
     readonly jobId: FieldRef<"TrainedModel", 'String'>
+    readonly trainingDataInfo: FieldRef<"TrainedModel", 'String'>
     readonly createdAt: FieldRef<"TrainedModel", 'DateTime'>
     readonly startedAt: FieldRef<"TrainedModel", 'DateTime'>
     readonly completedAt: FieldRef<"TrainedModel", 'DateTime'>
@@ -15011,6 +15041,7 @@ export namespace Prisma {
     filteringParameters: 'filteringParameters',
     status: 'status',
     candidateCount: 'candidateCount',
+    totalDataPoolSize: 'totalDataPoolSize',
     positiveLabelCount: 'positiveLabelCount',
     negativeLabelCount: 'negativeLabelCount',
     createdAt: 'createdAt',
@@ -15077,6 +15108,7 @@ export namespace Prisma {
     validationMetrics: 'validationMetrics',
     trainingLogs: 'trainingLogs',
     jobId: 'jobId',
+    trainingDataInfo: 'trainingDataInfo',
     createdAt: 'createdAt',
     startedAt: 'startedAt',
     completedAt: 'completedAt'
@@ -15422,6 +15454,7 @@ export namespace Prisma {
     filteringParameters?: StringNullableFilter<"ExperimentRun"> | string | null
     status?: StringFilter<"ExperimentRun"> | string
     candidateCount?: IntNullableFilter<"ExperimentRun"> | number | null
+    totalDataPoolSize?: IntNullableFilter<"ExperimentRun"> | number | null
     positiveLabelCount?: IntNullableFilter<"ExperimentRun"> | number | null
     negativeLabelCount?: IntNullableFilter<"ExperimentRun"> | number | null
     createdAt?: DateTimeFilter<"ExperimentRun"> | Date | string
@@ -15438,6 +15471,7 @@ export namespace Prisma {
     filteringParameters?: SortOrderInput | SortOrder
     status?: SortOrder
     candidateCount?: SortOrderInput | SortOrder
+    totalDataPoolSize?: SortOrderInput | SortOrder
     positiveLabelCount?: SortOrderInput | SortOrder
     negativeLabelCount?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -15457,6 +15491,7 @@ export namespace Prisma {
     filteringParameters?: StringNullableFilter<"ExperimentRun"> | string | null
     status?: StringFilter<"ExperimentRun"> | string
     candidateCount?: IntNullableFilter<"ExperimentRun"> | number | null
+    totalDataPoolSize?: IntNullableFilter<"ExperimentRun"> | number | null
     positiveLabelCount?: IntNullableFilter<"ExperimentRun"> | number | null
     negativeLabelCount?: IntNullableFilter<"ExperimentRun"> | number | null
     createdAt?: DateTimeFilter<"ExperimentRun"> | Date | string
@@ -15473,6 +15508,7 @@ export namespace Prisma {
     filteringParameters?: SortOrderInput | SortOrder
     status?: SortOrder
     candidateCount?: SortOrderInput | SortOrder
+    totalDataPoolSize?: SortOrderInput | SortOrder
     positiveLabelCount?: SortOrderInput | SortOrder
     negativeLabelCount?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -15495,6 +15531,7 @@ export namespace Prisma {
     filteringParameters?: StringNullableWithAggregatesFilter<"ExperimentRun"> | string | null
     status?: StringWithAggregatesFilter<"ExperimentRun"> | string
     candidateCount?: IntNullableWithAggregatesFilter<"ExperimentRun"> | number | null
+    totalDataPoolSize?: IntNullableWithAggregatesFilter<"ExperimentRun"> | number | null
     positiveLabelCount?: IntNullableWithAggregatesFilter<"ExperimentRun"> | number | null
     negativeLabelCount?: IntNullableWithAggregatesFilter<"ExperimentRun"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"ExperimentRun"> | Date | string
@@ -15745,6 +15782,7 @@ export namespace Prisma {
     validationMetrics?: StringNullableFilter<"TrainedModel"> | string | null
     trainingLogs?: StringNullableFilter<"TrainedModel"> | string | null
     jobId?: StringNullableFilter<"TrainedModel"> | string | null
+    trainingDataInfo?: StringNullableFilter<"TrainedModel"> | string | null
     createdAt?: DateTimeFilter<"TrainedModel"> | Date | string
     startedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
@@ -15765,6 +15803,7 @@ export namespace Prisma {
     validationMetrics?: SortOrderInput | SortOrder
     trainingLogs?: SortOrderInput | SortOrder
     jobId?: SortOrderInput | SortOrder
+    trainingDataInfo?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     startedAt?: SortOrderInput | SortOrder
     completedAt?: SortOrderInput | SortOrder
@@ -15788,6 +15827,7 @@ export namespace Prisma {
     validationMetrics?: StringNullableFilter<"TrainedModel"> | string | null
     trainingLogs?: StringNullableFilter<"TrainedModel"> | string | null
     jobId?: StringNullableFilter<"TrainedModel"> | string | null
+    trainingDataInfo?: StringNullableFilter<"TrainedModel"> | string | null
     createdAt?: DateTimeFilter<"TrainedModel"> | Date | string
     startedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
@@ -15808,6 +15848,7 @@ export namespace Prisma {
     validationMetrics?: SortOrderInput | SortOrder
     trainingLogs?: SortOrderInput | SortOrder
     jobId?: SortOrderInput | SortOrder
+    trainingDataInfo?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     startedAt?: SortOrderInput | SortOrder
     completedAt?: SortOrderInput | SortOrder
@@ -15832,6 +15873,7 @@ export namespace Prisma {
     validationMetrics?: StringNullableWithAggregatesFilter<"TrainedModel"> | string | null
     trainingLogs?: StringNullableWithAggregatesFilter<"TrainedModel"> | string | null
     jobId?: StringNullableWithAggregatesFilter<"TrainedModel"> | string | null
+    trainingDataInfo?: StringNullableWithAggregatesFilter<"TrainedModel"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"TrainedModel"> | Date | string
     startedAt?: DateTimeNullableWithAggregatesFilter<"TrainedModel"> | Date | string | null
     completedAt?: DateTimeNullableWithAggregatesFilter<"TrainedModel"> | Date | string | null
@@ -16451,6 +16493,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -16467,6 +16510,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -16483,6 +16527,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -16499,6 +16544,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -16515,6 +16561,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -16529,6 +16576,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -16543,6 +16591,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -16804,6 +16853,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -16824,6 +16874,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -16842,6 +16893,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -16862,6 +16914,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -16881,6 +16934,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -16898,6 +16952,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -16916,6 +16971,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -17702,6 +17758,7 @@ export namespace Prisma {
     filteringParameters?: SortOrder
     status?: SortOrder
     candidateCount?: SortOrder
+    totalDataPoolSize?: SortOrder
     positiveLabelCount?: SortOrder
     negativeLabelCount?: SortOrder
     createdAt?: SortOrder
@@ -17711,6 +17768,7 @@ export namespace Prisma {
 
   export type ExperimentRunAvgOrderByAggregateInput = {
     candidateCount?: SortOrder
+    totalDataPoolSize?: SortOrder
     positiveLabelCount?: SortOrder
     negativeLabelCount?: SortOrder
   }
@@ -17722,6 +17780,7 @@ export namespace Prisma {
     filteringParameters?: SortOrder
     status?: SortOrder
     candidateCount?: SortOrder
+    totalDataPoolSize?: SortOrder
     positiveLabelCount?: SortOrder
     negativeLabelCount?: SortOrder
     createdAt?: SortOrder
@@ -17736,6 +17795,7 @@ export namespace Prisma {
     filteringParameters?: SortOrder
     status?: SortOrder
     candidateCount?: SortOrder
+    totalDataPoolSize?: SortOrder
     positiveLabelCount?: SortOrder
     negativeLabelCount?: SortOrder
     createdAt?: SortOrder
@@ -17745,6 +17805,7 @@ export namespace Prisma {
 
   export type ExperimentRunSumOrderByAggregateInput = {
     candidateCount?: SortOrder
+    totalDataPoolSize?: SortOrder
     positiveLabelCount?: SortOrder
     negativeLabelCount?: SortOrder
   }
@@ -17958,6 +18019,7 @@ export namespace Prisma {
     validationMetrics?: SortOrder
     trainingLogs?: SortOrder
     jobId?: SortOrder
+    trainingDataInfo?: SortOrder
     createdAt?: SortOrder
     startedAt?: SortOrder
     completedAt?: SortOrder
@@ -17976,6 +18038,7 @@ export namespace Prisma {
     validationMetrics?: SortOrder
     trainingLogs?: SortOrder
     jobId?: SortOrder
+    trainingDataInfo?: SortOrder
     createdAt?: SortOrder
     startedAt?: SortOrder
     completedAt?: SortOrder
@@ -17994,6 +18057,7 @@ export namespace Prisma {
     validationMetrics?: SortOrder
     trainingLogs?: SortOrder
     jobId?: SortOrder
+    trainingDataInfo?: SortOrder
     createdAt?: SortOrder
     startedAt?: SortOrder
     completedAt?: SortOrder
@@ -19323,6 +19387,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -19341,6 +19406,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -19404,6 +19470,7 @@ export namespace Prisma {
     validationMetrics?: StringNullableFilter<"TrainedModel"> | string | null
     trainingLogs?: StringNullableFilter<"TrainedModel"> | string | null
     jobId?: StringNullableFilter<"TrainedModel"> | string | null
+    trainingDataInfo?: StringNullableFilter<"TrainedModel"> | string | null
     createdAt?: DateTimeFilter<"TrainedModel"> | Date | string
     startedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
     completedAt?: DateTimeNullableFilter<"TrainedModel"> | Date | string | null
@@ -19457,6 +19524,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -19472,6 +19540,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -19571,6 +19640,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19586,6 +19656,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19804,6 +19875,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -19819,6 +19891,7 @@ export namespace Prisma {
     filteringParameters?: string | null
     status?: string
     candidateCount?: number | null
+    totalDataPoolSize?: number | null
     positiveLabelCount?: number | null
     negativeLabelCount?: number | null
     createdAt?: Date | string
@@ -19885,6 +19958,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19900,6 +19974,7 @@ export namespace Prisma {
     filteringParameters?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     candidateCount?: NullableIntFieldUpdateOperationsInput | number | null
+    totalDataPoolSize?: NullableIntFieldUpdateOperationsInput | number | null
     positiveLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     negativeLabelCount?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19952,6 +20027,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -19971,6 +20047,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -20027,6 +20104,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -20046,6 +20124,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -20302,6 +20381,7 @@ export namespace Prisma {
     validationMetrics?: string | null
     trainingLogs?: string | null
     jobId?: string | null
+    trainingDataInfo?: string | null
     createdAt?: Date | string
     startedAt?: Date | string | null
     completedAt?: Date | string | null
@@ -20375,6 +20455,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -20393,6 +20474,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -20411,6 +20493,7 @@ export namespace Prisma {
     validationMetrics?: NullableStringFieldUpdateOperationsInput | string | null
     trainingLogs?: NullableStringFieldUpdateOperationsInput | string | null
     jobId?: NullableStringFieldUpdateOperationsInput | string | null
+    trainingDataInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
