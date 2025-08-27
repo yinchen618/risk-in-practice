@@ -30,14 +30,14 @@ const corePages = [
 		description: "Smart residential IoT data collection platform",
 		icon: Network,
 	},
+	// {
+	// 	name: "Case Study",
+	// 	href: "/case-study",
+	// 	description: "Applying PU Learning to real-world IoT anomaly detection",
+	// 	icon: FlaskConical,
+	// },
 	{
 		name: "Case Study",
-		href: "/case-study",
-		description: "Applying PU Learning to real-world IoT anomaly detection",
-		icon: FlaskConical,
-	},
-	{
-		name: "Case Study v2",
 		href: "/case-study-v2",
 		description: "Advanced PU Learning experimental workbench",
 		icon: FlaskConical,
