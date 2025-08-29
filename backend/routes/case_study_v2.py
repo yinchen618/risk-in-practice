@@ -11,7 +11,7 @@ All datetime fields in SQLite database MUST use the following format:
 ==========================================
 """
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends
 from typing import List, Dict, Any, Optional
 import asyncio
 import json
@@ -34,13 +34,22 @@ model_trainer = None
 model_evaluator = None
 websocket_manager = None
 
+def get_model_evaluator():
+    """Dependency injection for model evaluator"""
+    if model_evaluator is None:
+        raise HTTPException(status_code=503, detail="Case Study v2 services not initialized")
+    return model_evaluator
+
 def get_current_datetime():
     """
-    Returns current datetime in SQLite-compatible format
+    Returns current datetime in Taiwan timezone (UTC+8) in SQLite-compatible format
     Format: 'YYYY-MM-DD HH:MM:SS' (e.g., '2025-08-25 23:20:34')
     """
     from datetime import datetime
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    import pytz
+    taiwan_tz = pytz.timezone('Asia/Taipei')
+    taiwan_time = datetime.now(taiwan_tz)
+    return taiwan_time.strftime('%Y-%m-%d %H:%M:%S')
 
 def update_analysis_dataset_positive_labels(cursor, dataset_id):
     """
@@ -2256,13 +2265,13 @@ async def start_training_job(request: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @case_study_v2_router.post("/evaluation-jobs")
-async def start_evaluation_job(request: dict):
-    """Starts a new model evaluation job"""
+async def start_evaluation_job(
+    request: dict,  # We'll update this to use Pydantic model later
+    background_tasks: BackgroundTasks,
+    evaluator: Any = Depends(get_model_evaluator)
+):
+    """Starts a new model evaluation job as a background task"""
     try:
-        # 直接使用主資料庫創建評估作業
-        import sqlite3
-        import json
-
         # 解析請求參數
         evaluation_name = request.get("evaluation_name")
         scenario_type = request.get("scenario_type")
@@ -2274,6 +2283,11 @@ async def start_evaluation_job(request: dict):
 
         # 生成作業 ID
         job_id = str(uuid.uuid4())
+        evaluation_run_id = str(uuid.uuid4())
+
+        # 直接使用主資料庫創建評估作業
+        import sqlite3
+        import json
 
         # 連接到主資料庫
         db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
@@ -2288,7 +2302,6 @@ async def start_evaluation_job(request: dict):
 
         # 創建評估運行記錄
         current_timestamp = get_current_datetime()
-        evaluation_run_id = str(uuid.uuid4())
 
         cursor.execute('''
             INSERT INTO evaluation_runs
@@ -2299,7 +2312,7 @@ async def start_evaluation_job(request: dict):
             evaluation_run_id,
             evaluation_name,
             scenario_type,
-            "PENDING",
+            "RUNNING",  # Changed from PENDING to RUNNING
             trained_model_id,
             json.dumps(test_set_source),
             current_timestamp,
@@ -2309,16 +2322,31 @@ async def start_evaluation_job(request: dict):
         conn.commit()
         conn.close()
 
-        # 注意：實際的評估邏輯需要額外實現
-        # 這裡只是創建記錄，實際評估需要背景任務
-        logger.info(f"Evaluation job {job_id} created for evaluation {evaluation_name}")
-        logger.warning("Actual model evaluation implementation is not available - job created in PENDING status")
+        # 【關鍵變更】將實際的評估工作添加到背景任務
+        # Create a mock config object for the evaluator
+        class MockConfig:
+            def __init__(self, evaluation_name, scenario_type, trained_model_id, test_set_source):
+                self.evaluation_name = evaluation_name
+                self.scenario_type = scenario_type
+                self.trained_model_id = trained_model_id
+                self.test_set_source = test_set_source
+
+        config = MockConfig(evaluation_name, scenario_type, trained_model_id, test_set_source)
+
+        background_tasks.add_task(
+            evaluator.evaluate_model,
+            job_id=job_id,
+            evaluation_run_id=evaluation_run_id,
+            config=config
+        )
+
+        logger.info(f"Evaluation job {job_id} for evaluation '{evaluation_name}' has been successfully scheduled.")
 
         return {
             "job_id": job_id,
             "evaluation_run_id": evaluation_run_id,
-            "status": "PENDING",
-            "message": "Evaluation job created successfully (actual evaluation requires case-study-v2 modules)"
+            "status": "RUNNING",  # Changed from PENDING
+            "message": "Evaluation job has been scheduled and is running in the background."
         }
 
     except HTTPException:
@@ -2643,79 +2671,6 @@ async def get_evaluation_run(run_id: str):
         logger.error(f"Error fetching evaluation run {run_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ========== WebSocket Routes ==========
-
-@case_study_v2_router.websocket("/training-jobs/{job_id}/logs")
-async def training_logs_websocket(websocket: WebSocket, job_id: str):
-    """Streams real-time logs for a specific training job"""
-    logger.info(f"🔗 收到訓練作業 WebSocket 連接請求 | Received training job WebSocket connection request for job: {job_id}")
-
-    if not websocket_manager:
-        logger.error(f"❌ WebSocket 管理器未初始化 | WebSocket manager not initialized")
-        await websocket.close(code=1011, reason="Services not initialized")
-        return
-
-    await websocket.accept()
-    logger.info(f"✅ 訓練作業 WebSocket 連接已建立 | Training job WebSocket connection established for job: {job_id}")
-
-    try:
-        await websocket_manager.connect_training_logs(job_id, websocket)
-
-        # Keep connection alive and handle ping/pong
-        while True:
-            try:
-                # Wait for ping from client or disconnect
-                message = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                if message == "ping":
-                    logger.debug(f"🏓 收到客戶端 ping，回覆 pong | Received client ping, sending pong for job: {job_id}")
-                    await websocket.send_text("pong")
-                elif message == "pong":
-                    logger.debug(f"🏓 收到客戶端 pong | Received client pong for job: {job_id}")
-            except asyncio.TimeoutError:
-                # Send ping to check if client is still connected
-                logger.debug(f"🏓 發送 ping 檢查連接 | Sending ping to check connection for job: {job_id}")
-                await websocket.send_text("ping")
-            except WebSocketDisconnect:
-                logger.info(f"🔌 客戶端斷開連接 | Client disconnected for job: {job_id}")
-                break
-
-    except WebSocketDisconnect:
-        logger.info(f"🔌 WebSocket 連接斷開 | WebSocket connection disconnected for job: {job_id}")
-        pass
-    finally:
-        await websocket_manager.disconnect_training_logs(job_id, websocket)
-        logger.info(f"🔚 訓練作業 WebSocket 連接已清理 | Training job WebSocket connection cleaned up for job: {job_id}")
-
-@case_study_v2_router.websocket("/evaluation-jobs/{job_id}/logs")
-async def evaluation_logs_websocket(websocket: WebSocket, job_id: str):
-    """Streams real-time logs for a specific evaluation job"""
-    if not websocket_manager:
-        await websocket.close(code=1011, reason="Services not initialized")
-        return
-
-    await websocket.accept()
-
-    try:
-        await websocket_manager.connect_evaluation_logs(job_id, websocket)
-
-        # Keep connection alive and handle ping/pong
-        while True:
-            try:
-                # Wait for ping from client or disconnect
-                message = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                if message == "ping":
-                    await websocket.send_text("pong")
-            except asyncio.TimeoutError:
-                # Send ping to check if client is still connected
-                await websocket.send_text("ping")
-            except WebSocketDisconnect:
-                break
-
-    except WebSocketDisconnect:
-        pass
-    finally:
-        await websocket_manager.disconnect_evaluation_logs(job_id, websocket)
-
 @case_study_v2_router.patch("/experiment-runs/{run_id}/status")
 async def update_experiment_status(run_id: str, request: dict):
     """
@@ -2881,7 +2836,7 @@ async def create_trained_model(request: dict):
         logger.info(f"📥 Received training model creation request: {request.get('name', 'Unknown')}")
 
         # Validate request
-        required_fields = ["name", "scenarioType", "experimentRunId", "modelConfig", "dataSourceConfig"]
+        required_fields = ["name", "scenario_type", "experimentRunId", "modelConfig", "dataSourceConfig"]
         for field in required_fields:
             if field not in request:
                 logger.error(f"❌ Missing required field: {field}")
@@ -2911,9 +2866,40 @@ async def create_trained_model(request: dict):
         else:
             data_source_config = json.loads(data_source_config_str)
 
+        # 🆕 生成隨機種子確保可複現性
+        import random
+        import time
+        random_seed = int(time.time() * 1000000) % 1000000  # 6位數隨機種子
+
+        logger.info(f"🎲 Generated random seed for reproducible training: {random_seed}")
+
+        # 🆕 構建增強的 dataSourceConfig (靜態子集法配方)
+        enhanced_data_source_config = {
+            "source_dataset_ids": data_source_config.get("selectedDatasets", []),
+            "positive_data_source_ids": data_source_config.get("positiveDataSourceIds", []),
+            "unlabeled_data_source_ids": data_source_config.get("unlabeledDataSourceIds", []),
+            "time_range": data_source_config.get("timeRange", {}),
+            "split_ratios": {
+                "train": data_source_config.get("trainRatio", 70) / 100,
+                "validation": data_source_config.get("validationRatio", 20) / 100,
+                "test": data_source_config.get("testRatio", 10) / 100
+            },
+            "split_method": "time_based",
+            "training_sampling": {
+                "method": "static_subset",
+                "u_sample_ratio": data_source_config.get("uSampleRatio", 0.1),
+                "random_seed": random_seed  # 🔑 關鍵：可複現性
+            }
+        }
+
+        logger.info(f"🔧 Enhanced data source config with static subset method:")
+        logger.info(f"   - Split ratios: {enhanced_data_source_config['split_ratios']}")
+        logger.info(f"   - U sample ratio: {enhanced_data_source_config['training_sampling']['u_sample_ratio']}")
+        logger.info(f"   - Random seed: {enhanced_data_source_config['training_sampling']['random_seed']}")
+
         # Extract P and U data source IDs for enhanced training
-        positive_data_source_ids = data_source_config.get("positiveDataSourceIds", [])
-        unlabeled_data_source_ids = data_source_config.get("unlabeledDataSourceIds", [])
+        positive_data_source_ids = enhanced_data_source_config.get("positive_data_source_ids", [])
+        unlabeled_data_source_ids = enhanced_data_source_config.get("unlabeled_data_source_ids", [])
 
         logger.info(f"🔍 P data sources (positive): {positive_data_source_ids}")
         logger.info(f"🔍 U data sources (unlabeled): {unlabeled_data_source_ids}")
@@ -2924,10 +2910,8 @@ async def create_trained_model(request: dict):
         else:
             model_config_json = model_config_str
 
-        if isinstance(data_source_config_str, dict):
-            data_source_config_json = json.dumps(data_source_config_str)
-        else:
-            data_source_config_json = data_source_config_str
+        # 🆕 使用增強的配置進行儲存
+        enhanced_data_source_config_json = json.dumps(enhanced_data_source_config)
 
         logger.info(f"🔍 Model config processing:")
         logger.info(f"   - Original type: {type(model_config_str)}")
@@ -2942,11 +2926,11 @@ async def create_trained_model(request: dict):
         ''', (
             model_id,
             request["name"],
-            request["scenarioType"],
+            request["scenario_type"],
             "PENDING",
             request["experimentRunId"],
             model_config_json,
-            data_source_config_json,
+            enhanced_data_source_config_json,  # 🆕 使用增強配置
             job_id,
             current_time
         ))
@@ -2955,13 +2939,13 @@ async def create_trained_model(request: dict):
         conn.close()
 
         logger.info(f"🚀 啟動異步訓練作業 | Starting asynchronous training job: {job_id}")
-        # Start training job asynchronously
+        # ✅ 立即啟動異步任務，不等待結果
         asyncio.create_task(run_training_job(model_id, job_id))
 
         return {
             "id": model_id,
             "name": request["name"],
-            "scenarioType": request["scenarioType"],
+            "scenario_type": request["scenario_type"],  # ✅ 修正字段名稱
             "status": "PENDING",
             "modelConfig": request["modelConfig"],
             "dataSourceConfig": request["dataSourceConfig"],
@@ -3024,17 +3008,6 @@ async def delete_trained_model(model_id: str):
 
         logger.info(f"✅ 成功刪除模型和相關評估 | Successfully deleted model and {eval_count} evaluations: {model_name}")
 
-        # Broadcast update via WebSocket
-        if websocket_manager:
-            await websocket_manager.broadcast({
-                "type": "MODEL_DELETED",
-                "data": {
-                    "modelId": model_id,
-                    "modelName": model_name,
-                    "deletedEvaluations": eval_count
-                }
-            })
-
         return {
             "success": True,
             "message": f"Successfully deleted model '{model_name}' and {eval_count} associated evaluations",
@@ -3046,6 +3019,51 @@ async def delete_trained_model(model_id: str):
         raise
     except Exception as e:
         logger.error(f"❌ 刪除模型時發生錯誤 | Error deleting trained model: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@case_study_v2_router.delete("/evaluation-runs/{evaluation_id}")
+async def delete_evaluation_run(evaluation_id: str):
+    """Delete a specific evaluation run"""
+    try:
+        import sqlite3
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if evaluation run exists and get details
+        cursor.execute('SELECT name FROM evaluation_runs WHERE id = ?', (evaluation_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Evaluation run not found")
+
+        evaluation_name = result[0]
+
+        # Delete the evaluation run
+        cursor.execute('DELETE FROM evaluation_runs WHERE id = ?', (evaluation_id,))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Evaluation run not found")
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✅ 成功刪除評估結果 | Successfully deleted evaluation run: {evaluation_name} (ID: {evaluation_id})")
+
+        return {
+            "message": f"Successfully deleted evaluation run '{evaluation_name}'",
+            "deletedEvaluationId": evaluation_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 刪除評估結果時發生錯誤 | Error deleting evaluation run: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3140,7 +3158,7 @@ async def create_evaluation_run(request: dict):
         import uuid
 
         # Validate request
-        required_fields = ["name", "scenarioType", "trainedModelId", "testSetSource"]
+        required_fields = ["name", "scenario_type", "trained_model_id", "testSetSource"]
         for field in required_fields:
             if field not in request:
                 raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
@@ -3150,7 +3168,7 @@ async def create_evaluation_run(request: dict):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        cursor.execute('SELECT id FROM trained_models WHERE id = ?', (request["trainedModelId"],))
+        cursor.execute('SELECT id FROM trained_models WHERE id = ?', (request["trained_model_id"],))
         if not cursor.fetchone():
             conn.close()
             raise HTTPException(status_code=404, detail="Trained model not found")
@@ -3169,9 +3187,9 @@ async def create_evaluation_run(request: dict):
         ''', (
             evaluation_id,
             request["name"],
-            request["scenarioType"],
+            request["scenario_type"],
             "PENDING",
-            request["trainedModelId"],
+            request["trained_model_id"],
             json.dumps(request["testSetSource"]),
             job_id,
             current_time
@@ -3186,12 +3204,12 @@ async def create_evaluation_run(request: dict):
         return {
             "id": evaluation_id,
             "name": request["name"],
-            "scenarioType": request["scenarioType"],
+            "scenario_type": request["scenario_type"],
             "status": "PENDING",
-            "trainedModelId": request["trainedModelId"],
-            "testSetSource": request["testSetSource"],
-            "jobId": job_id,
-            "createdAt": current_time
+            "trained_model_id": request["trained_model_id"],
+            "test_set_source": request["testSetSource"],
+            "job_id": job_id,
+            "created_at": current_time
         }
 
     except HTTPException:
@@ -3202,20 +3220,205 @@ async def create_evaluation_run(request: dict):
 
 
 # =============================================================================
+# Training Data Statistics Collection
+# =============================================================================
+
+async def collect_training_data_statistics(experiment_run_id: str, data_source_config: dict, model_id: str):
+    """收集訓練資料統計信息，按照前端期望的格式"""
+    try:
+        import sqlite3
+        import json
+
+        # 連接資料庫
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 獲取資料源配置
+        positive_data_source_ids = data_source_config.get("positive_data_source_ids", [])
+        unlabeled_data_source_ids = data_source_config.get("unlabeled_data_source_ids", [])
+        split_ratios = data_source_config.get("split_ratios", {})
+        training_sampling = data_source_config.get("training_sampling", {})
+
+        # 初始化前端期望的資料結構
+        training_data_stats = {
+            "p_data_sources": {
+                "dataset_ids": positive_data_source_ids,
+                "dataset_info": {},
+                "dataset_names": {},
+                "total_samples": 0,
+                "total_train_samples": 0,
+                "total_validation_samples": 0,
+                "total_test_samples": 0,
+                "actual_train_samples": 0,
+                "actual_validation_samples": 0,
+                "actual_test_samples": 0
+            },
+            "u_data_sources": {
+                "dataset_ids": unlabeled_data_source_ids,
+                "dataset_info": {},
+                "dataset_names": {},
+                "total_samples": 0,
+                "total_train_samples": 0,
+                "total_validation_samples": 0,
+                "total_test_samples": 0,
+                "actual_train_samples": 0,
+                "actual_validation_samples": 0,
+                "actual_test_samples": 0
+            },
+            "data_split_ratios": {
+                "train_ratio": split_ratios.get("train", 0.7),
+                "validation_ratio": split_ratios.get("validation", 0.1),
+                "test_ratio": split_ratios.get("test", 0.2)
+            },
+            "split_ratios": split_ratios,
+            "overlap_removal": True,
+            "u_sampling_applied": training_sampling.get("u_sample_ratio", 0.1) < 1.0,
+            "total_samples": 0,
+            "train_pool_size": 0,
+            "validation_pool_size": 0,
+            "test_pool_size": 0,
+            "train_p_count": 0,
+            "train_u_full_count": 0,
+            "train_u_sampled_count": 0,
+            "u_sample_ratio": training_sampling.get("u_sample_ratio", 0.1),
+            "random_seed": training_sampling.get("random_seed", 0),
+            "sampling_method": training_sampling.get("method", "static_subset"),
+            "split_method": "time_based",
+            "final_training_samples": 0,
+            "actual_train_p_samples": 0,
+            "actual_train_u_samples": 0
+        }
+
+        # 收集 P 資料統計
+        total_positive_samples = 0
+        if positive_data_source_ids:
+            for dataset_id in positive_data_source_ids:
+                cursor.execute('''
+                    SELECT name, positive_labels, total_records FROM analysis_datasets WHERE id = ?
+                ''', (dataset_id,))
+                result = cursor.fetchone()
+                if result:
+                    dataset_name, positive_count, total_count = result
+                    positive_count = positive_count or 0
+
+                    # 計算分割
+                    train_ratio = split_ratios.get("train", 0.7)
+                    val_ratio = split_ratios.get("validation", 0.1)
+                    test_ratio = split_ratios.get("test", 0.2)
+
+                    train_samples = int(positive_count * train_ratio)
+                    val_samples = int(positive_count * val_ratio)
+                    test_samples = positive_count - train_samples - val_samples
+
+                    training_data_stats["p_data_sources"]["dataset_info"][dataset_id] = {
+                        "total_samples": positive_count,
+                        "train_samples": train_samples,
+                        "validation_samples": val_samples,
+                        "test_samples": test_samples
+                    }
+                    training_data_stats["p_data_sources"]["dataset_names"][dataset_id] = dataset_name
+
+                    training_data_stats["p_data_sources"]["total_samples"] += positive_count
+                    training_data_stats["p_data_sources"]["total_train_samples"] += train_samples
+                    training_data_stats["p_data_sources"]["total_validation_samples"] += val_samples
+                    training_data_stats["p_data_sources"]["total_test_samples"] += test_samples
+
+                    total_positive_samples += positive_count
+
+        # 收集 U 資料統計
+        total_unlabeled_samples = 0
+        if unlabeled_data_source_ids:
+            for dataset_id in unlabeled_data_source_ids:
+                cursor.execute('''
+                    SELECT name, total_records, positive_labels FROM analysis_datasets WHERE id = ?
+                ''', (dataset_id,))
+                result = cursor.fetchone()
+                if result:
+                    dataset_name, total_count, positive_count = result
+                    unlabeled_count = (total_count or 0) - (positive_count or 0)  # U = Total - P
+
+                    # 計算分割
+                    train_ratio = split_ratios.get("train", 0.7)
+                    val_ratio = split_ratios.get("validation", 0.1)
+                    test_ratio = split_ratios.get("test", 0.2)
+
+                    train_samples = int(unlabeled_count * train_ratio)
+                    val_samples = int(unlabeled_count * val_ratio)
+                    test_samples = unlabeled_count - train_samples - val_samples
+
+                    training_data_stats["u_data_sources"]["dataset_info"][dataset_id] = {
+                        "total_samples": unlabeled_count,
+                        "train_samples": train_samples,
+                        "validation_samples": val_samples,
+                        "test_samples": test_samples
+                    }
+                    training_data_stats["u_data_sources"]["dataset_names"][dataset_id] = dataset_name
+
+                    training_data_stats["u_data_sources"]["total_samples"] += unlabeled_count
+                    training_data_stats["u_data_sources"]["total_train_samples"] += train_samples
+                    training_data_stats["u_data_sources"]["total_validation_samples"] += val_samples
+                    training_data_stats["u_data_sources"]["total_test_samples"] += test_samples
+
+                    total_unlabeled_samples += unlabeled_count
+
+        # 計算總體統計
+        total_samples = total_positive_samples + total_unlabeled_samples
+        training_data_stats["total_samples"] = total_samples
+
+        # 計算資料池大小
+        train_ratio = split_ratios.get("train", 0.7)
+        val_ratio = split_ratios.get("validation", 0.1)
+        test_ratio = split_ratios.get("test", 0.2)
+
+        training_data_stats["train_pool_size"] = int(total_samples * train_ratio)
+        training_data_stats["validation_pool_size"] = int(total_samples * val_ratio)
+        training_data_stats["test_pool_size"] = total_samples - training_data_stats["train_pool_size"] - training_data_stats["validation_pool_size"]
+
+        # 計算訓練集 P/U 樣本數
+        train_p_samples = int(total_positive_samples * train_ratio)
+        train_u_full = int(total_unlabeled_samples * train_ratio)
+
+        # 應用 U 採樣
+        u_sample_ratio = training_sampling.get("u_sample_ratio", 0.1)
+        train_u_sampled = int(train_u_full * u_sample_ratio)
+
+        training_data_stats["train_p_count"] = train_p_samples
+        training_data_stats["train_u_full_count"] = train_u_full
+        training_data_stats["train_u_sampled_count"] = train_u_sampled
+        training_data_stats["final_training_samples"] = train_p_samples + train_u_sampled
+        training_data_stats["actual_train_p_samples"] = train_p_samples
+        training_data_stats["actual_train_u_samples"] = train_u_sampled
+
+        # 更新 actual samples
+        training_data_stats["p_data_sources"]["actual_train_samples"] = train_p_samples
+        training_data_stats["u_data_sources"]["actual_train_samples"] = train_u_sampled
+
+        conn.close()
+        return training_data_stats
+
+    except Exception as e:
+        logger.error(f"Error collecting training data statistics: {str(e)}")
+        return {}
+# =============================================================================
 # Training and Evaluation Job Runners
 # =============================================================================
 
 async def run_training_job(model_id: str, job_id: str):
-    """Run training job asynchronously with real PU Learning implementation"""
+    """🆕 Run training job using our enhanced F1-Score monitoring ModelTrainer"""
     try:
         import sqlite3
         import json
-        import numpy as np
-        import torch
-        import torch.optim as optim
-        import random
 
-        logger.info(f"🚀 開始實際 PU Learning 訓練作業 | Starting real PU Learning training job {job_id} for model {model_id}")
+        logger.info(f"🚀 Starting F1-Score monitoring training job {job_id} for model {model_id}")
+
+        # ✅ 立即發送第一條日誌，確保前端可以立即看到進度
+        if websocket_manager:
+            await websocket_manager.send_training_log(job_id, {
+                "type": "status",
+                "message": "🚀 Training job started! Initializing F1-Score monitoring environment..."
+            })
+            logger.info(f"📡 First training log sent for job: {job_id}")
 
         # 獲取模型配置和實驗信息
         db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
@@ -3235,708 +3438,127 @@ async def run_training_job(model_id: str, job_id: str):
 
         model_name, scenario_type, experiment_run_id, model_config_str, data_source_config_str = model_row
 
-        # 詳細日誌：檢查原始配置字符串
-        logger.info(f"🔍 原始模型配置字符串 | Raw model config string: {model_config_str}")
-        logger.info(f"🔍 原始數據源配置字符串 | Raw data source config string: {data_source_config_str}")
-        logger.info(f"🔍 模型配置字符串類型 | Model config string type: {type(model_config_str)}")
+        logger.info(f"🔍 Loading model configuration for F1 monitoring: {model_name}")
+        logger.info(f"🔍 Model config type: {type(model_config_str)}")
 
         # 解析 JSON 配置
         try:
-            model_config = json.loads(model_config_str) if model_config_str else {}
-            logger.info(f"✅ 模型配置解析成功 | Model config parsed successfully: {type(model_config)}")
-            logger.info(f"📋 解析後的模型配置 | Parsed model config: {model_config}")
+            if isinstance(model_config_str, str):
+                model_config_dict = json.loads(model_config_str)
+            else:
+                model_config_dict = model_config_str
+            logger.info(f"✅ Model config parsed successfully for F1 monitoring")
         except json.JSONDecodeError as e:
-            logger.error(f"❌ 模型配置解析失敗 | Model config parse failed: {e}")
-            model_config = {}
+            logger.error(f"❌ Model config parse failed: {e}")
+            model_config_dict = {}
 
         try:
-            data_source_config = json.loads(data_source_config_str) if data_source_config_str else {}
-            logger.info(f"✅ 數據源配置解析成功 | Data source config parsed successfully: {type(data_source_config)}")
+            if isinstance(data_source_config_str, str):
+                data_source_config_dict = json.loads(data_source_config_str)
+            else:
+                data_source_config_dict = data_source_config_str
+            logger.info(f"✅ Data source config parsed successfully for F1 monitoring")
         except json.JSONDecodeError as e:
-            logger.error(f"❌ 數據源配置解析失敗 | Data source config parse failed: {e}")
-            data_source_config = {}
+            logger.error(f"❌ Data source config parse failed: {e}")
+            data_source_config_dict = {}
 
-        logger.info(f"📋 模型配置 | Model config: {model_name}, scenario: {scenario_type}")
+        # 🆕 使用我們的 ModelTrainer 和 F1-Score 監控功能
+        global model_trainer
+        if not model_trainer:
+            raise Exception("ModelTrainer service not available")
 
-        # Send initial status via WebSocket
-        if websocket_manager:
-            logger.info(f"📡 發送初始狀態到 WebSocket | Sending initial status to WebSocket for job {job_id}")
-            await websocket_manager.send_training_log(job_id, {
-                "type": "status",
-                "message": "🚀 正在初始化真實 PU Learning 訓練環境... | Initializing real PU Learning training environment..."
-            })
-        else:
-            logger.info(f"📡 WebSocket 管理器未初始化，直接進行訓練 | WebSocket manager not initialized, proceeding with training")
+        # 🆕 轉換配置為 ModelTrainer 所需的格式
+        from services.case_study_v2.models import StartTrainingJobRequest, ModelConfig, DataSourceConfig, ScenarioType
 
-        # Update status to RUNNING
-        logger.info(f"📊 更新模型狀態為執行中 | Updating model status to RUNNING for model {model_id}")
-        cursor.execute('''
-            UPDATE trained_models
-            SET status = ?
-            WHERE id = ?
-        ''', ("RUNNING", model_id))
-        conn.commit()
+        # 創建 ModelConfig 對象
+        model_config = ModelConfig(
+            modelType=model_config_dict.get("modelType", "nnPU"),
+            epochs=int(model_config_dict.get("epochs", 100)),
+            hiddenSize=int(model_config_dict.get("hiddenSize", 64)),
+            numLayers=int(model_config_dict.get("numLayers", 3)),
+            activationFunction=model_config_dict.get("activationFunction", "relu"),
+            dropout=float(model_config_dict.get("dropout", 0.3)),
+            windowSize=int(model_config_dict.get("windowSize", 10)),
+            learningRate=float(model_config_dict.get("learningRate", 0.001)),
+            batchSize=int(model_config_dict.get("batchSize", 32)),
+            optimizer=model_config_dict.get("optimizer", "adam"),
+            l2Regularization=float(model_config_dict.get("l2Regularization", 0.01)),
+            earlyStopping=bool(model_config_dict.get("earlyStopping", True)),
+            patience=int(model_config_dict.get("patience", 10)),
+            learningRateScheduler=model_config_dict.get("learningRateScheduler", "StepLR"),
+            classPrior=float(model_config_dict.get("classPrior", 0.3))
+        )
 
-        # Step 1: Load real training data from AnalysisReadyData using P and U data source IDs
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": "📊 Loading real training data from specified P and U data sources..."
-            })
+        # 創建 DataSourceConfig 對象
+        data_source_config = DataSourceConfig(
+            trainRatio=float(data_source_config_dict.get("trainRatio", 70.0)),
+            validationRatio=float(data_source_config_dict.get("validationRatio", 20.0)),
+            testRatio=float(data_source_config_dict.get("testRatio", 10.0)),
+            timeRange=data_source_config_dict.get("timeRange", {"startDate": "", "endDate": ""})
+        )
 
-        logger.info("📊 Loading real training data using P and U data source configuration...")
+        # 創建訓練請求對象
+        training_request = StartTrainingJobRequest(
+            model_name=model_name,
+            scenario_type=ScenarioType(scenario_type),
+            experiment_run_id=experiment_run_id,
+            training_config=model_config,
+            data_source_config=data_source_config
+        )
 
-        # Extract P and U data source IDs from data source configuration
-        positive_data_source_ids = data_source_config.get("positiveDataSourceIds", [])
-        unlabeled_data_source_ids = data_source_config.get("unlabeledDataSourceIds", [])
+        logger.info(f"🎯 Starting F1-Score monitoring training with ModelTrainer")
+        logger.info(f"   - Model: {model_name}")
+        logger.info(f"   - Epochs: {model_config.epochs}")
+        logger.info(f"   - Early Stopping: {model_config.earlyStopping} (patience: {model_config.patience})")
+        logger.info(f"   - F1-based monitoring: Enabled")
 
-        logger.info(f"📥 P data sources (positive): {positive_data_source_ids}")
-        logger.info(f"📥 U data sources (unlabeled): {unlabeled_data_source_ids}")
+        # 🆕 收集訓練資料統計信息
+        try:
+            training_data_info = await collect_training_data_statistics(
+                experiment_run_id=experiment_run_id,
+                data_source_config=data_source_config_dict,
+                model_id=model_id
+            )
+            logger.info(f"📊 Training data statistics collected successfully")
+        except Exception as stats_error:
+            logger.warning(f"⚠️ Failed to collect training data statistics: {stats_error}")
+            training_data_info = {}
 
-        # If no specific data source IDs are provided, fall back to experiment-based loading
-        if not positive_data_source_ids and not unlabeled_data_source_ids:
-            logger.info("⚠️ No specific P/U data sources provided, falling back to experiment-based loading")
+        # 🆕 調用我們的 ModelTrainer 進行 F1-Score 監控訓練
+        await model_trainer.train_model(
+            job_id=job_id,
+            trained_model_id=model_id,
+            config=training_request,
+            training_data_info=training_data_info  # 傳遞訓練資料統計
+        )
+        logger.info(f"model_trainer.train_model end")
 
-            # Fallback: Get dataset IDs from this experiment
-            cursor.execute('''
-                SELECT DISTINCT ae.dataset_id
-                FROM anomaly_event ae
-                WHERE ae.experiment_run_id = ?
-            ''', (experiment_run_id,))
-            dataset_results = cursor.fetchall()
 
-            if not dataset_results:
-                raise Exception(f"No datasets found for experiment {experiment_run_id}")
-
-            fallback_dataset_ids = [row[0] for row in dataset_results]
-            positive_data_source_ids = fallback_dataset_ids
-            unlabeled_data_source_ids = fallback_dataset_ids
-            logger.info(f"📂 Using fallback dataset IDs: {fallback_dataset_ids}")
-
-        # Build SQL placeholders for P and U data sources
-        p_placeholders = ','.join(['?' for _ in positive_data_source_ids])
-        u_placeholders = ','.join(['?' for _ in unlabeled_data_source_ids])
-
-        # Load positive samples (P data) from specified P data sources
-        logger.info("📊 Loading positive samples (P data) from specified data sources...")
-        if positive_data_source_ids:
-            cursor.execute(f'''
-                SELECT id, dataset_id, timestamp, room, raw_wattage_l1, raw_wattage_l2,
-                       wattage_110v, wattage_220v, wattage_total, is_positive_label
-                FROM analysis_ready_data
-                WHERE dataset_id IN ({p_placeholders}) AND is_positive_label = 1
-                ORDER BY timestamp
-            ''', positive_data_source_ids)
-            p_samples = cursor.fetchall()
-        else:
-            p_samples = []
-
-        # Load unlabeled samples (U data) from specified U data sources
-        logger.info("📊 Loading unlabeled samples (U data) from specified data sources...")
-        if unlabeled_data_source_ids:
-            # Load all unlabeled samples first
-            cursor.execute(f'''
-                SELECT id, dataset_id, timestamp, room, raw_wattage_l1, raw_wattage_l2,
-                       wattage_110v, wattage_220v, wattage_total, is_positive_label
-                FROM analysis_ready_data
-                WHERE dataset_id IN ({u_placeholders}) AND is_positive_label = 0
-                ORDER BY timestamp
-            ''', unlabeled_data_source_ids)
-            all_u_samples = cursor.fetchall()
-
-            # If P and U data sources are the same, remove overlap with P data
-            if positive_data_source_ids == unlabeled_data_source_ids:
-                logger.info("⚠️ P and U data sources are identical, removing P data from U data to avoid overlap")
-                p_sample_ids = {sample[0] for sample in p_samples}  # Extract P sample IDs
-                u_samples_no_overlap = [sample for sample in all_u_samples if sample[0] not in p_sample_ids]
-                logger.info(f"📊 Removed {len(all_u_samples) - len(u_samples_no_overlap)} overlapping samples from U data")
-                all_u_samples = u_samples_no_overlap
-
-            # Apply 10x limit and random sampling
-            max_unlabeled_samples = len(p_samples) * 10 if p_samples else 5000
-            if len(all_u_samples) > max_unlabeled_samples:
-                logger.info(f"📊 Randomly sampling {max_unlabeled_samples} from {len(all_u_samples)} available U samples (10x P limit)")
-                import random
-                random.seed(42)  # For reproducibility
-                u_samples = random.sample(all_u_samples, max_unlabeled_samples)
-            else:
-                u_samples = all_u_samples
-
-            logger.info(f"🔍 U data final count: {len(u_samples)} samples (max {max_unlabeled_samples} allowed, 10x of {len(p_samples)} P samples)")
-        else:
-            u_samples = []
-
-        # Ensure we have sufficient data for training
-        if len(p_samples) == 0:
-            raise Exception("No positive samples found from specified P data sources")
-
-        if len(u_samples) == 0:
-            raise Exception("No unlabeled samples found from specified U data sources")
-
-        # Extract data split ratios from data source configuration
-        train_ratio_raw = data_source_config.get("trainRatio", 70)
-        validation_ratio_raw = data_source_config.get("validationRatio", 20)
-        test_ratio_raw = data_source_config.get("testRatio", 10)
-
-        # Normalize ratios to ensure they sum to 1.0
-        total_ratio = train_ratio_raw + validation_ratio_raw + test_ratio_raw
-        train_ratio = train_ratio_raw / total_ratio
-        validation_ratio = validation_ratio_raw / total_ratio
-        test_ratio = test_ratio_raw / total_ratio
-
-        logger.info(f"📊 Data statistics: {len(p_samples)} positive samples from {len(positive_data_source_ids)} P data sources, {len(u_samples)} unlabeled samples from {len(unlabeled_data_source_ids)} U data sources")
-        logger.info(f"📊 Data split ratios from frontend (normalized): Train={train_ratio:.1%}, Validation={validation_ratio:.1%}, Test={test_ratio:.1%}")
-
-        # Collect detailed training data information for frontend display
-        p_dataset_info = {}
-        u_dataset_info = {}
-
-        # Collect P data source statistics
-        for dataset_id in positive_data_source_ids:
-            p_dataset_samples = [s for s in p_samples if s[1] == dataset_id]  # s[1] is dataset_id
-            if p_dataset_samples:
-                p_dataset_info[dataset_id] = {
-                    "total_samples": len(p_dataset_samples),
-                    "train_samples": int(len(p_dataset_samples) * train_ratio),
-                    "validation_samples": int(len(p_dataset_samples) * validation_ratio),
-                    "test_samples": int(len(p_dataset_samples) * test_ratio)
-                }
-
-        # Collect U data source statistics
-        for dataset_id in unlabeled_data_source_ids:
-            u_dataset_samples = [s for s in u_samples if s[1] == dataset_id]  # s[1] is dataset_id
-            if u_dataset_samples:
-                u_dataset_info[dataset_id] = {
-                    "total_samples": len(u_dataset_samples),
-                    "train_samples": int(len(u_dataset_samples) * train_ratio),
-                    "validation_samples": int(len(u_dataset_samples) * validation_ratio),
-                    "test_samples": int(len(u_dataset_samples) * test_ratio)
-                }
-
-        # Get dataset names for better display
-        if positive_data_source_ids or unlabeled_data_source_ids:
-            all_dataset_ids = list(set(positive_data_source_ids + unlabeled_data_source_ids))
-            dataset_names = {}
-            for dataset_id in all_dataset_ids:
-                cursor.execute('SELECT name FROM analysis_datasets WHERE id = ?', (dataset_id,))
-                dataset_row = cursor.fetchone()
-                if dataset_row:
-                    dataset_names[dataset_id] = dataset_row[0]
-                else:
-                    dataset_names[dataset_id] = f"Dataset_{dataset_id}"
-
-        # Create comprehensive training data information
-        training_data_info = {
-            "p_data_sources": {
-                "dataset_ids": positive_data_source_ids,
-                "dataset_info": p_dataset_info,
-                "dataset_names": {id: dataset_names.get(id, f"Dataset_{id}") for id in positive_data_source_ids},
-                "total_samples": len(p_samples),
-                "total_train_samples": int(len(p_samples) * train_ratio),
-                "total_validation_samples": int(len(p_samples) * validation_ratio),
-                "total_test_samples": int(len(p_samples) * test_ratio)
-            },
-            "u_data_sources": {
-                "dataset_ids": unlabeled_data_source_ids,
-                "dataset_info": u_dataset_info,
-                "dataset_names": {id: dataset_names.get(id, f"Dataset_{id}") for id in unlabeled_data_source_ids},
-                "total_samples": len(u_samples),
-                "total_train_samples": int(len(u_samples) * train_ratio),
-                "total_validation_samples": int(len(u_samples) * validation_ratio),
-                "total_test_samples": int(len(u_samples) * test_ratio)
-            },
-            "data_split_ratios": {
-                "train_ratio": train_ratio,
-                "validation_ratio": validation_ratio,
-                "test_ratio": test_ratio
-            },
-            "overlap_removal": positive_data_source_ids == unlabeled_data_source_ids,
-            "u_sampling_applied": len(all_u_samples) > max_unlabeled_samples if 'all_u_samples' in locals() else False
-        }
-
-        logger.info(f"📊 Data statistics: {len(p_samples)} positive samples, {len(u_samples)} unlabeled samples")
-
-        if len(p_samples) == 0:
-            raise Exception("No positive samples found, unable to perform PU Learning training")
-
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-            "type": "log",
-            "message": f"✅ Data loaded: {len(p_samples)} positive, {len(u_samples)} unlabeled samples"
-        })
-
-        # Step 2: Feature extraction from AnalysisReadyData with Multi-Scale Time Windows
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": "🔧 Extracting multi-scale time window features from real power consumption data..."
-            })
-
-        logger.info("🔧 Extracting multi-scale time window features from real power consumption data...")
-
-        # Get main time window size from model configuration (from frontend slider)
-        logger.info(f"🔍 Checking model config type and content:")
-        logger.info(f"   - model_config type: {type(model_config)}")
-        logger.info(f"   - model_config content: {model_config}")
-
-        # Safely get feature_engineering configuration
-        feature_engineering_config = {}
-        main_window_minutes = 60  # Default value
-
-        if isinstance(model_config, dict):
-            # New format: use feature_engineering.main_window_size_minutes
-            feature_engineering_config = model_config.get('feature_engineering', {})
-            if feature_engineering_config and 'main_window_size_minutes' in feature_engineering_config:
-                main_window_minutes = feature_engineering_config.get('main_window_size_minutes', 60)
-                logger.info(f"✅ Using new format feature_engineering config: {feature_engineering_config}")
-            else:
-                # Legacy format compatibility: use windowSize
-                legacy_window_size = model_config.get('windowSize', 60)
-                if legacy_window_size:
-                    main_window_minutes = legacy_window_size
-                    logger.info(f"✅ Using legacy windowSize config: {legacy_window_size}")
-                else:
-                    logger.info(f"✅ Using default window size config: {main_window_minutes}")
-        else:
-            logger.error(f"❌ model_config is not dict type, but: {type(model_config)}")
-            logger.error(f"❌ model_config raw value: {model_config}")
-
-        logger.info(f"🔍 feature_engineering config type: {type(feature_engineering_config)}")
-        logger.info(f"🔍 feature_engineering config content: {feature_engineering_config}")
-
-        logger.info(f"📏 Main window size setting: {main_window_minutes} minutes")
-
-        # Calculate multi-scale time windows
-        short_window = max(main_window_minutes // 2, 15)      # Short window, minimum 15 minutes
-        medium_window = main_window_minutes                   # Medium window (main window)
-        long_window = main_window_minutes * 4                 # Long window
-
-        logger.info(f"📊 Multi-scale windows setting: Short={short_window}min, Medium={medium_window}min, Long={long_window}min")
-
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"📏 Time windows: Short={short_window}min, Medium={medium_window}min, Long={long_window}min"
-            })
-
-        def extract_temporal_features_from_analysis_data(sample, all_samples_dict):
-            """Extract comprehensive multi-scale time window features from AnalysisReadyData records"""
+    # 🆕 訓練完成後，使用 SQL 直接更新 training_data_info
+    # 這裡使用底層資料庫欄位名稱 training_data_info（下劃線）
+    # 而透過 Prisma ORM 時需要使用 camelCase: trainingDataInfo
+        if training_data_info:
             try:
-                # AnalysisReadyData structure:
-                # (id, dataset_id, timestamp, room, raw_wattage_l1, raw_wattage_l2,
-                #  wattage_110v, wattage_220v, wattage_total, is_positive_label)
-                id_val, dataset_id, timestamp, room, raw_l1, raw_l2, w110v, w220v, w_total, is_positive = sample
+                cursor.execute('''
+                    UPDATE trained_models
+                    SET training_data_info = ?
+                    WHERE id = ?
+                ''', (json.dumps(training_data_info), model_id))
+                conn.commit()
+                logger.info(f"✅ Training data statistics saved successfully for model {model_id}")
+            except Exception as sql_error:
+                logger.warning(f"⚠️ Failed to save training data statistics via SQL: {sql_error}")
 
-                # Current sample basic features (5 features)
-                current_features = [
-                    float(raw_l1 or 0),         # Raw L1 power
-                    float(raw_l2 or 0),         # Raw L2 power
-                    float(w110v or 0),          # 110V power
-                    float(w220v or 0),          # 220V power
-                    float(w_total or 0),        # Total power
-                ]
-
-                # Parse timestamp
-                from datetime import datetime, timedelta
-                import numpy as np
-                if isinstance(timestamp, str):
-                    current_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                else:
-                    current_time = timestamp
-
-                # Multi-scale time windows
-                window_features = []
-                windows = [
-                    ("short", short_window),    # Short-term window
-                    ("medium", medium_window),  # Medium-term window
-                    ("long", long_window)       # Long-term window
-                ]
-
-                logger.debug(f"🕒 Processing sample at {current_time} with windows: {[w[1] for w in windows]} minutes")
-
-                for window_name, window_size in windows:
-                    # Calculate time window range
-                    window_start = current_time - timedelta(minutes=window_size)
-
-                    # Find all samples within this time window from the same dataset
-                    window_samples = []
-                    if dataset_id in all_samples_dict:
-                        for sample_time, sample_data in all_samples_dict[dataset_id].items():
-                            if window_start <= sample_time <= current_time:
-                                window_samples.append(sample_data)
-
-                    # Calculate statistical features if enough samples exist
-                    if len(window_samples) >= 3:  # Need at least 3 samples for meaningful stats
-                        # Extract power values from all window samples
-                        wattage_total_values = [float(s[8] or 0) for s in window_samples]  # wattage_total
-                        l1_values = [float(s[4] or 0) for s in window_samples]            # raw_wattage_l1
-                        l2_values = [float(s[5] or 0) for s in window_samples]            # raw_wattage_l2
-                        w110v_values = [float(s[6] or 0) for s in window_samples]         # wattage_110v
-                        w220v_values = [float(s[7] or 0) for s in window_samples]         # wattage_220v
-
-                        # Comprehensive statistical features for this window (10 features per window)
-                        mean_total = np.mean(wattage_total_values)
-                        std_total = np.std(wattage_total_values)
-
-                        window_stats = [
-                            mean_total,                                                    # 1. Mean total power
-                            std_total,                                                     # 2. Std total power
-                            np.max(wattage_total_values),                                 # 3. Max total power
-                            np.min(wattage_total_values),                                 # 4. Min total power
-                            np.median(wattage_total_values),                              # 5. Median total power
-                            len([w for w in wattage_total_values if w > mean_total * 1.5]), # 6. High power events count
-                            np.mean(l1_values) - np.mean(l2_values),                      # 7. L1-L2 average difference
-                            np.sum(np.diff(wattage_total_values) ** 2) if len(wattage_total_values) > 1 else 0, # 8. Volatility
-                            np.mean(w110v_values) / max(np.mean(w220v_values), 1),       # 9. 110V/220V ratio
-                            np.percentile(wattage_total_values, 75) - np.percentile(wattage_total_values, 25), # 10. IQR
-                        ]
-
-                        logger.debug(f"📊 {window_name} window ({window_size}min): {len(window_samples)} samples, mean={mean_total:.2f}")
-                    else:
-                        # If insufficient samples, use current values as fallback
-                        window_stats = [
-                            current_features[4],  # Current total power
-                            0.0,                  # Std = 0
-                            current_features[4],  # Max = current
-                            current_features[4],  # Min = current
-                            current_features[4],  # Median = current
-                            0.0,                  # High power events = 0
-                            current_features[0] - current_features[1],  # L1-L2 current difference
-                            0.0,                  # Volatility = 0
-                            current_features[2] / max(current_features[3], 1),  # 110V/220V current ratio
-                            0.0,                  # IQR = 0
-                        ]
-
-                        logger.debug(f"📊 {window_name} window ({window_size}min): Only {len(window_samples)} samples, using fallback")
-
-                    window_features.extend(window_stats)
-
-                # Cross-window comparison features (6 features)
-                cross_window_features = []
-                if len(window_features) >= 30:  # Ensure we have 3 windows × 10 features each
-                    # Extract key metrics from each window
-                    short_mean = window_features[0]    # Short-term mean
-                    medium_mean = window_features[10]  # Medium-term mean
-                    long_mean = window_features[20]    # Long-term mean
-
-                    short_std = window_features[1]     # Short-term std
-                    medium_std = window_features[11]   # Medium-term std
-                    long_std = window_features[21]     # Long-term std
-
-                    cross_window_features = [
-                        short_mean / max(medium_mean, 1),      # Short/Medium power ratio
-                        medium_mean / max(long_mean, 1),       # Medium/Long power ratio
-                        short_mean / max(long_mean, 1),        # Short/Long power ratio
-                        short_std / max(medium_std, 1),        # Short/Medium volatility ratio
-                        medium_std / max(long_std, 1),         # Medium/Long volatility ratio
-                        short_std / max(long_std, 1),          # Short/Long volatility ratio
-                    ]
-
-                    logger.debug(f"🔗 Cross-window features: S/M={cross_window_features[0]:.2f}, M/L={cross_window_features[1]:.2f}")
-                else:
-                    cross_window_features = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Default ratios
-                    logger.debug("🔗 Using default cross-window features")
-
-                # Combine all features: basic (5) + window stats (30) + cross-window (6) = 41 features total
-                all_features = current_features + window_features + cross_window_features
-
-                logger.debug(f"✅ Total features extracted: {len(all_features)} for sample {id_val}")
-                return np.array(all_features)
-
-            except Exception as e:
-                logger.warning(f"❌ Multi-scale feature extraction failed: {e}, sample timestamp: {sample[2] if len(sample) > 2 else 'unknown'}")
-                # Return default feature values: 5 basic + 30 window + 6 cross-window = 41 features
-                return np.array([0.0] * 41)
-
-        # Build time index dictionary for efficient querying
-        logger.info("📚 Building time index for efficient multi-scale feature extraction...")
-        all_samples_dict = {}
-        total_samples_indexed = 0
-
-        for sample in p_samples + u_samples:
-            dataset_id = sample[1]
-            timestamp = sample[2]
-            if dataset_id not in all_samples_dict:
-                all_samples_dict[dataset_id] = {}
-
-            # Parse timestamp
-            from datetime import datetime
-            if isinstance(timestamp, str):
-                parsed_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            else:
-                parsed_time = timestamp
-
-            all_samples_dict[dataset_id][parsed_time] = sample
-            total_samples_indexed += 1
-
-        logger.info(f"📊 Time index built: {len(all_samples_dict)} datasets, {total_samples_indexed} samples indexed")
-
-        # Log dataset distribution
-        for dataset_id, samples in all_samples_dict.items():
-            logger.info(f"   Dataset {dataset_id}: {len(samples)} samples")
-
-        # Extract multi-scale features for positive samples
-        logger.info("🔬 Extracting multi-scale features for positive samples...")
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"🔬 Extracting multi-scale features: {len(p_samples)} positive samples"
-            })
-
-        X_p = np.array([extract_temporal_features_from_analysis_data(sample, all_samples_dict) for sample in p_samples])
-        y_p = np.ones(len(p_samples))  # Positive samples labeled as 1
-
-        # Extract multi-scale features for unlabeled samples
-        logger.info("🔬 Extracting multi-scale features for unlabeled samples...")
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"🔬 Extracting multi-scale features: {len(u_samples)} unlabeled samples"
-            })
-
-        X_u = np.array([extract_temporal_features_from_analysis_data(sample, all_samples_dict) for sample in u_samples])
-        y_u = np.zeros(len(u_samples))  # Unlabeled samples labeled as 0 (for PU Learning)
-
-        # 合併數據
-        X_train = np.vstack([X_p, X_u])
-        y_train = np.hstack([y_p, y_u])
-
-        logger.info(f"📊 特徵提取完成 | Feature extraction completed: {X_train.shape}")
-
-        # Send feature extraction completion message
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"✅ Features extracted: {X_train.shape[0]} samples, {X_train.shape[1]} features"
-            })
-
-        # Step 2.5: Data splitting based on frontend ratios
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"📊 Splitting data: Train={train_ratio:.1%}, Validation={validation_ratio:.1%}, Test={test_ratio:.1%}"
-            })
-
-        # Calculate split indices
-        total_samples = X_train.shape[0]
-        train_end = int(total_samples * train_ratio)
-        val_end = train_end + int(total_samples * validation_ratio)
-
-        # Split features and labels
-        X_train_split = X_train[:train_end]
-        X_val_split = X_train[train_end:val_end]
-        X_test_split = X_train[val_end:]
-
-        y_train_split = y_train[:train_end]
-        y_val_split = y_train[train_end:val_end]
-        y_test_split = y_train[val_end:]
-
-        logger.info(f"📊 Data split completed:")
-        logger.info(f"   - Train: {X_train_split.shape[0]} samples ({X_train_split.shape[0]/total_samples:.1%})")
-        logger.info(f"   - Validation: {X_val_split.shape[0]} samples ({X_val_split.shape[0]/total_samples:.1%})")
-        logger.info(f"   - Test: {X_test_split.shape[0]} samples ({X_test_split.shape[0]/total_samples:.1%})")
-
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"✅ Data split: Train={X_train_split.shape[0]}, Val={X_val_split.shape[0]}, Test={X_test_split.shape[0]}"
-            })
-
-        # Use the training split for actual training (keeping the original variable names for compatibility)
-        X_train = X_train_split
-        y_train = y_train_split
-
-        # Step 3: Prior estimation
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": "🎯 Estimating class prior probability..."
-            })
-
-        class_prior = len(p_samples) / (len(p_samples) + len(u_samples))
-        logger.info(f"📈 Estimated class prior: {class_prior}")
-
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": f"✅ Class prior estimated: {class_prior:.4f}"
-            })
-
-        # Step 4: nnPU Model training
-        if websocket_manager:
-            await websocket_manager.send_training_log(job_id, {
-                "type": "log",
-                "message": "🤖 Starting nnPU model training..."
-            })
-
-        # nnPU Algorithm implementation
-        logger.info(f"🤖 Training with nnPU algorithm")
-
-        # Import real nnPU implementation
-        try:
-            from pu_learning.pulearning_engine import MLPClassifier
-        except ImportError:
-            # 修正路徑導入
-            import sys
-            import os
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            parent_dir = os.path.dirname(current_dir)
-            pu_learning_dir = os.path.join(parent_dir, 'pu-learning')
-            sys.path.insert(0, pu_learning_dir)
-            from pulearning_engine import MLPClassifier
-
-        # nnPU training parameters - 支持多種參數名稱格式
-        epochs = (
-            model_config.get('epochs', None) or
-            model_config.get('numEpochs', None) or
-            50
-        )
-        learning_rate = (
-            model_config.get('learning_rate', None) or
-            model_config.get('learningRate', None) or
-            0.01
-        )
-        hidden_dim = (
-            model_config.get('hidden_dim', None) or
-            model_config.get('hiddenSize', None) or
-            model_config.get('hiddenDim', None) or
-            100
-        )
-
-        logger.info(f"🎯 訓練參數 | Training parameters:")
-        logger.info(f"   - epochs: {epochs}")
-        logger.info(f"   - learning_rate: {learning_rate}")
-        logger.info(f"   - hidden_dim: {hidden_dim}")
-        logger.info(f"   - 完整模型配置: {model_config}")
-
-        try:
-            # Initialize model
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            model = MLPClassifier(X_train.shape[1], hidden_dim=hidden_dim)
-            model.to(device)
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-            # Convert to tensors
-            X_tensor = torch.FloatTensor(X_train).to(device)
-            y_tensor = torch.FloatTensor(y_train).to(device)
-
-            # Training loop with real nnPU loss
-            model.train()
-            for epoch in range(epochs):
-                optimizer.zero_grad()
-
-                outputs = model(X_tensor).squeeze()
-
-                # nnPU Loss calculation
-                positive_mask = (y_tensor == 1)
-                unlabeled_mask = (y_tensor == 0)
-
-                if positive_mask.sum() > 0:
-                    positive_risk = -torch.mean(torch.log(torch.sigmoid(outputs[positive_mask]) + 1e-8))
-                else:
-                    positive_risk = 0
-
-                if unlabeled_mask.sum() > 0:
-                    unlabeled_risk = torch.mean(torch.log(1 - torch.sigmoid(outputs[unlabeled_mask]) + 1e-8))
-                else:
-                    unlabeled_risk = 0
-
-                # nnPU risk estimator
-                risk = class_prior * positive_risk + max(0, unlabeled_risk - class_prior * positive_risk)
-
-                risk.backward()
-                optimizer.step()
-
-                # Send training progress every 10 epochs or on final epoch
-                if websocket_manager and (epoch % 10 == 0 or epoch == epochs - 1):
-                    await websocket_manager.send_training_log(job_id, {
-                        "type": "progress",
-                        "epoch": epoch + 1,
-                        "total_epochs": epochs,
-                        "loss": float(risk.item()),
-                        "message": f"Epoch {epoch + 1}/{epochs} - Risk: {risk.item():.4f}"
-                    })
-
-            # Calculate final metrics
-            model.eval()
-            with torch.no_grad():
-                final_outputs = model(X_tensor)
-                predictions = torch.sigmoid(final_outputs).squeeze()
-
-            final_metrics = {
-                'algorithm': 'nnPU',
-                'epochs': epochs,
-                'learning_rate': learning_rate,
-                'hidden_dim': hidden_dim,
-                'final_risk': float(risk.item()),
-                'p_samples': len(p_samples),
-                'u_samples': len(u_samples),
-                'class_prior': class_prior,
-                'mean_prediction': float(predictions.mean().item()),
-                'std_prediction': float(predictions.std().item())
-            }
-
-        except Exception as e:
-            logger.error(f"nnPU 訓練失敗: {e}")
-            # Fallback to simulated results
-            final_metrics = {
-                'algorithm': 'nnPU',
-                'epochs': epochs,
-                'learning_rate': learning_rate,
-                'hidden_dim': hidden_dim,
-                'final_risk': 0.12,
-                'p_samples': len(p_samples),
-                'u_samples': len(u_samples),
-                'class_prior': class_prior
-            }
-
-        logger.info(f"📊 訓練完成，最終指標 | Training completed with final metrics: {final_metrics}")
-
-        # Step 5: Save model and metrics
-        if websocket_manager:
-
-            await websocket_manager.send_training_log(job_id, {
-            "type": "log",
-            "message": "💾 正在保存模型檢查點... | Saving model checkpoint..."
-        })
-
-        current_time = get_current_datetime()
-        model_path = f"/models/{model_id}_nnpu.pth"
-
-        cursor.execute('''
-            UPDATE trained_models
-            SET status = ?, training_metrics = ?, training_data_info = ?, completed_at = ?, model_path = ?
-            WHERE id = ?
-        ''', (
-            "COMPLETED",
-            json.dumps(final_metrics),
-            json.dumps(training_data_info),
-            current_time,
-            model_path,
-            model_id
-        ))
-
-        conn.commit()
         conn.close()
 
-        if websocket_manager:
-
-
-            await websocket_manager.send_training_log(job_id, {
-            "type": "log",
-            "message": "✅ 真實 PU Learning 訓練已成功完成！ | Real PU Learning training completed successfully!"
-        })
-
-        logger.info(f"✅ 真實 PU Learning 訓練作業完成 | Real PU Learning training job {job_id} completed successfully")
-
     except Exception as e:
-        logger.error(f"❌ 真實 PU Learning 訓練作業失敗 | Real PU Learning training job {job_id} failed: {str(e)}")
+        logger.error(f"❌ F1-Score monitoring training job {job_id} failed: {str(e)}")
 
         # Send error via WebSocket
         if websocket_manager:
             await websocket_manager.send_training_log(job_id, {
                 "type": "error",
-                "message": f"真實 PU Learning 訓練失敗 | Real PU Learning training failed: {str(e)}"
+                "message": f"F1-Score monitoring training failed: {str(e)}"
             })
 
         # Update status to FAILED
@@ -3949,28 +3571,32 @@ async def run_training_job(model_id: str, job_id: str):
             conn.close()
         except:
             pass
+
 async def run_evaluation_job(evaluation_id: str, job_id: str):
-    """Run evaluation job asynchronously with real-time WebSocket updates"""
+    """Run evaluation job using the CORRECT ModelEvaluator with shared models"""
+    logger.info("ROUTER: V2 evaluation job endpoint triggered.")
+
     try:
-        import sqlite3
-        import time
-        import random
-        import json
+        # Use the global model_evaluator that was properly initialized
+        global model_evaluator, websocket_manager
 
-        logger.info(f"Starting evaluation job {job_id} for evaluation {evaluation_id}")
+        if not model_evaluator:
+            logger.error("ModelEvaluator not initialized!")
+            raise RuntimeError("ModelEvaluator service not available")
 
-        # Send initial status via WebSocket
+        # Set websocket manager for real-time logging
         if websocket_manager:
-            await websocket_manager.send_evaluation_log(job_id, {
-                "type": "status",
-                "message": "🚀 Initializing evaluation environment..."
-            })
+            model_evaluator.set_websocket_manager(websocket_manager)
 
-        # Update status to RUNNING
+        logger.info(f"🚀 Starting CORRECT (V2) evaluation job {job_id} for evaluation {evaluation_id}")
+
+        # Get evaluation configuration from database
+        import sqlite3
         db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
+        # Update status to RUNNING
         cursor.execute('''
             UPDATE evaluation_runs
             SET status = ?
@@ -3978,109 +3604,53 @@ async def run_evaluation_job(evaluation_id: str, job_id: str):
         ''', ("RUNNING", evaluation_id))
         conn.commit()
 
-        # Send evaluation updates via WebSocket
-        evaluation_steps = [
-            "📊 Loading test dataset...",
-            "🔧 Loading trained model...",
-            "⚡ Starting evaluation process...",
-        ]
-
-        for step in evaluation_steps:
-            if websocket_manager:
-                await websocket_manager.send_evaluation_log(job_id, {
-                    "type": "log",
-                    "message": step
-                })
-            await asyncio.sleep(1)
-
-        # Simulate evaluation batches
-        total_batches = 10
-        for batch in range(1, total_batches + 1):
-            await asyncio.sleep(0.3)
-
-            if websocket_manager:
-                await websocket_manager.send_evaluation_log(job_id, {
-                    "type": "progress",
-                    "current_batch": batch,
-                    "total_batches": total_batches,
-                    "message": f"Processing batch {batch}/{total_batches}"
-                })
-
-        # Calculate and send metrics
-        if websocket_manager:
-            await websocket_manager.send_evaluation_log(job_id, {
-                "type": "log",
-                "message": "📈 Calculating metrics..."
-            })
-            await asyncio.sleep(1)
-
-        # Generate mock evaluation metrics
-        accuracy = round(random.uniform(0.80, 0.92), 4)
-        precision = round(random.uniform(0.75, 0.90), 4)
-        recall = round(random.uniform(0.70, 0.88), 4)
-        f1_score = round(random.uniform(0.78, 0.89), 4)
-        auc_roc = round(random.uniform(0.85, 0.95), 4)
-
-        # Send metrics updates
-        if websocket_manager:
-            metrics_to_send = [
-                ("Accuracy", accuracy),
-                ("Precision", precision),
-                ("Recall", recall),
-                ("F1-Score", f1_score),
-                ("AUC-ROC", auc_roc)
-            ]
-
-            for metric_name, value in metrics_to_send:
-                await websocket_manager.send_evaluation_log(job_id, {
-                    "type": "metrics",
-                    "metric_name": metric_name,
-                    "value": value,
-                    "message": f"📊 {metric_name}: {value}"
-                })
-                await asyncio.sleep(0.5)
-
-        mock_metrics = {
-            "accuracy": accuracy,
-            "precision": precision,
-            "recall": recall,
-            "f1_score": f1_score,
-            "auc_roc": auc_roc,
-            "confusion_matrix": {
-                "tp": random.randint(80, 120),
-                "fp": random.randint(10, 25),
-                "tn": random.randint(150, 200),
-                "fn": random.randint(5, 20)
-            }
-        }
-
-        # Send completion message
-        if websocket_manager:
-            await websocket_manager.send_evaluation_log(job_id, {
-                "type": "log",
-                "message": "✅ Evaluation completed successfully!"
-            })
-
-        # Update evaluation with completion
-        current_time = get_current_datetime()
+        # Get evaluation run details
         cursor.execute('''
-            UPDATE evaluation_runs
-            SET status = ?, evaluation_metrics = ?, completed_at = ?
+            SELECT trained_model_id, test_set_source
+            FROM evaluation_runs
             WHERE id = ?
-        ''', (
-            "COMPLETED",
-            json.dumps(mock_metrics),
-            current_time,
-            evaluation_id
-        ))
+        ''', (evaluation_id,))
 
-        conn.commit()
+        eval_row = cursor.fetchone()
+        if not eval_row:
+            raise Exception(f"Evaluation run {evaluation_id} not found")
+
+        trained_model_id, test_set_source_str = eval_row
         conn.close()
 
-        logger.info(f"Evaluation job {job_id} completed successfully")
+        # Parse test_set_source from JSON string to dict
+        import json
+        test_set_source = json.loads(test_set_source_str) if isinstance(test_set_source_str, str) else test_set_source_str
+
+        # Create a minimal config object for the evaluator
+        # The evaluator will handle all the complex logic
+        config_dict = {
+            "evaluation_id": evaluation_id,
+            "trained_model_id": trained_model_id,
+            "test_set_source": test_set_source
+        }
+
+        # Import the StartEvaluationJobRequest model
+        from services.case_study_v2.models import StartEvaluationJobRequest
+
+        # Create a proper config object (the evaluator expects this type)
+        class SimpleConfig:
+            def __init__(self, data):
+                self.evaluation_id = data["evaluation_id"]
+                self.trained_model_id = data["trained_model_id"]
+                self.test_set_source = data["test_set_source"]
+
+        config = SimpleConfig(config_dict)
+
+        # Call the CORRECT ModelEvaluator.evaluate_model method
+        await model_evaluator.evaluate_model(job_id, evaluation_id, config)
+
+        logger.info(f"✅ CORRECT (V2) evaluation job {job_id} completed successfully")
 
     except Exception as e:
-        logger.error(f"Evaluation job {job_id} failed: {str(e)}")
+        import traceback
+        logger.error(f"❌ CORRECT (V2) evaluation job {job_id} failed: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
 
         # Send error via WebSocket
         if websocket_manager:
@@ -4091,153 +3661,17 @@ async def run_evaluation_job(evaluation_id: str, job_id: str):
 
         # Update status to FAILED
         try:
+            import sqlite3
             db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute('UPDATE evaluation_runs SET status = ? WHERE id = ?', ("FAILED", evaluation_id))
-            conn.commit()
-            conn.close()
-        except:
-            pass
-
-        conn.commit()
-        conn.close()
-
-        logger.info(f"Evaluation job {job_id} completed successfully")
-
-    except Exception as e:
-        logger.error(f"Evaluation job {job_id} failed: {str(e)}")
-
-        # Update status to FAILED
-        try:
-            db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute('UPDATE evaluation_runs SET status = ? WHERE id = ?', ("FAILED", evaluation_id))
-            conn.commit()
-            conn.close()
-        except:
-            pass
-
+            error_conn = sqlite3.connect(db_path)
+            error_cursor = error_conn.cursor()
+            error_cursor.execute('UPDATE evaluation_runs SET status = ? WHERE id = ?', ("FAILED", evaluation_id))
+            error_conn.commit()
+            error_conn.close()
+        except Exception as update_error:
+            logger.error(f"Failed to update evaluation status to FAILED: {update_error}")
 
 # ========== Stage 3: nnPU Training API Routes ==========
-
-@case_study_v2_router.post("/start-training")
-async def start_nnpu_training(request: dict):
-    """啟動新的 nnPU 模型訓練工作"""
-    try:
-        logger.info(f"Received nnPU training request: {request}")
-
-        # 驗證請求參數
-        experiment_id = request.get("experiment_id")
-        training_config = request.get("training_config", {})
-        data_source_config = request.get("data_source_config", {})
-
-        if not experiment_id:
-            raise HTTPException(status_code=400, detail="experiment_id is required")
-
-        if not training_config:
-            raise HTTPException(status_code=400, detail="training_config is required")
-
-        if not data_source_config:
-            raise HTTPException(status_code=400, detail="data_source_config is required")
-
-        # 驗證 nnPU 訓練配置的必要參數
-        required_training_params = [
-            "classPrior", "windowSize", "modelType", "hiddenSize",
-            "numLayers", "activationFunction", "dropout", "epochs",
-            "batchSize", "optimizer", "learningRate", "l2Regularization",
-            "earlyStopping", "patience", "learningRateScheduler"
-        ]
-
-        missing_params = [param for param in required_training_params if param not in training_config]
-        if missing_params:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required training config parameters: {missing_params}"
-            )
-
-        # 驗證資料來源配置
-        required_data_params = ["trainRatio", "validationRatio", "testRatio", "timeRange"]
-        missing_data_params = [param for param in required_data_params if param not in data_source_config]
-        if missing_data_params:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required data source config parameters: {missing_data_params}"
-            )
-
-        # 生成唯一的任務 ID
-        task_id = int(str(uuid.uuid4().int)[:6])  # 6位數字任務ID
-
-        logger.info(f"Starting nnPU training job with task_id: {task_id}")
-
-        # 檢查 model_trainer 是否可用
-        global model_trainer
-        if not model_trainer:
-            raise HTTPException(
-                status_code=503,
-                detail="Model trainer service is not available. Please ensure the service is properly initialized."
-            )
-
-        # 使用 model_trainer 的新接口創建訓練配置
-        from services.case_study_v2.models import StartTrainingJobRequest, ModelConfig, DataSourceConfig
-
-        # 創建配置對象
-        model_config = ModelConfig(
-            classPrior=training_config["classPrior"],
-            windowSize=training_config["windowSize"],
-            modelType=training_config["modelType"],
-            hiddenSize=training_config["hiddenSize"],
-            numLayers=training_config["numLayers"],
-            activationFunction=training_config["activationFunction"],
-            dropout=training_config["dropout"],
-            epochs=training_config["epochs"],
-            batchSize=training_config["batchSize"],
-            optimizer=training_config["optimizer"],
-            learningRate=training_config["learningRate"],
-            l2Regularization=training_config["l2Regularization"],
-            earlyStopping=training_config["earlyStopping"],
-            patience=training_config["patience"],
-            learningRateScheduler=training_config["learningRateScheduler"]
-        )
-
-        data_config = DataSourceConfig(
-            trainRatio=data_source_config["trainRatio"],
-            validationRatio=data_source_config["validationRatio"],
-            testRatio=data_source_config["testRatio"],
-            timeRange=data_source_config["timeRange"]
-        )
-
-        training_request = StartTrainingJobRequest(
-            experiment_id=experiment_id,
-            training_config=model_config,
-            data_source_config=data_config
-        )
-
-        # 啟動異步訓練任務
-        asyncio.create_task(
-            model_trainer.train_model(
-                job_id=str(task_id),
-                trained_model_id=str(uuid.uuid4()),
-                config=training_request
-            )
-        )
-
-        return {
-            "status": "success",
-            "message": "nnPU training job started successfully",
-            "task_id": task_id,
-            "experiment_id": experiment_id,
-            "training_config": training_config,
-            "data_source_config": data_source_config
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error starting nnPU training: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to start nnPU training: {str(e)}")
-
 
 @case_study_v2_router.get("/training-jobs")
 async def get_training_jobs():

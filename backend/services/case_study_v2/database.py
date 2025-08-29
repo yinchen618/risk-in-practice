@@ -37,6 +37,14 @@ class DatabaseManager:
         await self.db.disconnect()
         logger.info("Database disconnected")
 
+    def db_context(self):
+        """Get database context for direct database operations"""
+        return self.db
+
+    async def get_session(self):
+        """Get database session - alias for db_context for compatibility"""
+        return self.db
+
     # ========== ExperimentRun Operations ==========
 
     async def create_experiment_run(
@@ -175,17 +183,23 @@ class DatabaseManager:
         status: str,
         model_path: Optional[str] = None,
         training_metrics: Optional[Dict[str, Any]] = None,
+        validation_metrics: Optional[Dict[str, Any]] = None,
+        training_data_info: Optional[Dict[str, Any]] = None,
         completed_at: Optional[datetime] = None
     ):
         """Update trained model status and results"""
         update_data = {'status': status}
 
         if model_path:
-            update_data['model_path'] = model_path
+            update_data['modelPath'] = model_path
         if training_metrics:
-            update_data['training_metrics'] = json.dumps(training_metrics)
+            update_data['trainingMetrics'] = json.dumps(training_metrics)
+        # if validation_metrics:
+        #     update_data['validationMetrics'] = json.dumps(validation_metrics)
+        # if training_data_info:
+        #     update_data['trainingDataInfo'] = json.dumps(training_data_info)
         if completed_at:
-            update_data['completed_at'] = completed_at
+            update_data['completedAt'] = completed_at
 
         return await self.db.trainedmodel.update(
             where={'id': model_id},
@@ -199,12 +213,22 @@ class DatabaseManager:
         )
 
         if model:
-            if model.model_config:
-                model.model_config = json.loads(model.model_config)
-            if model.data_source_config:
-                model.data_source_config = json.loads(model.data_source_config)
-            if model.training_metrics:
-                model.training_metrics = json.loads(model.training_metrics)
+            # Convert to dict and process JSON fields
+            model_dict = model.dict()
+            if model_dict.get('model_config'):
+                model_dict['model_config'] = json.loads(model_dict['model_config']) if isinstance(model_dict['model_config'], str) else model_dict['model_config']
+            if model_dict.get('data_source_config'):
+                model_dict['data_source_config'] = json.loads(model_dict['data_source_config']) if isinstance(model_dict['data_source_config'], str) else model_dict['data_source_config']
+            if model_dict.get('training_metrics'):
+                model_dict['training_metrics'] = json.loads(model_dict['training_metrics']) if isinstance(model_dict['training_metrics'], str) else model_dict['training_metrics']
+
+            # Create a simple object to mimic the original model
+            class ModelObject:
+                def __init__(self, data):
+                    for key, value in data.items():
+                        setattr(self, key, value)
+
+            return ModelObject(model_dict)
 
         return model
 

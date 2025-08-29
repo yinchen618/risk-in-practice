@@ -66,6 +66,25 @@ class WebSocketManager:
                 # Remove failed connection
                 self.training_connections[job_id].discard(websocket)
 
+    async def broadcast_training_status(self, job_id: str, status_data: dict):
+        """Broadcast a status update to all connected training job websockets"""
+        if job_id not in self.training_connections:
+            return
+
+        import json
+        message = json.dumps(status_data)
+
+        # Create a copy of the set to avoid modification during iteration
+        connections = self.training_connections[job_id].copy()
+
+        for websocket in connections:
+            try:
+                await websocket.send_text(message)
+            except Exception as e:
+                logger.error(f"Error sending training status to websocket: {e}")
+                # Remove failed connection
+                self.training_connections[job_id].discard(websocket)
+
     async def broadcast_evaluation_log(self, job_id: str, message: str):
         """Broadcast a log message to all connected evaluation job websockets"""
         if job_id not in self.evaluation_connections:

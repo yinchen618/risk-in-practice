@@ -12,6 +12,12 @@ export interface FilteringParameters {
 	exclude_weekends: boolean;
 	time_window_hours: number;
 
+	// Additional time properties
+	startDate?: string;
+	endDate?: string;
+	startTime?: string;
+	endTime?: string;
+
 	// Data integrity rules
 	max_missing_ratio: number;
 	min_data_points: number;
@@ -24,6 +30,9 @@ export interface FilteringParameters {
 	buildings: string[];
 	floors: string[];
 	rooms: string[];
+
+	// Dataset selection (for experiment scenarios)
+	selectedDatasetIds?: string[];
 }
 
 export interface ExperimentRun {
@@ -89,106 +98,125 @@ export interface DataSourceConfig {
 
 export interface TrainedModel {
 	id: string;
-	name: string;
-	scenarioType:
-		| "ERM_BASELINE"
-		| "GENERALIZATION_CHALLENGE"
-		| "DOMAIN_ADAPTATION";
-	status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
 	experiment_run_id: string;
-	model_config: ModelConfig;
-	data_source_config: DataSourceConfig;
+	name: string;
+	status: string;
+	scenarioType: string;
+	model_config: string;
+	data_source_config: string;
 	model_path?: string;
-	training_metrics?: {
-		final_loss: number;
-		final_accuracy: number;
-		best_val_accuracy: number;
-		training_time_seconds: number;
-		total_epochs: number;
-		model_parameters: any;
-		convergence_epoch: number;
-	};
+	training_metrics?: string;
+	// 🆕 統一的 training_data_info 格式（整合詳細 P/U 資訊和靜態子集法資訊）
 	training_data_info?: {
-		p_data_sources: {
+		// 詳細 P/U 資料源資訊（可選）
+		p_data_sources?: {
 			dataset_ids: string[];
-			dataset_info: Record<string, {
-				total_samples: number;
-				train_samples: number;
-				validation_samples: number;
-				test_samples: number;
-			}>;
+			dataset_info: Record<string, any>;
 			dataset_names: Record<string, string>;
 			total_samples: number;
-			total_train_samples: number;
-			total_validation_samples: number;
-			total_test_samples: number;
+			total_train_samples?: number;
+			total_validation_samples?: number;
+			total_test_samples?: number;
+			actual_train_samples?: number;
+			actual_validation_samples?: number;
+			actual_test_samples?: number;
 		};
-		u_data_sources: {
+		u_data_sources?: {
 			dataset_ids: string[];
-			dataset_info: Record<string, {
-				total_samples: number;
-				train_samples: number;
-				validation_samples: number;
-				test_samples: number;
-			}>;
+			dataset_info: Record<string, any>;
 			dataset_names: Record<string, string>;
 			total_samples: number;
-			total_train_samples: number;
-			total_validation_samples: number;
-			total_test_samples: number;
+			total_train_samples?: number;
+			total_validation_samples?: number;
+			total_test_samples?: number;
+			actual_train_samples?: number;
+			actual_validation_samples?: number;
+			actual_test_samples?: number;
 		};
-		data_split_ratios: {
+		data_split_ratios?: {
 			train_ratio: number;
 			validation_ratio: number;
 			test_ratio: number;
 		};
-		overlap_removal: boolean;
-		u_sampling_applied: boolean;
+		overlap_removal?: boolean;
+		u_sampling_applied?: boolean;
+
+		// 靜態子集法核心資訊
+		total_samples?: number;
+		split_ratios?: {
+			train: number;
+			validation: number;
+			test: number;
+		};
+		train_pool_size?: number;
+		validation_pool_size?: number;
+		test_pool_size?: number;
+		train_p_count?: number;
+		train_u_full_count?: number;
+		train_u_sampled_count?: number;
+		u_sample_ratio?: number;
+		random_seed?: number;
+		sampling_method?: string;
+		split_method?: string;
+
+		// 最終訓練集資訊
+		final_training_samples?: number;
+		actual_train_p_samples?: number;
+		actual_train_u_samples?: number;
 	};
 	job_id?: string;
 	created_at: string;
+	started_at?: string;
 	completed_at?: string;
+	evaluation_runs?: EvaluationRun[];
 }
 
 export interface EvaluationRun {
 	id: string;
 	name: string;
-	scenario_type:
-		| "ERM_BASELINE"
-		| "GENERALIZATION_CHALLENGE"
-		| "DOMAIN_ADAPTATION";
+	scenarioType: string; // 使用 camelCase
 	status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
-	trained_model_id: string;
-	test_set_source: {
-		source_type: string;
-		experiment_run_id?: string;
-		external_dataset_id?: string;
-	};
-	evaluation_metrics?: {
-		f1_score: number;
+	trainedModelId: string; // 使用 camelCase
+	testSetSource: string; // JSON string format
+	evaluationMetrics?: {
+		accuracy: number;
 		precision: number;
 		recall: number;
-		accuracy: number;
+		f1_score: number;
 		auc_roc: number;
-		auc_pr: number;
 		confusion_matrix: {
-			true_positive_rate: number;
-			false_positive_rate: number;
-			false_negative_rate: number;
-			true_negative_rate: number;
+			tp: number;
+			fp: number;
+			tn: number;
+			fn: number;
 		};
-		class_distribution: {
+		test_data_info?: {
+			total_samples: number;
 			positive_samples: number;
 			negative_samples: number;
-			total_samples: number;
+			feature_dimensions: number;
 		};
-		evaluation_time_seconds: number;
-		scenario_type: string;
+		static_subset_evaluation?: {
+			method: string;
+			split_method: string;
+			split_ratios: {
+				train: number;
+				validation: number;
+				test: number;
+			};
+			random_seed: number;
+			total_dataset_size: number;
+			test_pool_size: number;
+			test_pool_ratio: number;
+			evaluation_timestamp: string;
+		};
 	};
-	job_id?: string;
-	created_at: string;
-	completed_at?: string;
-	trained_model?: TrainedModel;
+	jobId?: string; // 使用 camelCase
+	createdAt: string; // 使用 camelCase
+	completedAt?: string; // 使用 camelCase
+	modelName?: string; // 新增模型名稱
+	experimentRunId?: string; // 使用 camelCase
+	trained_model?: TrainedModel; // 保持兼容性
 }
 
 export interface ExperimentHistory {

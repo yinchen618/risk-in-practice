@@ -6,11 +6,10 @@ from core.logging_config import setup_backend_logging
 from routes.ammeters import ammeters_router
 from routes.pu_learning import router as pu_learning_router
 from routes.testbed import router as testbed_router
-from routes.casestudy import router as casestudy_router
 from routes.candidates import router as candidates_router
 from routes.experiment_runs import router as experiment_runs_router
 from routes.models import router as models_router
-from routes.model_training import router as model_training_router
+# from routes.model_training import router as model_training_router  # Module missing
 from routes.case_study_v2 import case_study_v2_router, init_case_study_v2, cleanup_case_study_v2
 from ai_api import router as ai_router
 import asyncio
@@ -251,8 +250,6 @@ app.include_router(ai_router)
 app.include_router(pu_learning_router)
 # 包含 Testbed 路由
 app.include_router(testbed_router)
-# 包含 Case Study 路由
-app.include_router(casestudy_router)
 # 包含新的候選事件 API
 app.include_router(candidates_router)
 # 包含實驗批次管理 API
@@ -260,7 +257,7 @@ app.include_router(experiment_runs_router)
 # 包含新的模型訓練 API
 app.include_router(models_router)
 # 包含 PU Learning 模型訓練 API
-app.include_router(model_training_router)
+# app.include_router(model_training_router)  # Module missing
 # 包含 Case Study v2 路由
 app.include_router(case_study_v2_router)
 

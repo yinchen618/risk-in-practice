@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooltip 功能測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .metric-box {
+            display: inline-block;
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .metric-tooltip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #0369a1;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        .help-icon {
+            width: 12px;
+            height: 12px;
+            background: #6b7280;
+            border-radius: 50%;
+            color: white;
+            font-size: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+        }
+        
+        .help-icon:hover {
+            background: #374151;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-top: 4px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 5px;
+        }
+        
+        .demo-note {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 20px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <h1>PU Learning 模型指標 Tooltip 功能測試</h1>
+    
+    <div class="demo-note">
+        <strong>測試說明：</strong> 將滑鼠懸停在問號圖標上，即可看到指標解釋的 tooltip。
+    </div>
+    
+    <div class="section">
+        <h2>🧪 Test Set Performance (測試集表現)</h2>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Test F1</span>
+                <span class="help-icon" title="F1-Score 是精確率(Precision)和召回率(Recall)的調和平均數，綜合評估模型在測試集上的分類效果。範圍 0-100%，越高越好。">?</span>
+            </div>
+            <div class="metric-value">87.5%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Test Precision</span>
+                <span class="help-icon" title="精確率表示在模型預測為正例的樣本中，實際為正例的比例。衡量模型預測正例的準確性。範圍 0-100%，越高越好。">?</span>
+            </div>
+            <div class="metric-value">85.2%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Test Recall</span>
+                <span class="help-icon" title="召回率表示在所有實際正例中，被模型正確識別出的比例。衡量模型發現正例的能力。範圍 0-100%，越高越好。">?</span>
+            </div>
+            <div class="metric-value">89.8%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>nnPU Risk</span>
+                <span class="help-icon" title="非負 PU 學習的風險函數值，用於衡量模型在僅有正樣本和未標記樣本情況下的學習效果。數值越小表示模型效果越好。">?</span>
+            </div>
+            <div class="metric-value">0.1247</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>🧬 PU Learning Specifics (PU 學習專屬指標)</h2>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>True Pos Recall</span>
+                <span class="help-icon" title="在測試集中真實正例的召回率，專門針對 PU 學習場景設計的指標，衡量模型識別真正異常的能力。">?</span>
+            </div>
+            <div class="metric-value">84.3%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Est. Pos in U</span>
+                <span class="help-icon" title="估計未標記樣本集合中正例的比例，反映 PU 學習算法對數據分布的理解程度。">?</span>
+            </div>
+            <div class="metric-value">12.7%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Class Prior (π)</span>
+                <span class="help-icon" title="類別先驗機率，表示正例在整個數據集中的真實比例。這是 PU 學習的重要參數，通常需要領域專家估計。">?</span>
+            </div>
+            <div class="metric-value">15.2%</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>⚙️ Training Process (訓練過程)</h2>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Total Epochs</span>
+                <span class="help-icon" title="模型完成的總訓練輪數，每個 epoch 表示模型看過完整數據集一次。">?</span>
+            </div>
+            <div class="metric-value">50</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Early Stop</span>
+                <span class="help-icon" title="是否觸發早停機制。早停可防止過擬合，當驗證性能不再改善時自動停止訓練。">?</span>
+            </div>
+            <div class="metric-value">✓ Yes</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Converged @</span>
+                <span class="help-icon" title="模型收斂的訓練輪數，即達到最佳驗證性能的 epoch。">?</span>
+            </div>
+            <div class="metric-value">Epoch 37</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Training Time</span>
+                <span class="help-icon" title="模型訓練的總耗時，包括數據處理和梯度更新的時間。">?</span>
+            </div>
+            <div class="metric-value">2.3s</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Validation Performance (驗證集表現)</h2>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Best Val F1</span>
+                <span class="help-icon" title="驗證集上達到的最佳 F1-Score，用於模型選擇和早停判斷。">?</span>
+            </div>
+            <div class="metric-value">86.1%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Best Val Prec</span>
+                <span class="help-icon" title="驗證集上達到的最佳精確率，反映模型在驗證階段的預測準確性。">?</span>
+            </div>
+            <div class="metric-value">83.7%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Best Val Recall</span>
+                <span class="help-icon" title="驗證集上達到的最佳召回率，反映模型在驗證階段的發現能力。">?</span>
+            </div>
+            <div class="metric-value">88.5%</div>
+        </div>
+        
+        <div class="metric-box">
+            <div class="metric-tooltip">
+                <span>Best Epoch</span>
+                <span class="help-icon" title="在驗證集上取得最佳性能的訓練輪數，通常用於選擇最終模型。">?</span>
+            </div>
+            <div class="metric-value">37</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 40px; color: #6b7280; font-size: 14px;">
+        <p><strong>實現說明：</strong></p>
+        <ul>
+            <li>使用簡單的 HTML <code>title</code> 屬性實現 tooltip 功能</li>
+            <li>在 React 組件中，我們創建了 <code>MetricTooltip</code> 組件來包裝指標名稱和 HelpCircle 圖標</li>
+            <li>所有指標解釋都定義在 <code>METRIC_EXPLANATIONS</code> 常數中，便於維護和一致性</li>
+            <li>Tooltip 在滑鼠懸停時顯示，提供清晰的指標解釋</li>
+        </ul>
+    </div>
+</body>
+</html>

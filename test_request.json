@@ -1,0 +1,7 @@
+{
+	"name": "Test_Model_Debug",
+	"scenario_type": "ERM_BASELINE",
+	"experimentRunId": "bc38412a-ead9-4aec-b5fe-b2526d4ca478",
+	"modelConfig": "{\"modelType\":\"LSTM\",\"hiddenSize\":32,\"numLayers\":1,\"dropout\":0.2,\"windowSize\":10,\"learningRate\":0.001,\"batchSize\":32,\"epochs\":50,\"classPrior\":0.15,\"activationFunction\":\"relu\",\"optimizer\":\"adam\",\"l2Regularization\":0.0001,\"earlyStopping\":true,\"patience\":10,\"learningRateScheduler\":\"none\"}",
+	"dataSourceConfig": "{\"trainRatio\":70,\"validationRatio\":20,\"testRatio\":10,\"timeRange\":\"all\",\"positiveDataSourceIds\":[],\"unlabeledDataSourceIds\":[]}"
+}

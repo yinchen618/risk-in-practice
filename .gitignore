@@ -59,3 +59,6 @@ trained_models/
 *db/
 room*.json
 *.db
+*.pth
+*.md
+test*.py

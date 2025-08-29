@@ -29,6 +29,7 @@ import {
 	CheckCircle,
 	Clock,
 	Database,
+	HelpCircle,
 	Loader2,
 	Play,
 	RefreshCw,
@@ -38,38 +39,1317 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { ExperimentRun } from "../types/index";
+import type {
+	EvaluationRun,
+	ExperimentRun,
+	TrainedModel,
+} from "../types/index";
 
-interface TrainedModel {
-	id: string;
-	name: string;
-	scenarioType: string;
-	status: string;
-	modelConfig: string;
-	dataSourceConfig: string;
-	modelPath?: string;
-	trainingMetrics?: string | object;
-	jobId?: string;
-	createdAt: string;
-	completedAt?: string;
+// ==================== REUSABLE COMPONENTS ====================
+
+// 狀態圖標組件 - 統一的狀態顯示
+function StatusIcon({ status }: { status: string }) {
+	switch (status) {
+		case "COMPLETED":
+			return <CheckCircle className="h-4 w-4 text-green-500" />;
+		case "RUNNING":
+			return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+		case "FAILED":
+			return <AlertCircle className="h-4 w-4 text-red-500" />;
+		default:
+			return <Clock className="h-4 w-4 text-gray-500" />;
+	}
 }
 
-interface EvaluationRun {
-	id: string;
-	name: string;
-	scenarioType: string;
-	status: string;
-	trainedModelId: string;
-	testSetSource: string;
-	evaluationMetrics?: string | object;
-	jobId?: string;
-	createdAt: string;
-	completedAt?: string;
+// 操作按鈕組件 - 統一的刪除按鈕樣式
+function DeleteButton({
+	onClick,
+	title,
+}: {
+	onClick: (e: React.MouseEvent) => void;
+	title: string;
+}) {
+	return (
+		<Button
+			variant="outline"
+			size="sm"
+			className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+			onClick={onClick}
+			title={title}
+		>
+			<Trash2 className="h-3 w-3" />
+		</Button>
+	);
+}
+
+// 指標解釋常數定義
+const METRIC_EXPLANATIONS = {
+	// Test Set Performance Metrics
+	"Test F1":
+		"F1-Score 是精確率(Precision)和召回率(Recall)的調和平均數，綜合評估模型在測試集上的分類效果。範圍 0-100%，越高越好。",
+	"Test Precision":
+		"精確率表示在模型預測為正例的樣本中，實際為正例的比例。衡量模型預測正例的準確性。範圍 0-100%，越高越好。",
+	"Test Recall":
+		"召回率表示在所有實際正例中，被模型正確識別出的比例。衡量模型發現正例的能力。範圍 0-100%，越高越好。",
+	"nnPU Risk":
+		"非負 PU 學習的風險函數值，用於衡量模型在僅有正樣本和未標記樣本情況下的學習效果。數值越小表示模型效果越好。",
+
+	// PU Learning Specific Metrics
+	"True Pos Recall":
+		"在測試集中真實正例的召回率，專門針對 PU 學習場景設計的指標，衡量模型識別真正異常的能力。",
+	"Est. Pos in U":
+		"估計未標記樣本集合中正例的比例，反映 PU 學習算法對數據分布的理解程度。",
+	"Class Prior (π)":
+		"類別先驗機率，表示正例在整個數據集中的真實比例。這是 PU 學習的重要參數，通常需要領域專家估計。",
+
+	// Training Process Information
+	"Total Epochs":
+		"模型完成的總訓練輪數，每個 epoch 表示模型看過完整數據集一次。",
+	"Early Stop":
+		"是否觸發早停機制。早停可防止過擬合，當驗證性能不再改善時自動停止訓練。",
+	"Converged @": "模型收斂的訓練輪數，即達到最佳驗證性能的 epoch。",
+	"Training Time": "模型訓練的總耗時，包括數據處理和梯度更新的時間。",
+
+	// Validation Performance
+	"Best Val F1": "驗證集上達到的最佳 F1-Score，用於模型選擇和早停判斷。",
+	"Best Val Prec":
+		"驗證集上達到的最佳精確率，反映模型在驗證階段的預測準確性。",
+	"Best Val Recall":
+		"驗證集上達到的最佳召回率，反映模型在驗證階段的發現能力。",
+	"Best Epoch": "在驗證集上取得最佳性能的訓練輪數，通常用於選擇最終模型。",
+};
+
+// 簡單的 Tooltip 組件
+function MetricTooltip({
+	children,
+	explanation,
+	className = "",
+}: {
+	children: React.ReactNode;
+	explanation: string;
+	className?: string;
+}) {
+	return (
+		<div className={`inline-flex items-center gap-1 ${className}`}>
+			{children}
+			<span className="inline-block cursor-help" title={explanation}>
+				<HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+			</span>
+		</div>
+	);
+}
+
+// Training Metrics 組件 - 訓練性能指標顯示
+function TrainingMetrics({
+	trainingMetrics,
+}: { trainingMetrics: string | object }) {
+	return (
+		<div className="border-t bg-indigo-50 p-3">
+			<div className="text-sm font-medium mb-2 text-indigo-700">
+				Training Performance Metrics
+			</div>{" "}
+			{(() => {
+				try {
+					const metrics =
+						typeof trainingMetrics === "string"
+							? JSON.parse(trainingMetrics)
+							: trainingMetrics;
+					console.log("model.training_metrics", trainingMetrics);
+					return (
+						<div className="bg-white border border-indigo-200 rounded p-3 text-xs space-y-4">
+							{/* nnPU Learning Algorithm Information */}
+							{(metrics.nnpu_method ||
+								metrics.training_method) && (
+								<div className="flex items-center justify-between pb-2 border-b border-gray-200">
+									<span className="font-semibold text-gray-700">
+										Algorithm:
+									</span>
+									<span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+										{metrics.nnpu_method ||
+											metrics.training_method ||
+											"nnPU Learning"}
+									</span>
+								</div>
+							)}
+
+							{/* Test Set Performance - Most Important for PU Learning */}
+							{(metrics.final_test_f1_score !== undefined ||
+								metrics.final_test_precision !== undefined ||
+								metrics.final_test_recall !== undefined) && (
+								<div>
+									<div className="font-medium text-gray-700 mb-2">
+										🧪 Test Set Performance:
+									</div>
+									<div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+										{metrics.final_test_f1_score !==
+											undefined && (
+											<div className="bg-green-50 p-2 rounded border border-green-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Test F1"
+														]
+													}
+													className="text-green-700 font-medium text-xs"
+												>
+													<span>Test F1</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-green-800">
+													{(
+														metrics.final_test_f1_score *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.final_test_precision !==
+											undefined && (
+											<div className="bg-blue-50 p-2 rounded border border-blue-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Test Precision"
+														]
+													}
+													className="text-blue-700 font-medium text-xs"
+												>
+													<span>Test Precision</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-blue-800">
+													{(
+														metrics.final_test_precision *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.final_test_recall !==
+											undefined && (
+											<div className="bg-pink-50 p-2 rounded border border-pink-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Test Recall"
+														]
+													}
+													className="text-pink-700 font-medium text-xs"
+												>
+													<span>Test Recall</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-pink-800">
+													{(
+														metrics.final_test_recall *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.final_test_nnpu_risk !==
+											undefined && (
+											<div className="bg-orange-50 p-2 rounded border border-orange-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"nnPU Risk"
+														]
+													}
+													className="text-orange-700 font-medium text-xs"
+												>
+													<span>nnPU Risk</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-orange-800">
+													{Number(
+														metrics.final_test_nnpu_risk,
+													).toFixed(4)}
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* PU Learning Specific Metrics */}
+							{(metrics.true_positive_recall_test !== undefined ||
+								metrics.estimated_positive_rate_in_unlabeled !==
+									undefined ||
+								metrics.class_prior_used !== undefined) && (
+								<div>
+									<div className="font-medium text-gray-700 mb-2">
+										🧬 PU Learning Specifics:
+									</div>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+										{metrics.true_positive_recall_test !==
+											undefined && (
+											<div className="bg-teal-50 p-2 rounded border border-teal-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"True Pos Recall"
+														]
+													}
+													className="text-teal-700 font-medium text-xs"
+												>
+													<span>True Pos Recall</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-teal-800">
+													{(
+														metrics.true_positive_recall_test *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.estimated_positive_rate_in_unlabeled !==
+											undefined && (
+											<div className="bg-cyan-50 p-2 rounded border border-cyan-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Est. Pos in U"
+														]
+													}
+													className="text-cyan-700 font-medium text-xs"
+												>
+													<span>Est. Pos in U</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-cyan-800">
+													{(
+														metrics.estimated_positive_rate_in_unlabeled *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.class_prior_used !==
+											undefined && (
+											<div className="bg-indigo-50 p-2 rounded border border-indigo-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Class Prior (π)"
+														]
+													}
+													className="text-indigo-700 font-medium text-xs"
+												>
+													<span>Class Prior (π)</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-indigo-800">
+													{(
+														metrics.class_prior_used *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* Training Process Information */}
+							{(metrics.total_epochs_trained !== undefined ||
+								metrics.early_stopped !== undefined ||
+								metrics.training_time_seconds !== undefined ||
+								metrics.convergence_epoch !== undefined) && (
+								<div>
+									<div className="font-medium text-gray-700 mb-2">
+										⚙️ Training Process:
+									</div>
+									<div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+										{metrics.total_epochs_trained !==
+											undefined && (
+											<div className="bg-purple-50 p-2 rounded border border-purple-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Total Epochs"
+														]
+													}
+													className="text-purple-700 font-medium text-xs"
+												>
+													<span>Total Epochs</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-purple-800">
+													{
+														metrics.total_epochs_trained
+													}
+												</div>
+											</div>
+										)}
+										{metrics.early_stopped !==
+											undefined && (
+											<div
+												className={`p-2 rounded border ${
+													metrics.early_stopped
+														? "bg-orange-50 border-orange-200"
+														: "bg-gray-50 border-gray-200"
+												}`}
+											>
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Early Stop"
+														]
+													}
+													className={`font-medium text-xs ${
+														metrics.early_stopped
+															? "text-orange-700"
+															: "text-gray-700"
+													}`}
+												>
+													<span>Early Stop</span>
+												</MetricTooltip>
+												<div
+													className={`text-lg font-bold ${
+														metrics.early_stopped
+															? "text-orange-800"
+															: "text-gray-800"
+													}`}
+												>
+													{metrics.early_stopped
+														? "✓ Yes"
+														: "✗ No"}
+												</div>
+											</div>
+										)}
+										{metrics.convergence_epoch !==
+											undefined && (
+											<div className="bg-green-50 p-2 rounded border border-green-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Converged @"
+														]
+													}
+													className="text-green-700 font-medium text-xs"
+												>
+													<span>Converged @</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-green-800">
+													Epoch{" "}
+													{metrics.convergence_epoch}
+												</div>
+											</div>
+										)}
+										{metrics.training_time_seconds !==
+											undefined && (
+											<div className="bg-gray-50 p-2 rounded border border-gray-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Training Time"
+														]
+													}
+													className="text-gray-700 font-medium text-xs"
+												>
+													<span>Training Time</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-gray-800">
+													{metrics.training_time_seconds <
+													1
+														? "<1s"
+														: `${metrics.training_time_seconds.toFixed(1)}s`}
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* Validation Performance */}
+							{(metrics.best_val_f1_score !== undefined ||
+								metrics.best_val_precision !== undefined ||
+								metrics.best_val_recall !== undefined) && (
+								<div>
+									<div className="font-medium text-gray-700 mb-2">
+										🎯 Validation Performance (Best):
+									</div>
+									<div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+										{metrics.best_val_f1_score !==
+											undefined && (
+											<div className="bg-emerald-50 p-2 rounded border border-emerald-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Best Val F1"
+														]
+													}
+													className="text-emerald-700 font-medium text-xs"
+												>
+													<span>Best Val F1</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-emerald-800">
+													{(
+														metrics.best_val_f1_score *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.best_val_precision !==
+											undefined && (
+											<div className="bg-sky-50 p-2 rounded border border-sky-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Best Val Prec"
+														]
+													}
+													className="text-sky-700 font-medium text-xs"
+												>
+													<span>Best Val Prec</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-sky-800">
+													{(
+														metrics.best_val_precision *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.best_val_recall !==
+											undefined && (
+											<div className="bg-rose-50 p-2 rounded border border-rose-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Best Val Recall"
+														]
+													}
+													className="text-rose-700 font-medium text-xs"
+												>
+													<span>Best Val Recall</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-rose-800">
+													{(
+														metrics.best_val_recall *
+														100
+													).toFixed(1)}
+													%
+												</div>
+											</div>
+										)}
+										{metrics.best_epoch !== undefined && (
+											<div className="bg-violet-50 p-2 rounded border border-violet-200">
+												<MetricTooltip
+													explanation={
+														METRIC_EXPLANATIONS[
+															"Best Epoch"
+														]
+													}
+													className="text-violet-700 font-medium text-xs"
+												>
+													<span>Best Epoch</span>
+												</MetricTooltip>
+												<div className="text-lg font-bold text-violet-800">
+													{metrics.best_epoch}
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+					);
+				} catch (error) {
+					return (
+						<div className="bg-red-50 border border-red-200 rounded p-2 text-red-700 text-xs">
+							Error parsing training metrics:{" "}
+							{error instanceof Error
+								? error.message
+								: "Unknown error"}
+						</div>
+					);
+				}
+			})()}
+		</div>
+	);
+}
+
+// Training Model Configuration 組件 - 訓練模型配置顯示
+function TrainingModelConfiguration({
+	modelConfig,
+}: { modelConfig: string | object }) {
+	return (
+		<div className="border-t bg-blue-50 p-3">
+			<div className="text-sm font-medium mb-2 text-blue-700">
+				Model Configuration
+			</div>
+
+			{(() => {
+				try {
+					const config =
+						typeof modelConfig === "string"
+							? JSON.parse(modelConfig)
+							: modelConfig;
+					return (
+						<div className="bg-white border border-blue-200 rounded p-3 text-xs space-y-3">
+							{/* Model & Algorithm Configuration */}
+							{(config.modelType ||
+								config.classPrior !== undefined) && (
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+									{config.modelType && (
+										<div className="bg-indigo-50 p-2 rounded border border-indigo-200">
+											<div className="text-indigo-700 font-medium">
+												Model Type
+											</div>
+											<div className="font-bold text-indigo-800">
+												{config.modelType}
+											</div>
+										</div>
+									)}
+
+									{config.classPrior !== undefined && (
+										<div className="bg-green-50 p-2 rounded border border-green-200">
+											<div className="text-green-700 font-medium">
+												Class Prior
+											</div>
+											<div className="font-bold text-green-800">
+												{Number(
+													config.classPrior,
+												).toFixed(4)}
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+
+							{/* Training Parameters */}
+							{(config.epochs ||
+								config.batchSize ||
+								config.learningRate ||
+								config.earlyStopping ||
+								config.patience) && (
+								<div className="space-y-2">
+									<div className="font-medium text-gray-700 text-xs">
+										Training Parameters:
+									</div>
+									<div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+										{config.epochs && (
+											<div className="bg-purple-50 p-2 rounded text-center border border-purple-200">
+												<div className="text-purple-700 font-medium">
+													Epochs
+												</div>
+												<div className="font-bold text-purple-800">
+													{config.epochs}
+												</div>
+											</div>
+										)}
+
+										{config.batchSize && (
+											<div className="bg-orange-50 p-2 rounded text-center border border-orange-200">
+												<div className="text-orange-700 font-medium">
+													Batch Size
+												</div>
+												<div className="font-bold text-orange-800">
+													{config.batchSize}
+												</div>
+											</div>
+										)}
+
+										{config.learningRate && (
+											<div className="bg-teal-50 p-2 rounded text-center border border-teal-200">
+												<div className="text-teal-700 font-medium">
+													Learning Rate
+												</div>
+												<div className="font-bold text-teal-800">
+													{Number(
+														config.learningRate,
+													).toExponential(2)}
+												</div>
+											</div>
+										)}
+
+										{config.earlyStopping !== undefined && (
+											<div className="bg-red-50 p-2 rounded text-center border border-red-200">
+												<div className="text-red-700 font-medium">
+													Early Stopping
+												</div>
+												<div className="font-bold text-red-800">
+													{config.earlyStopping
+														? "Enabled"
+														: "Disabled"}
+												</div>
+											</div>
+										)}
+
+										{config.patience && (
+											<div className="bg-pink-50 p-2 rounded text-center border border-pink-200">
+												<div className="text-pink-700 font-medium">
+													Patience
+												</div>
+												<div className="font-bold text-pink-800">
+													{config.patience}
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* Raw Configuration JSON - Collapsible for debugging */}
+							<details className="pt-2 border-t border-gray-200">
+								<summary className="cursor-pointer text-xs text-gray-600 hover:text-gray-800">
+									📋 Complete Configuration (Raw JSON)
+								</summary>
+								<div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+									<pre className="text-gray-700 overflow-x-auto">
+										{JSON.stringify(config, null, 2)}
+									</pre>
+								</div>
+							</details>
+						</div>
+					);
+				} catch (error) {
+					return (
+						<div className="bg-red-50 border border-red-200 rounded p-2 text-red-700 text-xs">
+							Error parsing model configuration:{" "}
+							{error instanceof Error
+								? error.message
+								: "Unknown error"}
+						</div>
+					);
+				}
+			})()}
+		</div>
+	);
+}
+
+// Training Model Evaluations 組件 - 訓練模型評估結果顯示
+function TrainingModelEvaluations({
+	modelEvaluations,
+}: { modelEvaluations: EvaluationRun[] }) {
+	return (
+		<div className="border-t bg-gray-50 p-3">
+			<div className="text-sm font-medium mb-2 text-gray-700">
+				Evaluation Results ({modelEvaluations.length} runs)
+			</div>
+			<div className="space-y-2">
+				{modelEvaluations.map((evaluation) => (
+					<div
+						key={evaluation.id}
+						className="bg-white border rounded p-2 text-xs"
+					>
+						<div className="flex items-center justify-between mb-1">
+							<span className="font-medium">
+								{evaluation.name}
+							</span>
+							<Badge
+								variant={
+									evaluation.status === "COMPLETED"
+										? "default"
+										: "secondary"
+								}
+								className="text-xs"
+							>
+								{evaluation.status}
+							</Badge>
+						</div>
+						<div className="text-gray-600">
+							Created:{" "}
+							{new Date(evaluation.createdAt).toLocaleString()}
+						</div>
+						{evaluation.evaluationMetrics && (
+							<div className="mt-1 p-1 bg-gray-50 rounded">
+								<pre className="text-xs text-gray-700">
+									{JSON.stringify(
+										typeof evaluation.evaluationMetrics ===
+											"string"
+											? JSON.parse(
+													evaluation.evaluationMetrics,
+												)
+											: evaluation.evaluationMetrics,
+										null,
+										2,
+									)}
+								</pre>
+							</div>
+						)}
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+// Training Data Information 組件 - 訓練數據來源與統計顯示
+function TrainingDataInformation({
+	trainingDataInfo,
+}: { trainingDataInfo: any }) {
+	return (
+		<div className="border-t bg-gray-50 p-3">
+			<div className="text-sm font-medium mb-2 text-gray-700">
+				📊 Training Data Sources & Statistics
+			</div>
+
+			{/* Unified format display */}
+			<div className="bg-white border border-gray-200 rounded p-3 text-xs space-y-4">
+				{/* P/U Data Sources Summary (if available) */}
+				{trainingDataInfo?.p_data_sources &&
+					trainingDataInfo?.u_data_sources && (
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+							{/* P Data Sources */}
+							<div>
+								<div className="font-semibold text-orange-700 mb-1">
+									Positive (P) Data Sources:
+								</div>
+								{trainingDataInfo?.p_data_sources?.dataset_ids?.map(
+									(datasetId: string) => {
+										const datasetName =
+											trainingDataInfo?.p_data_sources
+												?.dataset_names?.[datasetId] ||
+											`Dataset ${datasetId}`;
+										const datasetInfo =
+											trainingDataInfo?.p_data_sources
+												?.dataset_info?.[datasetId];
+										return (
+											<div
+												key={datasetId}
+												className="mb-1 pl-2 border-l-2 border-orange-200"
+											>
+												<div className="font-medium text-gray-700">
+													{datasetName}
+												</div>
+												{datasetInfo && (
+													<div className="text-gray-600">
+														Total:{" "}
+														{
+															datasetInfo.total_samples
+														}{" "}
+														samples
+														<br />
+														Train:{" "}
+														{
+															datasetInfo.train_samples
+														}{" "}
+														| Val:{" "}
+														{
+															datasetInfo.validation_samples
+														}{" "}
+														| Test:{" "}
+														{
+															datasetInfo.test_samples
+														}
+													</div>
+												)}
+											</div>
+										);
+									},
+								)}
+								<div className="mt-2 pt-2 border-t border-orange-200 font-medium text-orange-800">
+									Total P:{" "}
+									{trainingDataInfo?.p_data_sources
+										?.total_samples ||
+										trainingDataInfo?.train_p_count ||
+										0}{" "}
+									samples
+								</div>
+							</div>
+
+							{/* U Data Sources */}
+							<div>
+								<div className="font-semibold text-blue-700 mb-1">
+									Unlabeled (U) Data Sources:
+								</div>
+								{trainingDataInfo?.u_data_sources?.dataset_ids?.map(
+									(datasetId: string) => {
+										const datasetName =
+											trainingDataInfo?.u_data_sources
+												?.dataset_names?.[datasetId] ||
+											`Dataset ${datasetId}`;
+										const datasetInfo =
+											trainingDataInfo?.u_data_sources
+												?.dataset_info?.[datasetId];
+										return (
+											<div
+												key={datasetId}
+												className="mb-1 pl-2 border-l-2 border-blue-200"
+											>
+												<div className="font-medium text-gray-700">
+													{datasetName}
+												</div>
+												{datasetInfo && (
+													<div className="text-gray-600">
+														Total:{" "}
+														{
+															datasetInfo.total_samples
+														}{" "}
+														samples
+														<br />
+														Train:{" "}
+														{
+															datasetInfo.train_samples
+														}{" "}
+														| Val:{" "}
+														{
+															datasetInfo.validation_samples
+														}{" "}
+														| Test:{" "}
+														{
+															datasetInfo.test_samples
+														}
+													</div>
+												)}
+											</div>
+										);
+									},
+								)}
+								<div className="mt-2 pt-2 border-t border-blue-200 font-medium text-blue-800">
+									Total U:{" "}
+									{trainingDataInfo?.u_data_sources
+										?.total_samples || 0}{" "}
+									samples
+								</div>
+							</div>
+						</div>
+					)}
+
+				{/* Core Training Statistics */}
+				{trainingDataInfo.total_samples && (
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+						<div className="bg-white p-2 rounded border">
+							<div className="text-gray-500 text-xs">
+								Total Samples
+							</div>
+							<div className="font-semibold text-gray-800">
+								{trainingDataInfo.total_samples}
+							</div>
+						</div>
+						{trainingDataInfo.train_p_count !== undefined && (
+							<div className="bg-orange-50 p-2 rounded border border-orange-200">
+								<div className="text-orange-600 text-xs">
+									Training P Samples
+								</div>
+								<div className="font-semibold text-orange-800">
+									{trainingDataInfo.actual_train_p_samples ||
+										trainingDataInfo.train_p_count}
+								</div>
+							</div>
+						)}
+						{trainingDataInfo.train_u_sampled_count !==
+							undefined && (
+							<div className="bg-blue-50 p-2 rounded border border-blue-200">
+								<div className="text-blue-600 text-xs">
+									Training U Samples
+								</div>
+								<div className="font-semibold text-blue-800">
+									{trainingDataInfo.actual_train_u_samples ||
+										trainingDataInfo.train_u_sampled_count}
+									{trainingDataInfo.train_u_full_count &&
+										` / ${trainingDataInfo.train_u_full_count}`}
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Data Pools Information */}
+				{(trainingDataInfo.train_pool_size ||
+					trainingDataInfo.validation_pool_size ||
+					trainingDataInfo.test_pool_size) && (
+					<div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
+						<span className="font-medium">Data Pools:</span>{" "}
+						{trainingDataInfo.train_pool_size &&
+							`Train: ${trainingDataInfo.train_pool_size}`}
+						{trainingDataInfo.validation_pool_size &&
+							` | Val: ${trainingDataInfo.validation_pool_size}`}
+						{trainingDataInfo.test_pool_size &&
+							` | Test: ${trainingDataInfo.test_pool_size}`}
+						{trainingDataInfo.sampling_method ===
+							"static_subset" && (
+							<span className="ml-2 px-1 py-0.5 bg-green-100 text-green-800 rounded text-xs">
+								Static Subset Method
+							</span>
+						)}
+						{trainingDataInfo.u_sample_ratio && (
+							<span className="ml-2 px-1 py-0.5 bg-purple-100 text-purple-800 rounded text-xs">
+								U Ratio:{" "}
+								{(
+									trainingDataInfo.u_sample_ratio * 100
+								).toFixed(0)}
+								%
+							</span>
+						)}
+						{trainingDataInfo.random_seed && (
+							<span className="ml-2 px-1 py-0.5 bg-gray-100 text-gray-800 rounded text-xs">
+								Seed: {trainingDataInfo.random_seed}
+							</span>
+						)}
+					</div>
+				)}
+
+				{/* Split Ratios */}
+				{(trainingDataInfo.split_ratios ||
+					trainingDataInfo.data_split_ratios) && (
+					<div className="text-xs text-gray-600">
+						<span className="font-medium">Split Ratios:</span>{" "}
+						{trainingDataInfo.split_ratios ? (
+							<>
+								Train{" "}
+								{(
+									trainingDataInfo.split_ratios.train * 100
+								).toFixed(0)}
+								% | Val{" "}
+								{(
+									trainingDataInfo.split_ratios.validation *
+									100
+								).toFixed(0)}
+								% | Test{" "}
+								{(
+									trainingDataInfo.split_ratios.test * 100
+								).toFixed(0)}
+								%
+							</>
+						) : (
+							<>
+								Train{" "}
+								{(
+									trainingDataInfo.data_split_ratios
+										.train_ratio * 100
+								).toFixed(0)}
+								% | Val{" "}
+								{(
+									trainingDataInfo.data_split_ratios
+										.validation_ratio * 100
+								).toFixed(0)}
+								% | Test{" "}
+								{(
+									trainingDataInfo.data_split_ratios
+										.test_ratio * 100
+								).toFixed(0)}
+								%
+							</>
+						)}
+					</div>
+				)}
+
+				{/* Processing Flags */}
+				{(trainingDataInfo?.overlap_removal ||
+					trainingDataInfo?.u_sampling_applied) && (
+					<div className="pt-2 border-t border-gray-200">
+						<div className="text-xs text-gray-600">
+							<span className="font-medium">Processing:</span>{" "}
+							{trainingDataInfo?.overlap_removal && (
+								<span className="ml-2 px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">
+									P/U Overlap Removed
+								</span>
+							)}
+							{trainingDataInfo?.u_sampling_applied && (
+								<span className="ml-2 px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+									U Subsampled
+								</span>
+							)}
+						</div>
+					</div>
+				)}
+
+				{/* Final Training Set Size */}
+				{trainingDataInfo.final_training_samples && (
+					<div className="pt-2 border-t border-gray-200 bg-green-50 p-2 rounded">
+						<div className="text-xs font-medium text-green-800">
+							Final Training Set:{" "}
+							{trainingDataInfo.final_training_samples} samples
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// Trained Models 組件 - 完整的模型管理組件
+function TrainedModels({
+	trainedModels,
+	getEvaluationCount,
+	getModelEvaluations,
+	handleDeleteModel,
+}: {
+	trainedModels: TrainedModel[];
+	getEvaluationCount: (modelId: string) => number;
+	getModelEvaluations: (modelId: string) => EvaluationRun[];
+	handleDeleteModel: (
+		modelId: string,
+		modelName: string,
+		e: React.MouseEvent,
+	) => void;
+}) {
+	// 內部狀態管理 - 展開詳細資訊的模型
+	const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
+
+	// 內部函數 - 處理模型詳細資訊的展開/摺疊
+	const handleModelDetailToggle = (modelId: string) => {
+		setExpandedModelId(expandedModelId === modelId ? null : modelId);
+	};
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<Database className="h-4 w-4" />
+					Trained Models
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				{trainedModels.length === 0 ? (
+					<div className="text-center text-muted-foreground py-8">
+						No trained models yet. Start your first training job
+						above.
+					</div>
+				) : (
+					<div className="space-y-3">
+						{trainedModels.map((model) => {
+							const evaluationCount = getEvaluationCount(
+								model.id,
+							);
+							const isExpanded = expandedModelId === model.id;
+							const modelEvaluations = getModelEvaluations(
+								model.id,
+							);
+
+							return (
+								<div
+									key={model.id}
+									className="border rounded-lg"
+								>
+									<div
+										className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+											isExpanded
+												? "bg-blue-50 border-blue-200"
+												: ""
+										}`}
+										onClick={() =>
+											handleModelDetailToggle(model.id)
+										}
+									>
+										<div className="flex items-center justify-between">
+											<div className="flex items-center gap-2">
+												<StatusIcon
+													status={model.status}
+												/>
+												<span className="font-medium">
+													{model.name}
+												</span>
+												<Badge variant="outline">
+													{model.scenarioType}
+												</Badge>
+												{evaluationCount > 0 && (
+													<Badge
+														variant="secondary"
+														className="bg-green-100 text-green-800"
+													>
+														{evaluationCount}{" "}
+														evaluations
+													</Badge>
+												)}
+											</div>
+											<div className="flex items-center gap-2">
+												<DeleteButton
+													onClick={(e) =>
+														handleDeleteModel(
+															model.id,
+															model.name,
+															e,
+														)
+													}
+													title="Delete model and related evaluations"
+												/>
+												<Badge
+													variant={
+														model.status ===
+														"COMPLETED"
+															? "default"
+															: "secondary"
+													}
+												>
+													{model.status}
+												</Badge>
+												{evaluationCount > 0 && (
+													<div className="text-xs text-muted-foreground">
+														Click to view{" "}
+														{isExpanded ? "▼" : "▶"}
+													</div>
+												)}
+											</div>
+										</div>
+
+										{/* Model Performance Metrics - Compact Display */}
+										{model.training_metrics &&
+											(() => {
+												try {
+													const metrics =
+														typeof model.training_metrics ===
+														"string"
+															? JSON.parse(
+																	model.training_metrics,
+																)
+															: model.training_metrics;
+
+													return (
+														<div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+															{metrics.final_test_f1_score !==
+																undefined && (
+																<div className="bg-green-50 p-2 rounded border border-green-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test F1"
+																			]
+																		}
+																		className="text-green-700 font-medium"
+																	>
+																		<span>
+																			F1-Score
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-green-800">
+																		{(
+																			metrics.final_test_f1_score *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+															{metrics.final_test_precision !==
+																undefined && (
+																<div className="bg-blue-50 p-2 rounded border border-blue-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test Precision"
+																			]
+																		}
+																		className="text-blue-700 font-medium"
+																	>
+																		<span>
+																			Precision
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-blue-800">
+																		{(
+																			metrics.final_test_precision *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+															{metrics.final_test_recall !==
+																undefined && (
+																<div className="bg-pink-50 p-2 rounded border border-pink-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test Recall"
+																			]
+																		}
+																		className="text-pink-700 font-medium"
+																	>
+																		<span>
+																			Recall
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-pink-800">
+																		{(
+																			metrics.final_test_recall *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+															{metrics
+																.confusion_matrix
+																?.true_negative !==
+																undefined && (
+																<div className="bg-gray-50 p-2 rounded border border-gray-200 text-center">
+																	<div className="text-gray-700 font-medium">
+																		True
+																		Negative
+																	</div>
+																	<div className="text-sm font-bold text-gray-800">
+																		{
+																			metrics
+																				.confusion_matrix
+																				.true_negative
+																		}
+																	</div>
+																</div>
+															)}
+														</div>
+													);
+												} catch (error) {
+													return null;
+												}
+											})()}
+
+										<div className="text-sm text-muted-foreground mt-1">
+											Created:{" "}
+											{new Date(
+												model.created_at,
+											).toLocaleString()}
+										</div>
+									</div>
+
+									{/* Training Data Information - Only show when expanded and data info exists */}
+									{isExpanded && model.training_data_info && (
+										<TrainingDataInformation
+											trainingDataInfo={
+												model.training_data_info
+											}
+										/>
+									)}
+
+									{/* Training Metrics - Only show when expanded and metrics exist */}
+									{isExpanded && model.training_metrics && (
+										<TrainingMetrics
+											trainingMetrics={
+												model.training_metrics
+											}
+										/>
+									)}
+
+									{/* Model Configuration - Only show when expanded and config exists */}
+									{isExpanded && model.model_config && (
+										<TrainingModelConfiguration
+											modelConfig={model.model_config}
+										/>
+									)}
+
+									{/* Model Evaluations - Only show when expanded */}
+									{isExpanded &&
+										modelEvaluations.length > 0 && (
+											<TrainingModelEvaluations
+												modelEvaluations={
+													modelEvaluations
+												}
+											/>
+										)}
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</CardContent>
+		</Card>
+	);
 }
 
 interface Stage3TrainingWorkbenchProps {
 	experimentRun: ExperimentRun;
-	onComplete: () => void;
+	onComplete?: () => void;
 }
 
 interface ModelConfig {
@@ -106,6 +1386,7 @@ interface DataSourceConfig {
 	trainRatio: number;
 	validationRatio: number;
 	testRatio: number;
+	uSampleRatio: number; // 🆕 U樣本抽樣比例 (0.0 - 1.0)
 	timeRange: {
 		startDate: string;
 		endDate: string;
@@ -119,6 +1400,876 @@ interface EvaluationDataConfig {
 		startDate: string;
 		endDate: string;
 	};
+}
+
+// Evaluation Results 組件 - 評估結果顯示和管理
+function EvaluationResults({
+	evaluationRuns,
+	handleDeleteEvaluation,
+}: {
+	evaluationRuns: EvaluationRun[];
+	handleDeleteEvaluation: (
+		evaluationId: string,
+		evaluationName: string,
+		event: React.MouseEvent,
+	) => void;
+}) {
+	// 內部狀態管理 - 展開/摺疊的評估結果
+	const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(
+		new Set(),
+	);
+
+	// 內部函數 - 處理評估結果的展開/摺疊
+	const handleEvaluationToggle = (evaluationId: string) => {
+		setExpandedEvaluations((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(evaluationId)) {
+				newSet.delete(evaluationId);
+			} else {
+				newSet.add(evaluationId);
+			}
+			return newSet;
+		});
+	};
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-2">
+					<BarChart className="h-4 w-4" />
+					Evaluation Results
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				{evaluationRuns.length === 0 ? (
+					<div className="text-center text-muted-foreground py-8">
+						No evaluation runs yet. Select a trained model and start
+						evaluation.
+					</div>
+				) : (
+					<div className="space-y-3">
+						{evaluationRuns.map((run) => {
+							const isExpanded = expandedEvaluations.has(run.id);
+
+							return (
+								<div key={run.id} className="border rounded-lg">
+									<div
+										className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+											isExpanded
+												? "bg-blue-50 border-blue-200"
+												: ""
+										}`}
+										onClick={() =>
+											handleEvaluationToggle(run.id)
+										}
+									>
+										<div className="flex items-center justify-between">
+											<div className="flex items-center gap-2">
+												<StatusIcon
+													status={run.status}
+												/>
+												<span className="font-medium">
+													{run.name}
+												</span>
+												<Badge variant="outline">
+													{run.scenarioType}
+												</Badge>
+											</div>
+											<div className="flex items-center gap-2">
+												<DeleteButton
+													onClick={(e) =>
+														handleDeleteEvaluation(
+															run.id,
+															run.name,
+															e,
+														)
+													}
+													title="Delete evaluation"
+												/>
+												<Badge
+													variant={
+														run.status ===
+														"COMPLETED"
+															? "default"
+															: "secondary"
+													}
+												>
+													{run.status}
+												</Badge>
+												<div className="text-xs text-muted-foreground">
+													{run.evaluationMetrics
+														? isExpanded
+															? "▼"
+															: "▶"
+														: ""}
+												</div>
+											</div>
+										</div>
+										<div className="text-sm text-muted-foreground mt-1">
+											Created:{" "}
+											{new Date(
+												run.createdAt,
+											).toLocaleString()}
+										</div>
+									</div>
+
+									{/* Expandable Content - Only show when expanded and has metrics */}
+									{isExpanded && run.evaluationMetrics && (
+										<div className="border-t bg-gray-50 p-3">
+											{/* Original JSON Data - Collapsible */}
+											<details className="mb-4">
+												<summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900 mb-2">
+													📄 Raw JSON Data (Click to
+													expand)
+												</summary>
+												<div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+													<pre>
+														{JSON.stringify(
+															typeof run.evaluationMetrics ===
+																"string"
+																? JSON.parse(
+																		run.evaluationMetrics,
+																	)
+																: run.evaluationMetrics,
+															null,
+															2,
+														)}
+													</pre>
+												</div>
+											</details>
+
+											{/* Visualized Evaluation Results */}
+											{(() => {
+												const metrics =
+													typeof run.evaluationMetrics ===
+													"string"
+														? JSON.parse(
+																run.evaluationMetrics,
+															)
+														: run.evaluationMetrics;
+
+												// Ensure necessary metric data is available
+												if (
+													!metrics ||
+													!metrics.precision ||
+													!metrics.recall
+												) {
+													return (
+														<div className="text-center text-gray-500 py-4">
+															⚠️ Incomplete
+															evaluation metrics
+															data
+														</div>
+													);
+												}
+
+												// Debug: Output confusion_matrix structure (for development viewing)
+												// console.log(
+												// 	"Confusion Matrix structure:",
+												// 	metrics.confusion_matrix,
+												// );
+
+												const confusionMatrix =
+													metrics.confusion_matrix;
+
+												// Safely extract confusion matrix data
+												let tp: number;
+												let fp: number;
+												let fn: number;
+												let tn: number;
+
+												if (!confusionMatrix) {
+													// If no confusion matrix, try to calculate from other metrics
+													tp = fp = fn = tn = 0;
+												} else if (
+													Array.isArray(
+														confusionMatrix,
+													) &&
+													confusionMatrix.length >= 2
+												) {
+													// 2D array format: [[tn, fp], [fn, tp]]
+													if (
+														Array.isArray(
+															confusionMatrix[0],
+														) &&
+														Array.isArray(
+															confusionMatrix[1],
+														)
+													) {
+														tn =
+															confusionMatrix[0][0] ||
+															0;
+														fp =
+															confusionMatrix[0][1] ||
+															0;
+														fn =
+															confusionMatrix[1][0] ||
+															0;
+														tp =
+															confusionMatrix[1][1] ||
+															0;
+													} else {
+														// 1D array format: [tn, fp, fn, tp]
+														tn =
+															confusionMatrix[0] ||
+															0;
+														fp =
+															confusionMatrix[1] ||
+															0;
+														fn =
+															confusionMatrix[2] ||
+															0;
+														tp =
+															confusionMatrix[3] ||
+															0;
+													}
+												} else if (
+													typeof confusionMatrix ===
+													"object"
+												) {
+													// Object format: {tp: x, fp: x, fn: x, tn: x}
+													tp =
+														confusionMatrix.tp ||
+														confusionMatrix.true_positive ||
+														0;
+													fp =
+														confusionMatrix.fp ||
+														confusionMatrix.false_positive ||
+														0;
+													fn =
+														confusionMatrix.fn ||
+														confusionMatrix.false_negative ||
+														0;
+													tn =
+														confusionMatrix.tn ||
+														confusionMatrix.true_negative ||
+														0;
+												} else {
+													// If format is unknown, use default values
+													tp = fp = fn = tn = 0;
+												}
+
+												const precision = (
+													metrics.precision * 100
+												).toFixed(2);
+												const recall = (
+													metrics.recall * 100
+												).toFixed(2);
+												const f1Score = (
+													metrics.f1_score * 100
+												).toFixed(2);
+												const accuracy = (
+													metrics.accuracy * 100
+												).toFixed(2);
+												const aucRoc = (
+													metrics.auc_roc * 100
+												).toFixed(1);
+
+												return (
+													<div className="mt-4 space-y-6">
+														{/* Performance Metrics Table */}
+														<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+															<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+																<h4 className="text-lg font-semibold text-gray-800">
+																	Classification
+																	Performance
+																	Metrics
+																</h4>
+																<p className="text-sm text-gray-600 mt-1">
+																	Statistical
+																	evaluation
+																	of model
+																	performance
+																	on anomaly
+																	detection
+																	task
+																</p>
+															</div>
+															<div className="p-6">
+																<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+																	<div className="text-center">
+																		<div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-3">
+																			<span className="text-xl font-bold text-blue-700">
+																				F₁
+																			</span>
+																		</div>
+																		<div className="text-2xl font-bold text-gray-800 mb-1">
+																			{
+																				f1Score
+																			}
+																			%
+																		</div>
+																		<div className="text-sm font-medium text-gray-700 mb-1">
+																			F₁-Score
+																		</div>
+																		<div className="text-xs text-gray-500">
+																			Harmonic
+																			mean
+																			of
+																			precision
+																			and
+																			recall
+																		</div>
+																	</div>
+																	<div className="text-center">
+																		<div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-3">
+																			<span className="text-xl font-bold text-green-700">
+																				P
+																			</span>
+																		</div>
+																		<div className="text-2xl font-bold text-gray-800 mb-1">
+																			{
+																				precision
+																			}
+																			%
+																		</div>
+																		<div className="text-sm font-medium text-gray-700 mb-1">
+																			Precision
+																		</div>
+																		<div className="text-xs text-gray-500">
+																			TP /
+																			(TP
+																			+
+																			FP)
+																		</div>
+																	</div>
+																	<div className="text-center">
+																		<div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-3">
+																			<span className="text-xl font-bold text-orange-700">
+																				R
+																			</span>
+																		</div>
+																		<div className="text-2xl font-bold text-gray-800 mb-1">
+																			{
+																				recall
+																			}
+																			%
+																		</div>
+																		<div className="text-sm font-medium text-gray-700 mb-1">
+																			Recall
+																			(Sensitivity)
+																		</div>
+																		<div className="text-xs text-gray-500">
+																			TP /
+																			(TP
+																			+
+																			FN)
+																		</div>
+																	</div>
+																	<div className="text-center">
+																		<div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-3">
+																			<span className="text-xl font-bold text-purple-700">
+																				AUC
+																			</span>
+																		</div>
+																		<div className="text-2xl font-bold text-gray-800 mb-1">
+																			{
+																				aucRoc
+																			}
+																			%
+																		</div>
+																		<div className="text-sm font-medium text-gray-700 mb-1">
+																			AUC-ROC
+																		</div>
+																		<div className="text-xs text-gray-500">
+																			Area
+																			under
+																			ROC
+																			curve
+																		</div>
+																	</div>
+																</div>
+															</div>
+														</div>
+
+														{/* Confusion Matrix - Only show when data is available */}
+														{(tp > 0 ||
+															fp > 0 ||
+															fn > 0 ||
+															tn > 0) && (
+															<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+																<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+																	<h4 className="text-lg font-semibold text-gray-800">
+																		Confusion
+																		Matrix
+																	</h4>
+																	<p className="text-sm text-gray-600 mt-1">
+																		2×2
+																		contingency
+																		table
+																		for
+																		binary
+																		classification
+																		evaluation
+																	</p>
+																</div>
+																<div className="p-6">
+																	<div className="flex justify-center">
+																		<div className="border border-gray-300 rounded-lg overflow-hidden">
+																			<table className="table-fixed">
+																				<thead>
+																					<tr>
+																						<td className="w-32 h-16 bg-gray-100 border-r border-b border-gray-300" />
+																						<td className="w-32 h-16 bg-gray-100 border-r border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
+																							<div className="flex flex-col justify-center h-full">
+																								<div>
+																									Predicted
+																								</div>
+																								<div>
+																									Positive
+																								</div>
+																							</div>
+																						</td>
+																						<td className="w-32 h-16 bg-gray-100 border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
+																							<div className="flex flex-col justify-center h-full">
+																								<div>
+																									Predicted
+																								</div>
+																								<div>
+																									Negative
+																								</div>
+																							</div>
+																						</td>
+																					</tr>
+																				</thead>
+																				<tbody>
+																					<tr>
+																						<td className="w-32 h-20 bg-gray-100 border-r border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
+																							<div className="flex flex-col justify-center h-full">
+																								<div>
+																									Actual
+																								</div>
+																								<div>
+																									Positive
+																								</div>
+																							</div>
+																						</td>
+																						<td className="w-32 h-20 border-r border-b border-gray-300 text-center bg-green-50">
+																							<div className="flex flex-col justify-center h-full">
+																								<div className="text-2xl font-bold text-green-700">
+																									{
+																										tp
+																									}
+																								</div>
+																								<div className="text-xs text-gray-600 mt-1">
+																									True
+																									Positive
+																								</div>
+																							</div>
+																						</td>
+																						<td className="w-32 h-20 border-b border-gray-300 text-center bg-red-50">
+																							<div className="flex flex-col justify-center h-full">
+																								<div className="text-2xl font-bold text-red-700">
+																									{
+																										fn
+																									}
+																								</div>
+																								<div className="text-xs text-gray-600 mt-1">
+																									False
+																									Negative
+																								</div>
+																							</div>
+																						</td>
+																					</tr>
+																					<tr>
+																						<td className="w-32 h-20 bg-gray-100 border-r border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
+																							<div className="flex flex-col justify-center h-full">
+																								<div>
+																									Actual
+																								</div>
+																								<div>
+																									Negative
+																								</div>
+																							</div>
+																						</td>
+																						<td className="w-32 h-20 border-r border-gray-300 text-center bg-yellow-50">
+																							<div className="flex flex-col justify-center h-full">
+																								<div className="text-2xl font-bold text-yellow-700">
+																									{
+																										fp
+																									}
+																								</div>
+																								<div className="text-xs text-gray-600 mt-1">
+																									False
+																									Positive
+																								</div>
+																							</div>
+																						</td>
+																						<td className="w-32 h-20 border-gray-300 text-center bg-blue-50">
+																							<div className="flex flex-col justify-center h-full">
+																								<div className="text-2xl font-bold text-blue-700">
+																									{
+																										tn
+																									}
+																								</div>
+																								<div className="text-xs text-gray-600 mt-1">
+																									True
+																									Negative
+																								</div>
+																							</div>
+																						</td>
+																					</tr>
+																				</tbody>
+																			</table>
+																		</div>
+																	</div>
+																	<div className="mt-4 text-center text-sm text-gray-600">
+																		<p className="mb-2">
+																			<strong>
+																				Classification
+																				Accuracy:
+																			</strong>{" "}
+																			{(
+																				((tp +
+																					tn) /
+																					(tp +
+																						fp +
+																						fn +
+																						tn)) *
+																				100
+																			).toFixed(
+																				1,
+																			)}
+																			%
+																		</p>
+																		<p>
+																			<strong>
+																				Error
+																				Rate:
+																			</strong>{" "}
+																			{(
+																				((fp +
+																					fn) /
+																					(tp +
+																						fp +
+																						fn +
+																						tn)) *
+																				100
+																			).toFixed(
+																				1,
+																			)}
+																			%
+																		</p>
+																	</div>
+																</div>
+															</div>
+														)}
+
+														{/* Metric Explanations */}
+														<div className="bg-gray-50 border rounded-lg p-4">
+															<h4 className="text-lg font-semibold mb-3">
+																Metric
+																Interpretations
+															</h4>
+															<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+																<div className="space-y-2">
+																	<div>
+																		<strong className="text-green-700">
+																			Precision
+																			(
+																			{
+																				precision
+																			}
+																			%)
+																		</strong>
+																		<p className="text-gray-600">
+																			Of
+																			all
+																			alerts,{" "}
+																			{
+																				precision
+																			}
+																			%
+																			are
+																			real
+																			anomalies.
+																			The
+																			remaining{" "}
+																			{(
+																				100 -
+																				Number.parseFloat(
+																					precision,
+																				)
+																			).toFixed(
+																				1,
+																			)}
+																			%
+																			are
+																			false
+																			alarms.
+																		</p>
+																	</div>
+																	<div>
+																		<strong className="text-orange-700">
+																			Recall
+																			(
+																			{
+																				recall
+																			}
+																			%)
+																		</strong>
+																		<p className="text-gray-600">
+																			Successfully
+																			detected{" "}
+																			{
+																				recall
+																			}
+																			% of
+																			real
+																			anomalies.{" "}
+																			{(
+																				100 -
+																				Number.parseFloat(
+																					recall,
+																				)
+																			).toFixed(
+																				1,
+																			)}
+																			% of
+																			anomalies
+																			were
+																			missed.
+																		</p>
+																	</div>
+																</div>
+																<div className="space-y-2">
+																	<div>
+																		<strong className="text-blue-700">
+																			F1-Score
+																			(
+																			{
+																				f1Score
+																			}
+																			%)
+																		</strong>
+																		<p className="text-gray-600">
+																			Harmonic
+																			mean
+																			of
+																			Precision
+																			and
+																			Recall,
+																			providing
+																			a
+																			balanced
+																			performance
+																			metric.
+																		</p>
+																	</div>
+																	<div>
+																		<strong className="text-purple-700">
+																			AUC-ROC
+																			(
+																			{
+																				aucRoc
+																			}
+																			%)
+																		</strong>
+																		<p className="text-gray-600">
+																			Model's
+																			ability
+																			to
+																			distinguish
+																			between
+																			anomalies
+																			and
+																			normal
+																			patterns.
+																			Closer
+																			to
+																			100%
+																			is
+																			better.
+																		</p>
+																	</div>
+																</div>
+															</div>
+														</div>
+
+														{/* Business Impact Assessment */}
+														<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+															<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+																<h4 className="text-lg font-semibold text-gray-800">
+																	Business
+																	Impact
+																	Assessment
+																</h4>
+																<p className="text-sm text-gray-600 mt-1">
+																	Economic and
+																	operational
+																	risk
+																	analysis
+																	based on
+																	classification
+																	errors
+																</p>
+															</div>
+															<div className="p-6">
+																<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+																	<div className="bg-red-50 border border-red-200 rounded-lg p-4">
+																		<div className="flex items-center mb-3">
+																			<div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
+																			<h5 className="font-semibold text-red-800">
+																				Type
+																				II
+																				Error
+																				Impact
+																				(False
+																				Negatives)
+																			</h5>
+																		</div>
+																		<div className="mb-3">
+																			<span className="text-2xl font-bold text-red-700">
+																				{
+																					fn
+																				}
+																			</span>
+																			<span className="text-sm text-red-600 ml-2">
+																				missed
+																				anomalies
+																			</span>
+																		</div>
+																		<div className="space-y-2 text-sm text-gray-700">
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
+																				<span>
+																					Equipment
+																					damage
+																					risk
+																					escalation
+																				</span>
+																			</div>
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
+																				<span>
+																					Undetected
+																					energy
+																					consumption
+																					inefficiencies
+																				</span>
+																			</div>
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
+																				<span>
+																					Potential
+																					safety
+																					protocol
+																					violations
+																				</span>
+																			</div>
+																		</div>
+																	</div>
+																	<div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+																		<div className="flex items-center mb-3">
+																			<div className="w-3 h-3 bg-yellow-500 rounded-full mr-2" />
+																			<h5 className="font-semibold text-yellow-800">
+																				Type
+																				I
+																				Error
+																				Impact
+																				(False
+																				Positives)
+																			</h5>
+																		</div>
+																		<div className="mb-3">
+																			<span className="text-2xl font-bold text-yellow-700">
+																				{
+																					fp
+																				}
+																			</span>
+																			<span className="text-sm text-yellow-600 ml-2">
+																				false
+																				alarms
+																			</span>
+																		</div>
+																		<div className="space-y-2 text-sm text-gray-700">
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
+																				<span>
+																					Operator
+																					alert
+																					desensitization
+																				</span>
+																			</div>
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
+																				<span>
+																					Unnecessary
+																					maintenance
+																					resource
+																					allocation
+																				</span>
+																			</div>
+																			<div className="flex items-center">
+																				<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
+																				<span>
+																					System
+																					credibility
+																					deterioration
+																				</span>
+																			</div>
+																		</div>
+																	</div>
+																</div>
+																<div className="mt-6 pt-4 border-t border-gray-200">
+																	<div className="grid grid-cols-2 gap-4 text-center">
+																		<div>
+																			<div className="text-sm text-gray-600 mb-1">
+																				Overall
+																				Classification
+																				Accuracy
+																			</div>
+																			<div className="text-2xl font-bold text-gray-800">
+																				{(
+																					((tp +
+																						tn) /
+																						(tp +
+																							fp +
+																							fn +
+																							tn)) *
+																					100
+																				).toFixed(
+																					1,
+																				)}
+																				%
+																			</div>
+																		</div>
+																		<div>
+																			<div className="text-sm text-gray-600 mb-1">
+																				Error
+																				Rate
+																			</div>
+																			<div className="text-2xl font-bold text-gray-800">
+																				{(
+																					((fp +
+																						fn) /
+																						(tp +
+																							fp +
+																							fn +
+																							tn)) *
+																					100
+																				).toFixed(
+																					1,
+																				)}
+																				%
+																			</div>
+																		</div>
+																	</div>
+																</div>
+															</div>
+														</div>
+													</div>
+												);
+											})()}
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</CardContent>
+		</Card>
+	);
 }
 
 export function Stage3TrainingWorkbench({
@@ -140,17 +2291,17 @@ export function Stage3TrainingWorkbench({
 
 		// Model Architecture
 		modelType: "LSTM",
-		hiddenSize: 128,
-		numLayers: 2,
+		hiddenSize: 64,
+		numLayers: 1,
 		activationFunction: "ReLU",
-		dropout: 0.2,
+		dropout: 0.4,
 
 		// Training Process
 		epochs: 100,
 		batchSize: 128,
 		optimizer: "Adam",
 		learningRate: 0.001,
-		l2Regularization: 0.0001,
+		l2Regularization: 0.001,
 
 		// Training Stability
 		earlyStopping: true,
@@ -162,8 +2313,9 @@ export function Stage3TrainingWorkbench({
 		positiveDataSourceIds: [],
 		unlabeledDataSourceIds: [],
 		trainRatio: 70,
-		validationRatio: 20,
-		testRatio: 10,
+		validationRatio: 10,
+		testRatio: 20,
+		uSampleRatio: 0.1, // 🆕 預設使用 10% 的 U 樣本
 		timeRange: {
 			startDate: "",
 			endDate: "",
@@ -184,9 +2336,6 @@ export function Stage3TrainingWorkbench({
 	const [trainedModels, setTrainedModels] = useState<TrainedModel[]>([]);
 	const [evaluationRuns, setEvaluationRuns] = useState<EvaluationRun[]>([]);
 	const [selectedModel, setSelectedModel] = useState<string>("");
-	const [selectedModelForEvalView, setSelectedModelForEvalView] = useState<
-		string | null
-	>(null);
 
 	// References for auto-scrolling logs
 	const trainingLogRef = useRef<HTMLDivElement>(null);
@@ -207,10 +2356,6 @@ export function Stage3TrainingWorkbench({
 	};
 	const [trainingLogs, setTrainingLogs] = useState<string[]>([]);
 	const [evaluationLogs, setEvaluationLogs] = useState<string[]>([]);
-
-	// WebSocket connection status
-	const [trainingWsConnected, setTrainingWsConnected] = useState(false);
-	const [evaluationWsConnected, setEvaluationWsConnected] = useState(false);
 
 	// Auto-scroll logs to bottom when new logs are added
 	useEffect(() => {
@@ -274,6 +2419,21 @@ export function Stage3TrainingWorkbench({
 			);
 			if (response.ok) {
 				const models = await response.json();
+				console.log("📊 Loaded trained models:", models);
+				console.log(
+					"📊 ERM_BASELINE models:",
+					models.filter(
+						(m: any) => m.scenarioType === "ERM_BASELINE",
+					),
+				);
+				console.log(
+					"📊 Completed ERM_BASELINE models:",
+					models.filter(
+						(m: any) =>
+							m.scenarioType === "ERM_BASELINE" &&
+							m.status === "COMPLETED",
+					),
+				);
 				setTrainedModels(models);
 
 				// Auto-select first completed ERM_BASELINE model (for GENERALIZATION_CHALLENGE)
@@ -325,13 +2485,47 @@ export function Stage3TrainingWorkbench({
 	};
 
 	const refreshData = async () => {
-		console.log("🔄 Manual data refresh");
+		console.log("🔄 Reloading models & evaluation data");
+
 		try {
+			// Show loading start notification
+			toast.info("🔄 Reloading data...");
+
 			await Promise.all([loadTrainedModels(), loadEvaluationRuns()]);
-			toast.success("Data refreshed successfully");
+
+			// Check if there are any running models and provide specific feedback
+			const runningModels = trainedModels.filter(
+				(model) => model.status === "RUNNING",
+			);
+			const completedModels = trainedModels.filter(
+				(model) => model.status === "COMPLETED",
+			);
+			const failedModels = trainedModels.filter(
+				(model) => model.status === "FAILED",
+			);
+
+			// Provide detailed loading results feedback
+			const modelCount = trainedModels.length;
+			const evaluationCount = evaluationRuns.length;
+
+			if (runningModels.length > 0) {
+				toast.success(
+					`📊 Data updated! Models: ${modelCount} (${runningModels.length} training, ${completedModels.length} completed, ${failedModels.length} failed), Evaluations: ${evaluationCount}`,
+				);
+			} else if (completedModels.length > 0) {
+				toast.success(
+					`✅ Data updated! ${completedModels.length} models completed training, ${evaluationCount} evaluation records`,
+				);
+			} else {
+				toast.success(
+					`📁 Data loaded: ${modelCount} models, ${evaluationCount} evaluation records`,
+				);
+			}
 		} catch (error) {
-			console.error("Failed to refresh data:", error);
-			toast.error("Failed to refresh data");
+			console.error("Failed to reload data:", error);
+			toast.error(
+				"❌ Failed to reload data, please check network connection",
+			);
 		}
 	};
 
@@ -343,12 +2537,6 @@ export function Stage3TrainingWorkbench({
 
 	const getModelEvaluations = (modelId: string) => {
 		return evaluationRuns.filter((run) => run.trainedModelId === modelId);
-	};
-
-	const handleModelEvaluationToggle = (modelId: string) => {
-		setSelectedModelForEvalView(
-			selectedModelForEvalView === modelId ? null : modelId,
-		);
 	};
 
 	const handleDeleteModel = async (
@@ -382,10 +2570,7 @@ export function Stage3TrainingWorkbench({
 			}
 
 			const result = await response.json();
-			console.log(
-				"✅ Model deleted successfully:",
-				result,
-			);
+			console.log("✅ Model deleted successfully:", result);
 
 			toast.success(
 				`Successfully deleted model "${modelName}" and ${result.deletedEvaluations} evaluation results`,
@@ -394,11 +2579,6 @@ export function Stage3TrainingWorkbench({
 			// Refresh the data
 			await loadTrainedModels();
 			await loadEvaluationRuns();
-
-			// Close the evaluation view if this model was selected
-			if (selectedModelForEvalView === modelId) {
-				setSelectedModelForEvalView(null);
-			}
 		} catch (error) {
 			console.error("❌ Failed to delete model:", error);
 			toast.error(
@@ -407,25 +2587,76 @@ export function Stage3TrainingWorkbench({
 		}
 	};
 
+	// Handle evaluation deletion
+	const handleDeleteEvaluation = async (
+		evaluationId: string,
+		evaluationName: string,
+		event: React.MouseEvent,
+	) => {
+		event.stopPropagation(); // Prevent triggering toggle
+
+		const confirmed = window.confirm(
+			`Are you sure you want to delete evaluation "${evaluationName}"?\n\nThis action cannot be undone.`,
+		);
+
+		if (!confirmed) {
+			return;
+		}
+
+		try {
+			const response = await fetch(
+				`http://localhost:8000/api/v2/evaluation-runs/${evaluationId}`,
+				{
+					method: "DELETE",
+				},
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(
+					errorData.detail || "Failed to delete evaluation",
+				);
+			}
+
+			const result = await response.json();
+
+			// Update local state
+			setEvaluationRuns((prevRuns) =>
+				prevRuns.filter((run) => run.id !== evaluationId),
+			);
+
+			toast.success(result.message || "Evaluation deleted successfully");
+		} catch (error) {
+			console.error("❌ Failed to delete evaluation:", error);
+			toast.error(
+				`Failed to delete evaluation: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	};
+
 	// Extract AnalysisDataset IDs for P and U data sources from experiment configuration
 	const extractDataSourceIds = () => {
-		console.log("📊 Extracting data source IDs from experiment configuration");
-		
+		console.log(
+			"📊 Extracting data source IDs from experiment configuration",
+		);
+
 		const filteringParams = experimentRun.filtering_parameters;
-		
+
 		// For now, we'll use all available datasets for both P and U
 		// In the future, this could be more granular based on user selection
 		let availableDatasetIds: string[] = [];
-		
-		if (filteringParams && (filteringParams as any).selectedDatasetIds) {
-			availableDatasetIds = (filteringParams as any).selectedDatasetIds;
+
+		if (filteringParams?.selectedDatasetIds) {
+			availableDatasetIds = filteringParams.selectedDatasetIds;
 		} else if (availableDatasets.length > 0) {
 			// Fallback: use all loaded datasets
-			availableDatasetIds = availableDatasets.map(dataset => dataset.id);
+			availableDatasetIds = availableDatasets.map(
+				(dataset) => dataset.id,
+			);
 		}
-		
+
 		console.log("🔍 Available dataset IDs:", availableDatasetIds);
-		
+
 		// For PU Learning:
 		// - P (Positive) data sources: All datasets (since they contain labeled positive samples)
 		// - U (Unlabeled) data sources: All datasets (since they contain unlabeled samples)
@@ -433,10 +2664,10 @@ export function Stage3TrainingWorkbench({
 			positive: availableDatasetIds,
 			unlabeled: availableDatasetIds,
 		};
-		
+
 		console.log("✅ Extracted P data sources:", result.positive);
 		console.log("✅ Extracted U data sources:", result.unlabeled);
-		
+
 		return result;
 	};
 
@@ -448,7 +2679,7 @@ export function Stage3TrainingWorkbench({
 		try {
 			// Extract AnalysisDataset IDs from experimentRun's filtering parameters
 			const extractedDataSourceIds = extractDataSourceIds();
-			
+
 			// Prepare the enhanced data source configuration with P and U data sources
 			const enhancedDataSourceConfig = {
 				...dataSourceConfig,
@@ -456,10 +2687,26 @@ export function Stage3TrainingWorkbench({
 				unlabeledDataSourceIds: extractedDataSourceIds.unlabeled,
 			};
 
-			console.log("📤 Sending training API request with P and U data sources");
-			console.log("🔍 Positive data sources:", extractedDataSourceIds.positive);
-			console.log("🔍 Unlabeled data sources:", extractedDataSourceIds.unlabeled);
-			
+			console.log(
+				"📤 Sending training API request with P and U data sources",
+			);
+			console.log(
+				"🔍 Positive data sources:",
+				extractedDataSourceIds.positive,
+			);
+			console.log(
+				"🔍 Unlabeled data sources:",
+				extractedDataSourceIds.unlabeled,
+			);
+
+			// Generate model name with Taiwan time
+			const taiwanTime = new Date()
+				.toLocaleString("sv-SE", {
+					timeZone: "Asia/Taipei",
+				})
+				.replace(" ", "_")
+				.replace(/:/g, "-");
+
 			const response = await fetch(
 				"http://localhost:8000/api/v2/trained-models",
 				{
@@ -468,26 +2715,22 @@ export function Stage3TrainingWorkbench({
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
-						name: `${scenarioType}_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}`,
-						scenarioType,
+						name: `${scenarioType}_${taiwanTime}`,
+						scenario_type: scenarioType,
 						experimentRunId: experimentRun.id,
 						modelConfig: JSON.stringify(modelConfig),
-						dataSourceConfig: JSON.stringify(enhancedDataSourceConfig),
+						dataSourceConfig: JSON.stringify(
+							enhancedDataSourceConfig,
+						),
 					}),
 				},
 			);
 
-			console.log(
-				"📥 Received backend response:",
-				response.status,
-			);
+			console.log("📥 Received backend response:", response.status);
 
 			if (response.ok) {
 				const newModel = await response.json();
-				console.log(
-					"✅ Training job created:",
-					newModel,
-				);
+				console.log("✅ Training job created:", newModel);
 				console.log("🔍 Checking jobId:", newModel.jobId);
 				console.log(
 					"🔍 Full response object:",
@@ -498,10 +2741,7 @@ export function Stage3TrainingWorkbench({
 
 				// Start WebSocket monitoring
 				if (newModel.jobId) {
-					console.log(
-						"🔗 Starting WebSocket monitoring for job:",
-						newModel.jobId,
-					);
+					console.log("🔗 Starting polling for job:", newModel.jobId);
 					startTrainingMonitor(newModel.jobId);
 				} else {
 					console.error(
@@ -514,31 +2754,26 @@ export function Stage3TrainingWorkbench({
 				}
 			} else {
 				const error = await response.json();
-				console.error(
-					"❌ Training request failed:",
-					error,
-				);
+				console.error("❌ Training request failed:", error);
 				toast.error(error.detail || "Failed to start training");
 				setIsTraining(false); // Set to false on API error
 			}
 		} catch (error) {
-			console.error(
-				"❌ Training request exception:",
-				error,
-			);
+			console.error("❌ Training request exception:", error);
 			toast.error("Failed to start training");
 			setIsTraining(false); // Only set to false on error
 		}
 
-		console.log(
-			"🔚 Training request processing completed",
-		);
+		console.log("🔚 Training request processing completed");
 	};
 
 	const startEvaluation = async () => {
 		// Check model selection based on scenario type
-		const modelToUse = scenarioType === "GENERALIZATION_CHALLENGE" ? selectedSourceModel : selectedModel;
-		
+		const modelToUse =
+			scenarioType === "GENERALIZATION_CHALLENGE"
+				? selectedSourceModel
+				: selectedModel;
+
 		if (!modelToUse) {
 			toast.error("Please select a trained model for evaluation");
 			return;
@@ -556,22 +2791,29 @@ export function Stage3TrainingWorkbench({
 		try {
 			// Prepare test set configuration based on scenario type
 			let testSetConfig: any = evaluationDataConfig;
-			
+
 			if (scenarioType === "DOMAIN_ADAPTATION") {
 				// For Domain Adaptation, use the selected target dataset
 				const selectedDataset = availableDatasets.find(
-					(dataset) => dataset.id.toString() === selectedTargetDataset
+					(dataset) =>
+						dataset.id.toString() === selectedTargetDataset,
 				);
-				
+
 				if (selectedDataset) {
 					testSetConfig = {
 						...evaluationDataConfig,
 						targetDataset: {
-							building: selectedDataset.building_name || selectedDataset.building,
-							floor: selectedDataset.floor_name || selectedDataset.floor, 
-							room: selectedDataset.room_name || selectedDataset.room,
-							datasetId: selectedDataset.id
-						}
+							building:
+								selectedDataset.building_name ||
+								selectedDataset.building,
+							floor:
+								selectedDataset.floor_name ||
+								selectedDataset.floor,
+							room:
+								selectedDataset.room_name ||
+								selectedDataset.room,
+							datasetId: selectedDataset.id,
+						},
 					};
 				}
 			}
@@ -585,8 +2827,8 @@ export function Stage3TrainingWorkbench({
 					},
 					body: JSON.stringify({
 						name: `Eval_${scenarioType}_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}`,
-						scenarioType,
-						trainedModelId: modelToUse,
+						scenario_type: scenarioType,
+						trained_model_id: modelToUse,
 						testSetSource: JSON.stringify(testSetConfig),
 					}),
 				},
@@ -616,310 +2858,35 @@ export function Stage3TrainingWorkbench({
 	const handleStartEvaluation = startEvaluation;
 
 	const startTrainingMonitor = (jobId: string) => {
-		// Real WebSocket implementation for training monitoring
-		console.log("Starting training monitor for job:", jobId);
+		// Manual monitoring instead of automatic polling
+		console.log("Training job started with ID:", jobId);
+		console.log(
+			"💡 Use the reload button to manually check training status",
+		);
 
-		try {
-			// Connect to WebSocket for real-time training updates
-			const ws = new WebSocket(
-				`ws://localhost:8000/api/v2/training-jobs/${jobId}/logs`,
-			);
-
-			ws.onopen = () => {
-				console.log("Training WebSocket connected");
-				setTrainingWsConnected(true);
-				setTrainingLogs((prev) => [
-					...prev,
-					"� Connected to training monitor",
-				]);
-			};
-
-			ws.onmessage = (event) => {
-				console.log(
-					"📨 Received training WebSocket message:",
-					event.data,
-				);
-
-				// Handle ping/pong messages
-				if (event.data === "ping") {
-					console.log(
-						"🏓 Training received ping, sending pong",
-					);
-					ws.send("pong");
-					return;
-				}
-
-				if (event.data === "pong") {
-					console.log(
-						"🏓 Training received pong response",
-					);
-					return;
-				}
-
-				try {
-					const data = JSON.parse(event.data);
-					console.log(
-						"📊 Parsed training update:",
-						data,
-					);
-
-					// Check if training is completed
-					if (
-						data.type === "status" &&
-						(data.message?.includes("completed") ||
-							data.message?.includes("completed"))
-					) {
-						console.log(
-							"🎉 Training completion detected, reloading trained models",
-						);
-						setTimeout(() => {
-							loadTrainedModels();
-							loadEvaluationRuns(); // Also refresh evaluation runs
-						}, 1000);
-					}
-
-					// Format log message based on data type
-					let logMessage = "";
-					if (data.type === "log") {
-						logMessage = data.message;
-					} else if (data.type === "progress") {
-						logMessage = `📈 Epoch ${data.epoch}/${data.total_epochs} - Loss: ${data.loss?.toFixed(4) || "N/A"}`;
-					} else if (data.type === "metrics") {
-						logMessage = `📊 ${data.metric_name}: ${data.value?.toFixed(4) || "N/A"}`;
-					} else if (data.type === "status") {
-						logMessage = `📊 Status: ${data.message}`;
-					} else if (data.type === "error") {
-						logMessage = `❌ Error: ${data.message}`;
-					} else {
-						logMessage = JSON.stringify(data);
-					}
-
-					setTrainingLogs((prev) => [...prev, logMessage]);
-					console.log(
-						"✅ Training log updated:",
-						logMessage,
-					);
-				} catch (error) {
-					console.error(
-						"❌ Failed to parse training WebSocket message:",
-						error,
-					);
-					console.log(
-						"📝 Training raw message content:",
-						event.data,
-					);
-					// Only add non-ping messages to logs
-					if (event.data !== "ping" && event.data !== "pong") {
-						setTrainingLogs((prev) => [
-							...prev,
-							`📨 ${event.data}`,
-						]);
-					}
-				}
-			};
-
-			ws.onclose = () => {
-				console.log(
-					"🔌 Training WebSocket disconnected",
-				);
-				setTrainingWsConnected(false);
-				setTrainingLogs((prev) => [
-					...prev,
-					"🔌 Training monitor disconnected",
-				]);
-				// Refresh trained models list after training completes
-				console.log(
-					"🔄 Training WebSocket closed, reloading training data",
-				);
-				setTimeout(() => {
-					loadTrainedModels();
-					loadEvaluationRuns();
-				}, 2000);
-			};
-
-			ws.onerror = (error) => {
-				console.error("Training WebSocket error:", error);
-				setTrainingWsConnected(false);
-				setTrainingLogs((prev) => [
-					...prev,
-					"❌ WebSocket connection error",
-				]);
-			};
-
-			// Store WebSocket reference for cleanup
-			return () => {
-				if (ws.readyState === WebSocket.OPEN) {
-					ws.close();
-				}
-			};
-		} catch (error) {
-			console.error("Failed to connect to training WebSocket:", error);
-			setTrainingLogs((prev) => [
-				...prev,
-				"❌ Failed to connect to training monitor",
-			]);
-		}
+		// Show notification to user
+		toast.info(
+			"Training started! Use the reload button to check progress.",
+			{
+				duration: 5000,
+			},
+		);
 	};
 
 	const startEvaluationMonitor = (jobId: string) => {
-		// Real WebSocket implementation for evaluation monitoring
-		console.log("Starting evaluation monitor for job:", jobId);
+		// Manual monitoring instead of automatic polling
+		console.log("Evaluation job started with ID:", jobId);
+		console.log(
+			"💡 Use the reload button to manually check evaluation status",
+		);
 
-		try {
-			// Connect to WebSocket for real-time evaluation updates
-			const ws = new WebSocket(
-				`ws://localhost:8000/api/v2/evaluation-jobs/${jobId}/logs`,
-			);
-
-			ws.onopen = () => {
-				console.log("Evaluation WebSocket connected");
-				setEvaluationWsConnected(true);
-				setEvaluationLogs((prev) => [
-					...prev,
-					"🔗 Connected to evaluation monitor",
-				]);
-			};
-
-			ws.onmessage = (event) => {
-				console.log(
-					"📨 Received evaluation WebSocket message:",
-					event.data,
-				);
-
-				// Handle ping/pong messages
-				if (event.data === "ping") {
-					console.log(
-						"🏓 Evaluation received ping, sending pong",
-					);
-					ws.send("pong");
-					return;
-				}
-
-				if (event.data === "pong") {
-					console.log(
-						"🏓 Evaluation received pong response",
-					);
-					return;
-				}
-
-				try {
-					const data = JSON.parse(event.data);
-					console.log(
-						"📊 Parsed evaluation update:",
-						data,
-					);
-
-					// Check if evaluation is completed
-					if (
-						data.type === "status" &&
-						(data.message?.includes("completed") ||
-							data.message?.includes("completed"))
-					) {
-						console.log(
-							"🎉 Evaluation completion detected, reloading evaluation data",
-						);
-						setTimeout(() => {
-							loadEvaluationRuns();
-							loadTrainedModels(); // Also refresh trained models
-						}, 1000);
-					}
-
-					// Format log message based on data type
-					let logMessage = "";
-					if (data.type === "log") {
-						logMessage = data.message;
-					} else if (data.type === "progress") {
-						logMessage = `📊 Processing batch ${data.current_batch}/${data.total_batches}`;
-					} else if (data.type === "metrics") {
-						logMessage = `� ${data.metric_name}: ${data.value?.toFixed(4) || "N/A"}`;
-					} else if (data.type === "status") {
-						logMessage = `📊 Status: ${data.message}`;
-					} else if (data.type === "error") {
-						logMessage = `❌ Error: ${data.message}`;
-					} else {
-						logMessage = JSON.stringify(data);
-					}
-
-					setEvaluationLogs((prev) => [...prev, logMessage]);
-					console.log(
-						"✅ Evaluation log updated:",
-						logMessage,
-					);
-				} catch (error) {
-					console.error(
-						"❌ Failed to parse evaluation WebSocket message:",
-						error,
-					);
-					console.log(
-						"📝 Evaluation raw message content:",
-						event.data,
-					);
-					// Only add non-ping messages to logs
-					if (event.data !== "ping" && event.data !== "pong") {
-						setEvaluationLogs((prev) => [
-							...prev,
-							`📨 ${event.data}`,
-						]);
-					}
-				}
-			};
-
-			ws.onclose = () => {
-				console.log(
-					"🔌 Evaluation WebSocket disconnected",
-				);
-				setEvaluationWsConnected(false);
-				setEvaluationLogs((prev) => [
-					...prev,
-					"🔌 Evaluation monitor disconnected",
-				]);
-				// Refresh evaluation runs list after evaluation completes
-				console.log(
-					"🔄 Evaluation WebSocket closed, reloading evaluation data",
-				);
-				setTimeout(() => {
-					loadEvaluationRuns();
-					loadTrainedModels();
-				}, 2000);
-			};
-
-			ws.onerror = (error) => {
-				console.error("Evaluation WebSocket error:", error);
-				setEvaluationWsConnected(false);
-				setEvaluationLogs((prev) => [
-					...prev,
-					"❌ WebSocket connection error",
-				]);
-			};
-
-			// Store WebSocket reference for cleanup
-			return () => {
-				if (ws.readyState === WebSocket.OPEN) {
-					ws.close();
-				}
-			};
-		} catch (error) {
-			console.error("Failed to connect to evaluation WebSocket:", error);
-			setEvaluationLogs((prev) => [
-				...prev,
-				"❌ Failed to connect to evaluation monitor",
-			]);
-		}
-	};
-
-	const getStatusIcon = (status: string) => {
-		switch (status) {
-			case "COMPLETED":
-				return <CheckCircle className="h-4 w-4 text-green-500" />;
-			case "RUNNING":
-				return (
-					<Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-				);
-			case "FAILED":
-				return <AlertCircle className="h-4 w-4 text-red-500" />;
-			default:
-				return <Clock className="h-4 w-4 text-gray-500" />;
-		}
+		// Show notification to user
+		toast.info(
+			"Evaluation started! Use the reload button to check progress.",
+			{
+				duration: 5000,
+			},
+		);
 	};
 
 	// WebSocket connection indicator component
@@ -982,11 +2949,9 @@ export function Stage3TrainingWorkbench({
 										<div>
 											<strong>Selected Datasets:</strong>{" "}
 											<span className="text-blue-600">
-												{
-													filteringParams
-														.selectedDatasetIds
-														.length
-												}{" "}
+												{filteringParams
+													.selectedDatasetIds
+													?.length || 0}{" "}
 												dataset(s) selected
 											</span>
 											<div className="mt-2 space-y-1">
@@ -994,7 +2959,7 @@ export function Stage3TrainingWorkbench({
 												0 ? (
 													availableDatasets
 														.filter((dataset) =>
-															filteringParams.selectedDatasetIds.includes(
+															filteringParams.selectedDatasetIds?.includes(
 																dataset.id,
 															),
 														)
@@ -1234,11 +3199,9 @@ export function Stage3TrainingWorkbench({
 													Selected Datasets:
 												</strong>{" "}
 												<span className="text-blue-600">
-													{
-														filteringParams
-															.selectedDatasetIds
-															.length
-													}{" "}
+													{filteringParams
+														.selectedDatasetIds
+														?.length || 0}{" "}
 													dataset(s) selected
 												</span>
 												<div className="mt-2 space-y-1">
@@ -1246,7 +3209,7 @@ export function Stage3TrainingWorkbench({
 													0 ? (
 														availableDatasets
 															.filter((dataset) =>
-																filteringParams.selectedDatasetIds.includes(
+																filteringParams.selectedDatasetIds?.includes(
 																	dataset.id,
 																),
 															)
@@ -1867,6 +3830,7 @@ export function Stage3TrainingWorkbench({
 		);
 	};
 
+	console.log("evaluationRuns", evaluationRuns);
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -1936,7 +3900,7 @@ export function Stage3TrainingWorkbench({
 									size="sm"
 									onClick={refreshData}
 									className="h-6 w-6 p-0"
-									title="Refresh data"
+									title="Reload models & evaluation data"
 								>
 									<RefreshCw className="h-3 w-3" />
 								</Button>
@@ -2212,6 +4176,50 @@ export function Stage3TrainingWorkbench({
 										)}
 									</div>
 								</div>
+
+								{/* 🆕 U Sample Ratio Configuration */}
+								<div className="space-y-2 pt-3 border-t border-gray-200">
+									<div>
+										<Label className="text-xs font-medium">
+											Training Data Sampling
+										</Label>
+										<div className="flex items-center space-x-2 mt-1">
+											<Label className="text-xs text-muted-foreground min-w-0">
+												U Sample Ratio:
+											</Label>
+											<Slider
+												value={[
+													dataSourceConfig.uSampleRatio *
+														100,
+												]}
+												onValueChange={([value]) =>
+													setDataSourceConfig({
+														...dataSourceConfig,
+														uSampleRatio:
+															value / 100,
+													})
+												}
+												max={100}
+												min={5}
+												step={5}
+												className="flex-1"
+											/>
+											<span className="text-xs w-12 text-center">
+												{(
+													dataSourceConfig.uSampleRatio *
+													100
+												).toFixed(0)}
+												%
+											</span>
+										</div>
+										<p className="text-xs text-muted-foreground mt-1">
+											Percentage of unlabeled (U) samples
+											to use for training. Lower values
+											reduce training time but may affect
+											model performance.
+										</p>
+									</div>
+								</div>
 							</CardContent>
 						</Card>
 					)}
@@ -2232,15 +4240,15 @@ export function Stage3TrainingWorkbench({
 									<Button
 										onClick={handleStartTraining}
 										disabled={
-											trainingStatus.isTraining ||
+											// trainingStatus.isTraining ||
 											dataSourceConfig.trainRatio +
 												dataSourceConfig.validationRatio +
 												dataSourceConfig.testRatio !==
-												100
+											100
 										}
 										className="w-full"
 									>
-										{trainingStatus.isTraining ? (
+										{/* {trainingStatus.isTraining ? (
 											<>
 												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
 												Starting Training...
@@ -2250,9 +4258,23 @@ export function Stage3TrainingWorkbench({
 												<Play className="h-4 w-4 mr-2" />
 												▶ Start Model Training
 											</>
-										)}
+										)} */}
+										<>
+											<Play className="h-4 w-4 mr-2" />▶
+											Start Model Training
+										</>
 									</Button>
 								)}
+
+								{/* Reload Data Button */}
+								<Button
+									onClick={refreshData}
+									variant="outline"
+									className="w-full"
+								>
+									<RefreshCw className="h-4 w-4 mr-2" />
+									Reload Models & Evaluation Data
+								</Button>
 
 								{/* Model Selection and Evaluation for ERM_BASELINE */}
 								{scenarioType === "ERM_BASELINE" &&
@@ -2371,33 +4393,45 @@ export function Stage3TrainingWorkbench({
 
 											<div className="space-y-2">
 												<Label className="text-sm font-medium">
-													🎯 Target Dataset for Testing
+													🎯 Target Dataset for
+													Testing
 												</Label>
 												<Select
-													value={selectedTargetDataset}
-													onValueChange={setSelectedTargetDataset}
+													value={
+														selectedTargetDataset
+													}
+													onValueChange={
+														setSelectedTargetDataset
+													}
 												>
 													<SelectTrigger>
 														<SelectValue placeholder="Select target domain for testing..." />
 													</SelectTrigger>
 													<SelectContent>
-														{availableDatasets.map((dataset) => (
-															<SelectItem
-																key={dataset.id}
-																value={dataset.id.toString()}
-															>
-																{dataset.building_name ||
-																	dataset.building}{" "}
-																{dataset.floor_name ||
-																	dataset.floor}{" "}
-																{dataset.room_name ||
-																	dataset.room}
-																: P {dataset.positiveLabels || 0} / Total{" "}
-																{dataset.record_count ||
-																	dataset.totalRecords ||
-																	0}
-															</SelectItem>
-														))}
+														{availableDatasets.map(
+															(dataset) => (
+																<SelectItem
+																	key={
+																		dataset.id
+																	}
+																	value={dataset.id.toString()}
+																>
+																	{dataset.building_name ||
+																		dataset.building}{" "}
+																	{dataset.floor_name ||
+																		dataset.floor}{" "}
+																	{dataset.room_name ||
+																		dataset.room}
+																	: P{" "}
+																	{dataset.positiveLabels ||
+																		0}{" "}
+																	/ Total{" "}
+																	{dataset.record_count ||
+																		dataset.totalRecords ||
+																		0}
+																</SelectItem>
+															),
+														)}
 													</SelectContent>
 												</Select>
 											</div>
@@ -2474,7 +4508,7 @@ export function Stage3TrainingWorkbench({
 										)}
 									</CardTitle>
 									<ConnectionIndicator
-										connected={trainingWsConnected}
+										connected={false}
 										isActive={isTraining}
 									/>
 								</div>
@@ -2514,7 +4548,7 @@ export function Stage3TrainingWorkbench({
 										)}
 									</CardTitle>
 									<ConnectionIndicator
-										connected={evaluationWsConnected}
+										connected={false}
 										isActive={isEvaluating}
 									/>
 								</div>
@@ -2544,1095 +4578,18 @@ export function Stage3TrainingWorkbench({
 					</div>
 
 					{/* Trained Models */}
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Database className="h-4 w-4" />
-								Trained Models
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{trainedModels.length === 0 ? (
-								<div className="text-center text-muted-foreground py-8">
-									No trained models yet. Start your first
-									training job above.
-								</div>
-							) : (
-								<div className="space-y-3">
-									{trainedModels.map((model) => {
-										const evaluationCount =
-											getEvaluationCount(model.id);
-										const isSelected =
-											selectedModelForEvalView ===
-											model.id;
-										const modelEvaluations =
-											getModelEvaluations(model.id);
-
-										return (
-											<div
-												key={model.id}
-												className="border rounded-lg"
-											>
-												<div
-													className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
-														isSelected
-															? "bg-blue-50 border-blue-200"
-															: ""
-													}`}
-													onClick={() =>
-														handleModelEvaluationToggle(
-															model.id,
-														)
-													}
-												>
-													<div className="flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															{getStatusIcon(
-																model.status,
-															)}
-															<span className="font-medium">
-																{model.name}
-															</span>
-															<Badge variant="outline">
-																{
-																	model.scenarioType
-																}
-															</Badge>
-															{evaluationCount >
-																0 && (
-																<Badge
-																	variant="secondary"
-																	className="bg-green-100 text-green-800"
-																>
-																	{
-																		evaluationCount
-																	}{" "}
-																	evaluations
-																</Badge>
-															)}
-														</div>
-														<div className="flex items-center gap-2">
-															<Button
-																variant="outline"
-																size="sm"
-																className="h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
-																onClick={(e) =>
-																	handleDeleteModel(
-																		model.id,
-																		model.name,
-																		e,
-																	)
-																}
-																title="Delete model and related evaluations"
-															>
-																<Trash2 className="h-3 w-3" />
-															</Button>
-															<Badge
-																variant={
-																	model.status ===
-																	"COMPLETED"
-																		? "default"
-																		: "secondary"
-																}
-															>
-																{model.status}
-															</Badge>
-															{evaluationCount >
-																0 && (
-																<div className="text-xs text-muted-foreground">
-																	Click to view{" "}
-																	{isSelected
-																		? "▼"
-																		: "▶"}
-																</div>
-															)}
-														</div>
-													</div>
-													<div className="text-sm text-muted-foreground mt-1">
-														Created:{" "}
-														{new Date(
-															model.createdAt,
-														).toLocaleString()}
-													</div>
-													
-													{/* Training Data Information */}
-													{model.training_data_info && (
-														<div className="mt-3 p-3 bg-gray-50 border rounded-md">
-															<h5 className="text-sm font-medium text-gray-800 mb-2">
-																📊 Training Data Sources
-															</h5>
-															<div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-																{/* P Data Sources */}
-																<div>
-																	<div className="font-semibold text-orange-700 mb-1">
-																		Positive (P) Data Sources:
-																	</div>
-																	{model.training_data_info.p_data_sources?.dataset_ids?.map((datasetId: string) => {
-																		const datasetName = model.training_data_info.p_data_sources?.dataset_names?.[datasetId] || `Dataset ${datasetId}`;
-																		const datasetInfo = model.training_data_info.p_data_sources?.dataset_info?.[datasetId];
-																		return (
-																			<div key={datasetId} className="mb-1 pl-2 border-l-2 border-orange-200">
-																				<div className="font-medium text-gray-700">{datasetName}</div>
-																				{datasetInfo && (
-																					<div className="text-gray-600">
-																						Total: {datasetInfo.total_samples} samples
-																						<br />
-																						Train: {datasetInfo.train_samples} | Val: {datasetInfo.validation_samples} | Test: {datasetInfo.test_samples}
-																					</div>
-																				)}
-																			</div>
-																		);
-																	})}
-																	<div className="mt-2 pt-2 border-t border-orange-200 font-medium text-orange-800">
-																		Total P: {model.training_data_info.p_data_sources?.total_samples || 0} samples
-																	</div>
-																</div>
-																
-																{/* U Data Sources */}
-																<div>
-																	<div className="font-semibold text-blue-700 mb-1">
-																		Unlabeled (U) Data Sources:
-																	</div>
-																	{model.training_data_info.u_data_sources?.dataset_ids?.map((datasetId: string) => {
-																		const datasetName = model.training_data_info.u_data_sources?.dataset_names?.[datasetId] || `Dataset ${datasetId}`;
-																		const datasetInfo = model.training_data_info.u_data_sources?.dataset_info?.[datasetId];
-																		return (
-																			<div key={datasetId} className="mb-1 pl-2 border-l-2 border-blue-200">
-																				<div className="font-medium text-gray-700">{datasetName}</div>
-																				{datasetInfo && (
-																					<div className="text-gray-600">
-																						Total: {datasetInfo.total_samples} samples
-																						<br />
-																						Train: {datasetInfo.train_samples} | Val: {datasetInfo.validation_samples} | Test: {datasetInfo.test_samples}
-																					</div>
-																				)}
-																			</div>
-																		);
-																	})}
-																	<div className="mt-2 pt-2 border-t border-blue-200 font-medium text-blue-800">
-																		Total U: {model.training_data_info.u_data_sources?.total_samples || 0} samples
-																	</div>
-																</div>
-															</div>
-															
-															{/* Data Split Information */}
-															{model.training_data_info.data_split_ratios && (
-																<div className="mt-3 pt-2 border-t border-gray-200">
-																	<div className="text-xs text-gray-600">
-																		<span className="font-medium">Data Split:</span>{" "}
-																		Train {(model.training_data_info.data_split_ratios.train_ratio * 100).toFixed(0)}% | 
-																		Val {(model.training_data_info.data_split_ratios.validation_ratio * 100).toFixed(0)}% | 
-																		Test {(model.training_data_info.data_split_ratios.test_ratio * 100).toFixed(0)}%
-																		
-																		{model.training_data_info.overlap_removal && (
-																			<span className="ml-2 px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">
-																				Overlap Removed
-																			</span>
-																		)}
-																		
-																		{model.training_data_info.u_sampling_applied && (
-																			<span className="ml-2 px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-																				U Sampled (10x)
-																			</span>
-																		)}
-																	</div>
-																</div>
-															)}
-														</div>
-													)}
-												</div>
-
-												{/* Model Evaluations - Only show when selected */}
-												{isSelected &&
-													modelEvaluations.length >
-														0 && (
-														<div className="border-t bg-gray-50 p-3">
-															<div className="text-sm font-medium mb-2 text-gray-700">
-																Evaluation Results (
-																{
-																	modelEvaluations.length
-																}{" "}
-																runs)
-															</div>
-															<div className="space-y-2">
-																{modelEvaluations.map(
-																	(
-																		evaluation,
-																	) => (
-																		<div
-																			key={
-																				evaluation.id
-																			}
-																			className="bg-white border rounded p-2 text-xs"
-																		>
-																			<div className="flex items-center justify-between mb-1">
-																				<span className="font-medium">
-																					{
-																						evaluation.name
-																					}
-																				</span>
-																				<Badge
-																					variant={
-																						evaluation.status ===
-																						"COMPLETED"
-																							? "default"
-																							: "secondary"
-																					}
-																					className="text-xs"
-																				>
-																					{
-																						evaluation.status
-																					}
-																				</Badge>
-																			</div>
-																			<div className="text-gray-600">
-																				Created:{" "}
-																				{new Date(
-																					evaluation.createdAt,
-																				).toLocaleString()}
-																			</div>
-																			{evaluation.evaluationMetrics && (
-																				<div className="mt-1 p-1 bg-gray-50 rounded">
-																					<pre className="text-xs text-gray-700">
-																						{JSON.stringify(
-																							typeof evaluation.evaluationMetrics ===
-																								"string"
-																								? JSON.parse(
-																										evaluation.evaluationMetrics,
-																									)
-																								: evaluation.evaluationMetrics,
-																							null,
-																							2,
-																						)}
-																					</pre>
-																				</div>
-																			)}
-																		</div>
-																	),
-																)}
-															</div>
-														</div>
-													)}
-											</div>
-										);
-									})}
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<TrainedModels
+						trainedModels={trainedModels}
+						getEvaluationCount={getEvaluationCount}
+						getModelEvaluations={getModelEvaluations}
+						handleDeleteModel={handleDeleteModel}
+					/>
 
 					{/* Evaluation Results */}
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<BarChart className="h-4 w-4" />
-								Evaluation Results
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{evaluationRuns.length === 0 ? (
-								<div className="text-center text-muted-foreground py-8">
-									No evaluation runs yet. Select a trained
-									model and start evaluation.
-								</div>
-							) : (
-								<div className="space-y-3">
-									{evaluationRuns.map((run) => (
-										<div
-											key={run.id}
-											className="border rounded-lg p-3"
-										>
-											<div className="flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													{getStatusIcon(run.status)}
-													<span className="font-medium">
-														{run.name}
-													</span>
-													<Badge variant="outline">
-														{run.scenarioType}
-													</Badge>
-												</div>
-												<Badge
-													variant={
-														run.status ===
-														"COMPLETED"
-															? "default"
-															: "secondary"
-													}
-												>
-													{run.status}
-												</Badge>
-											</div>
-											<div className="text-sm text-muted-foreground mt-1">
-												Created:{" "}
-												{new Date(
-													run.createdAt,
-												).toLocaleString()}
-											</div>
-											{run.evaluationMetrics && (
-												<>
-													{/* Original JSON Data */}
-													<div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-														<pre>
-															{JSON.stringify(
-																typeof run.evaluationMetrics ===
-																	"string"
-																	? JSON.parse(
-																			run.evaluationMetrics,
-																		)
-																	: run.evaluationMetrics,
-																null,
-																2,
-															)}
-														</pre>
-													</div>
-
-													{/* Visualized Evaluation Results */}
-													{(() => {
-														const metrics =
-															typeof run.evaluationMetrics ===
-															"string"
-																? JSON.parse(
-																		run.evaluationMetrics,
-																	)
-																: run.evaluationMetrics;
-
-														// Ensure necessary metric data is available
-														if (
-															!metrics ||
-															!metrics.precision ||
-															!metrics.recall
-														) {
-															return null;
-														}
-
-														// Debug: Output confusion_matrix structure (for development viewing)
-														// console.log(
-														// 	"Confusion Matrix structure:",
-														// 	metrics.confusion_matrix,
-														// );
-
-														const confusionMatrix =
-															metrics.confusion_matrix;
-
-														// Safely extract confusion matrix data
-														let tp: number;
-														let fp: number;
-														let fn: number;
-														let tn: number;
-
-														if (!confusionMatrix) {
-															// If no confusion matrix, try to calculate from other metrics
-															tp =
-																fp =
-																fn =
-																tn =
-																	0;
-														} else if (
-															Array.isArray(
-																confusionMatrix,
-															) &&
-															confusionMatrix.length >=
-																2
-														) {
-															// 2D array format: [[tn, fp], [fn, tp]]
-															if (
-																Array.isArray(
-																	confusionMatrix[0],
-																) &&
-																Array.isArray(
-																	confusionMatrix[1],
-																)
-															) {
-																tn =
-																	confusionMatrix[0][0] ||
-																	0;
-																fp =
-																	confusionMatrix[0][1] ||
-																	0;
-																fn =
-																	confusionMatrix[1][0] ||
-																	0;
-																tp =
-																	confusionMatrix[1][1] ||
-																	0;
-															} else {
-																// 1D array format: [tn, fp, fn, tp]
-																tn =
-																	confusionMatrix[0] ||
-																	0;
-																fp =
-																	confusionMatrix[1] ||
-																	0;
-																fn =
-																	confusionMatrix[2] ||
-																	0;
-																tp =
-																	confusionMatrix[3] ||
-																	0;
-															}
-														} else if (
-															typeof confusionMatrix ===
-															"object"
-														) {
-															// Object format: {tp: x, fp: x, fn: x, tn: x}
-															tp =
-																confusionMatrix.tp ||
-																confusionMatrix.true_positive ||
-																0;
-															fp =
-																confusionMatrix.fp ||
-																confusionMatrix.false_positive ||
-																0;
-															fn =
-																confusionMatrix.fn ||
-																confusionMatrix.false_negative ||
-																0;
-															tn =
-																confusionMatrix.tn ||
-																confusionMatrix.true_negative ||
-																0;
-														} else {
-															// If format is unknown, use default values
-															tp =
-																fp =
-																fn =
-																tn =
-																	0;
-														}
-
-														const precision = (
-															metrics.precision *
-															100
-														).toFixed(2);
-														const recall = (
-															metrics.recall * 100
-														).toFixed(2);
-														const f1Score = (
-															metrics.f1_score *
-															100
-														).toFixed(2);
-														const accuracy = (
-															metrics.accuracy *
-															100
-														).toFixed(2);
-														const aucRoc = (
-															metrics.auc_roc *
-															100
-														).toFixed(1);
-
-														return (
-															<div className="mt-4 space-y-6">
-																{/* Performance Metrics Table */}
-																<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-																	<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-																		<h4 className="text-lg font-semibold text-gray-800">
-																			Classification
-																			Performance
-																			Metrics
-																		</h4>
-																		<p className="text-sm text-gray-600 mt-1">
-																			Statistical
-																			evaluation
-																			of
-																			model
-																			performance
-																			on
-																			anomaly
-																			detection
-																			task
-																		</p>
-																	</div>
-																	<div className="p-6">
-																		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-																			<div className="text-center">
-																				<div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-3">
-																					<span className="text-xl font-bold text-blue-700">
-																						F₁
-																					</span>
-																				</div>
-																				<div className="text-2xl font-bold text-gray-800 mb-1">
-																					{
-																						f1Score
-																					}
-																					%
-																				</div>
-																				<div className="text-sm font-medium text-gray-700 mb-1">
-																					F₁-Score
-																				</div>
-																				<div className="text-xs text-gray-500">
-																					Harmonic
-																					mean
-																					of
-																					precision
-																					and
-																					recall
-																				</div>
-																			</div>
-																			<div className="text-center">
-																				<div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-3">
-																					<span className="text-xl font-bold text-green-700">
-																						P
-																					</span>
-																				</div>
-																				<div className="text-2xl font-bold text-gray-800 mb-1">
-																					{
-																						precision
-																					}
-																					%
-																				</div>
-																				<div className="text-sm font-medium text-gray-700 mb-1">
-																					Precision
-																				</div>
-																				<div className="text-xs text-gray-500">
-																					TP
-																					/
-																					(TP
-																					+
-																					FP)
-																				</div>
-																			</div>
-																			<div className="text-center">
-																				<div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-3">
-																					<span className="text-xl font-bold text-orange-700">
-																						R
-																					</span>
-																				</div>
-																				<div className="text-2xl font-bold text-gray-800 mb-1">
-																					{
-																						recall
-																					}
-																					%
-																				</div>
-																				<div className="text-sm font-medium text-gray-700 mb-1">
-																					Recall
-																					(Sensitivity)
-																				</div>
-																				<div className="text-xs text-gray-500">
-																					TP
-																					/
-																					(TP
-																					+
-																					FN)
-																				</div>
-																			</div>
-																			<div className="text-center">
-																				<div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-3">
-																					<span className="text-xl font-bold text-purple-700">
-																						AUC
-																					</span>
-																				</div>
-																				<div className="text-2xl font-bold text-gray-800 mb-1">
-																					{
-																						aucRoc
-																					}
-																					%
-																				</div>
-																				<div className="text-sm font-medium text-gray-700 mb-1">
-																					AUC-ROC
-																				</div>
-																				<div className="text-xs text-gray-500">
-																					Area
-																					under
-																					ROC
-																					curve
-																				</div>
-																			</div>
-																		</div>
-																	</div>
-																</div>
-
-																{/* Confusion Matrix - Only show when data is available */}
-																{(tp > 0 ||
-																	fp > 0 ||
-																	fn > 0 ||
-																	tn > 0) && (
-																	<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-																		<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-																			<h4 className="text-lg font-semibold text-gray-800">
-																				Confusion
-																				Matrix
-																			</h4>
-																			<p className="text-sm text-gray-600 mt-1">
-																				2×2
-																				contingency
-																				table
-																				for
-																				binary
-																				classification
-																				evaluation
-																			</p>
-																		</div>
-																		<div className="p-6">
-																			<div className="flex justify-center">
-																				<div className="border border-gray-300 rounded-lg overflow-hidden">
-																					<table className="table-fixed">
-																						<thead>
-																							<tr>
-																								<td className="w-32 h-16 bg-gray-100 border-r border-b border-gray-300" />
-																								<td className="w-32 h-16 bg-gray-100 border-r border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
-																									<div className="flex flex-col justify-center h-full">
-																										<div>
-																											Predicted
-																										</div>
-																										<div>
-																											Positive
-																										</div>
-																									</div>
-																								</td>
-																								<td className="w-32 h-16 bg-gray-100 border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
-																									<div className="flex flex-col justify-center h-full">
-																										<div>
-																											Predicted
-																										</div>
-																										<div>
-																											Negative
-																										</div>
-																									</div>
-																								</td>
-																							</tr>
-																						</thead>
-																						<tbody>
-																							<tr>
-																								<td className="w-32 h-20 bg-gray-100 border-r border-b border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
-																									<div className="flex flex-col justify-center h-full">
-																										<div>
-																											Actual
-																										</div>
-																										<div>
-																											Positive
-																										</div>
-																									</div>
-																								</td>
-																								<td className="w-32 h-20 border-r border-b border-gray-300 text-center bg-green-50">
-																									<div className="flex flex-col justify-center h-full">
-																										<div className="text-2xl font-bold text-green-700">
-																											{
-																												tp
-																											}
-																										</div>
-																										<div className="text-xs text-gray-600 mt-1">
-																											True
-																											Positive
-																										</div>
-																									</div>
-																								</td>
-																								<td className="w-32 h-20 border-b border-gray-300 text-center bg-red-50">
-																									<div className="flex flex-col justify-center h-full">
-																										<div className="text-2xl font-bold text-red-700">
-																											{
-																												fn
-																											}
-																										</div>
-																										<div className="text-xs text-gray-600 mt-1">
-																											False
-																											Negative
-																										</div>
-																									</div>
-																								</td>
-																							</tr>
-																							<tr>
-																								<td className="w-32 h-20 bg-gray-100 border-r border-gray-300 text-center font-semibold text-sm text-gray-700 px-2">
-																									<div className="flex flex-col justify-center h-full">
-																										<div>
-																											Actual
-																										</div>
-																										<div>
-																											Negative
-																										</div>
-																									</div>
-																								</td>
-																								<td className="w-32 h-20 border-r border-gray-300 text-center bg-yellow-50">
-																									<div className="flex flex-col justify-center h-full">
-																										<div className="text-2xl font-bold text-yellow-700">
-																											{
-																												fp
-																											}
-																										</div>
-																										<div className="text-xs text-gray-600 mt-1">
-																											False
-																											Positive
-																										</div>
-																									</div>
-																								</td>
-																								<td className="w-32 h-20 border-gray-300 text-center bg-blue-50">
-																									<div className="flex flex-col justify-center h-full">
-																										<div className="text-2xl font-bold text-blue-700">
-																											{
-																												tn
-																											}
-																										</div>
-																										<div className="text-xs text-gray-600 mt-1">
-																											True
-																											Negative
-																										</div>
-																									</div>
-																								</td>
-																							</tr>
-																						</tbody>
-																					</table>
-																				</div>
-																			</div>
-																			<div className="mt-4 text-center text-sm text-gray-600">
-																				<p className="mb-2">
-																					<strong>
-																						Classification
-																						Accuracy:
-																					</strong>{" "}
-																					{(
-																						((tp +
-																							tn) /
-																							(tp +
-																								fp +
-																								fn +
-																								tn)) *
-																						100
-																					).toFixed(
-																						1,
-																					)}
-																					%
-																				</p>
-																				<p>
-																					<strong>
-																						Error
-																						Rate:
-																					</strong>{" "}
-																					{(
-																						((fp +
-																							fn) /
-																							(tp +
-																								fp +
-																								fn +
-																								tn)) *
-																						100
-																					).toFixed(
-																						1,
-																					)}
-																					%
-																				</p>
-																			</div>
-																		</div>
-																	</div>
-																)}
-
-																{/* Metric Explanations */}
-																<div className="bg-gray-50 border rounded-lg p-4">
-																	<h4 className="text-lg font-semibold mb-3">
-																		Metric
-																		Interpretations
-																	</h4>
-																	<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-																		<div className="space-y-2">
-																			<div>
-																				<strong className="text-green-700">
-																					Precision
-																					(
-																					{
-																						precision
-																					}
-																					%)
-																				</strong>
-																				<p className="text-gray-600">
-																					Of
-																					all
-																					alerts,{" "}
-																					{
-																						precision
-																					}
-																					%
-																					are
-																					real
-																					anomalies.
-																					The
-																					remaining{" "}
-																					{(
-																						100 -
-																						Number.parseFloat(
-																							precision,
-																						)
-																					).toFixed(
-																						1,
-																					)}
-																					%
-																					are
-																					false
-																					alarms.
-																				</p>
-																			</div>
-																			<div>
-																				<strong className="text-orange-700">
-																					Recall
-																					(
-																					{
-																						recall
-																					}
-																					%)
-																				</strong>
-																				<p className="text-gray-600">
-																					Successfully
-																					detected{" "}
-																					{
-																						recall
-																					}
-																					%
-																					of
-																					real
-																					anomalies.{" "}
-																					{(
-																						100 -
-																						Number.parseFloat(
-																							recall,
-																						)
-																					).toFixed(
-																						1,
-																					)}
-																					%
-																					of
-																					anomalies
-																					were
-																					missed.
-																				</p>
-																			</div>
-																		</div>
-																		<div className="space-y-2">
-																			<div>
-																				<strong className="text-blue-700">
-																					F1-Score
-																					(
-																					{
-																						f1Score
-																					}
-																					%)
-																				</strong>
-																				<p className="text-gray-600">
-																					Harmonic
-																					mean
-																					of
-																					Precision
-																					and
-																					Recall,
-																					providing
-																					a
-																					balanced
-																					performance
-																					metric.
-																				</p>
-																			</div>
-																			<div>
-																				<strong className="text-purple-700">
-																					AUC-ROC
-																					(
-																					{
-																						aucRoc
-																					}
-																					%)
-																				</strong>
-																				<p className="text-gray-600">
-																					Model's
-																					ability
-																					to
-																					distinguish
-																					between
-																					anomalies
-																					and
-																					normal
-																					patterns.
-																					Closer
-																					to
-																					100%
-																					is
-																					better.
-																				</p>
-																			</div>
-																		</div>
-																	</div>
-																</div>
-
-																{/* Business Impact Assessment */}
-																<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-																	<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-																		<h4 className="text-lg font-semibold text-gray-800">
-																			Business
-																			Impact
-																			Assessment
-																		</h4>
-																		<p className="text-sm text-gray-600 mt-1">
-																			Economic
-																			and
-																			operational
-																			risk
-																			analysis
-																			based
-																			on
-																			classification
-																			errors
-																		</p>
-																	</div>
-																	<div className="p-6">
-																		<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-																			<div className="bg-red-50 border border-red-200 rounded-lg p-4">
-																				<div className="flex items-center mb-3">
-																					<div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-																					<h5 className="font-semibold text-red-800">
-																						Type
-																						II
-																						Error
-																						Impact
-																						(False
-																						Negatives)
-																					</h5>
-																				</div>
-																				<div className="mb-3">
-																					<span className="text-2xl font-bold text-red-700">
-																						{
-																							fn
-																						}
-																					</span>
-																					<span className="text-sm text-red-600 ml-2">
-																						missed
-																						anomalies
-																					</span>
-																				</div>
-																				<div className="space-y-2 text-sm text-gray-700">
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
-																						<span>
-																							Equipment
-																							damage
-																							risk
-																							escalation
-																						</span>
-																					</div>
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
-																						<span>
-																							Undetected
-																							energy
-																							consumption
-																							inefficiencies
-																						</span>
-																					</div>
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-red-400 rounded-full mr-2" />
-																						<span>
-																							Potential
-																							safety
-																							protocol
-																							violations
-																						</span>
-																					</div>
-																				</div>
-																			</div>
-																			<div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-																				<div className="flex items-center mb-3">
-																					<div className="w-3 h-3 bg-yellow-500 rounded-full mr-2" />
-																					<h5 className="font-semibold text-yellow-800">
-																						Type
-																						I
-																						Error
-																						Impact
-																						(False
-																						Positives)
-																					</h5>
-																				</div>
-																				<div className="mb-3">
-																					<span className="text-2xl font-bold text-yellow-700">
-																						{
-																							fp
-																						}
-																					</span>
-																					<span className="text-sm text-yellow-600 ml-2">
-																						false
-																						alarms
-																					</span>
-																				</div>
-																				<div className="space-y-2 text-sm text-gray-700">
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
-																						<span>
-																							Operator
-																							alert
-																							desensitization
-																						</span>
-																					</div>
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
-																						<span>
-																							Unnecessary
-																							maintenance
-																							resource
-																							allocation
-																						</span>
-																					</div>
-																					<div className="flex items-center">
-																						<span className="w-2 h-2 bg-yellow-400 rounded-full mr-2" />
-																						<span>
-																							System
-																							credibility
-																							deterioration
-																						</span>
-																					</div>
-																				</div>
-																			</div>
-																		</div>
-																		<div className="mt-6 pt-4 border-t border-gray-200">
-																			<div className="grid grid-cols-2 gap-4 text-center">
-																				<div>
-																					<div className="text-sm text-gray-600 mb-1">
-																						Overall
-																						Classification
-																						Accuracy
-																					</div>
-																					<div className="text-2xl font-bold text-gray-800">
-																						{(
-																							((tp +
-																								tn) /
-																								(tp +
-																									fp +
-																									fn +
-																									tn)) *
-																							100
-																						).toFixed(
-																							1,
-																						)}
-																						%
-																					</div>
-																				</div>
-																				<div>
-																					<div className="text-sm text-gray-600 mb-1">
-																						Error
-																						Rate
-																					</div>
-																					<div className="text-2xl font-bold text-gray-800">
-																						{(
-																							((fp +
-																								fn) /
-																								(tp +
-																									fp +
-																									fn +
-																									tn)) *
-																							100
-																						).toFixed(
-																							1,
-																						)}
-																						%
-																					</div>
-																				</div>
-																			</div>
-																		</div>
-																	</div>
-																</div>
-															</div>
-														);
-													})()}
-												</>
-											)}
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<EvaluationResults
+						evaluationRuns={evaluationRuns}
+						handleDeleteEvaluation={handleDeleteEvaluation}
+					/>
 				</div>
 			</div>
 		</div>
