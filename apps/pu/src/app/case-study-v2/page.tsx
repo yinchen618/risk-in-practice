@@ -328,9 +328,7 @@ export default function CaseStudyV2Page() {
 
 					<TabsContent value="stage-4" className="space-y-4">
 						{selectedRun && history && (
-							<Stage4ResultsAnalysis
-								experiments={[history]}
-							/>
+							<Stage4ResultsAnalysis experiments={[history]} />
 						)}
 					</TabsContent>
 				</Tabs>

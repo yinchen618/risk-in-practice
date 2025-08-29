@@ -215,12 +215,12 @@ class DatabaseManager:
         if model:
             # Convert to dict and process JSON fields
             model_dict = model.dict()
-            if model_dict.get('model_config'):
-                model_dict['model_config'] = json.loads(model_dict['model_config']) if isinstance(model_dict['model_config'], str) else model_dict['model_config']
-            if model_dict.get('data_source_config'):
-                model_dict['data_source_config'] = json.loads(model_dict['data_source_config']) if isinstance(model_dict['data_source_config'], str) else model_dict['data_source_config']
-            if model_dict.get('training_metrics'):
-                model_dict['training_metrics'] = json.loads(model_dict['training_metrics']) if isinstance(model_dict['training_metrics'], str) else model_dict['training_metrics']
+            if model_dict.get('modelConfig'):
+                model_dict['modelConfig'] = json.loads(model_dict['modelConfig']) if isinstance(model_dict['modelConfig'], str) else model_dict['modelConfig']
+            if model_dict.get('dataSourceConfig'):
+                model_dict['dataSourceConfig'] = json.loads(model_dict['dataSourceConfig']) if isinstance(model_dict['dataSourceConfig'], str) else model_dict['dataSourceConfig']
+            if model_dict.get('trainingMetrics'):
+                model_dict['trainingMetrics'] = json.loads(model_dict['trainingMetrics']) if isinstance(model_dict['trainingMetrics'], str) else model_dict['trainingMetrics']
 
             # Create a simple object to mimic the original model
             class ModelObject:
@@ -265,9 +265,9 @@ class DatabaseManager:
         update_data = {'status': status}
 
         if evaluation_metrics:
-            update_data['evaluation_metrics'] = json.dumps(evaluation_metrics)
+            update_data['evaluationMetrics'] = json.dumps(evaluation_metrics)
         if completed_at:
-            update_data['completed_at'] = completed_at
+            update_data['completedAt'] = completed_at
 
         return await self.db.evaluationrun.update(
             where={'id': evaluation_id},
@@ -278,23 +278,25 @@ class DatabaseManager:
         """Get an evaluation run by ID with trained model"""
         evaluation = await self.db.evaluationrun.find_unique(
             where={'id': evaluation_id},
-            include={'trained_model': True}
+            include={'trainedModel': True}
         )
 
         if evaluation:
-            if evaluation.test_set_source:
-                evaluation.test_set_source = json.loads(evaluation.test_set_source)
-            if evaluation.evaluation_metrics:
-                evaluation.evaluation_metrics = json.loads(evaluation.evaluation_metrics)
+            if evaluation.testSetSource:
+                evaluation.testSetSource = json.loads(evaluation.testSetSource)
+            if evaluation.evaluationMetrics:
+                evaluation.evaluationMetrics = json.loads(evaluation.evaluationMetrics)
 
             # Parse trained model JSON fields
-            if evaluation.trained_model:
-                if evaluation.trained_model.model_config:
-                    evaluation.trained_model.model_config = json.loads(evaluation.trained_model.model_config)
-                if evaluation.trained_model.data_source_config:
-                    evaluation.trained_model.data_source_config = json.loads(evaluation.trained_model.data_source_config)
-                if evaluation.trained_model.training_metrics:
-                    evaluation.trained_model.training_metrics = json.loads(evaluation.trained_model.training_metrics)
+            if evaluation.trainedModel:
+                if evaluation.trainedModel.modelConfig:
+                    evaluation.trainedModel.modelConfig = json.loads(evaluation.trainedModel.modelConfig)
+                if evaluation.trainedModel.dataSourceConfig:
+                    evaluation.trainedModel.dataSourceConfig = json.loads(evaluation.trainedModel.dataSourceConfig)
+                if evaluation.trainedModel.trainingMetrics:
+                    evaluation.trainedModel.trainingMetrics = json.loads(evaluation.trainedModel.trainingMetrics)
+
+        return evaluation
 
         return evaluation
 

@@ -2359,7 +2359,7 @@ async def start_evaluation_job(
 async def get_experiment_history(run_id: str):
     """Retrieves the full experiment history for an ExperimentRun"""
     try:
-        # 使用 case_study_v2.db 資料庫
+        # 使用資料庫
         import sqlite3
         import json
 
@@ -2379,7 +2379,7 @@ async def get_experiment_history(run_id: str):
         # 獲取訓練模型
         cursor.execute('''
             SELECT id, name, scenario_type, status, experiment_run_id,
-                   created_at, completed_at
+                   created_at, completed_at, training_metrics
             FROM trained_models
             WHERE experiment_run_id = ?
             ORDER BY created_at DESC
@@ -2423,6 +2423,21 @@ async def get_experiment_history(run_id: str):
 
         # 添加訓練模型資訊
         for model in trained_models_data:
+            # 解析 training_metrics 並提取測試階段指標
+            evaluation_metrics = {}
+            try:
+                if model[7]:  # training_metrics
+                    training_metrics = json.loads(model[7])
+                    # 提取測試階段的三個關鍵指標
+                    evaluation_metrics = {
+                        "f1_score": training_metrics.get("final_test_f1_score"),
+                        "recall": training_metrics.get("final_test_recall"),
+                        "precision": training_metrics.get("final_test_precision")
+                    }
+            except json.JSONDecodeError:
+                # 如果解析失敗，使用空字典
+                evaluation_metrics = {}
+
             trained_model = {
                 "id": model[0],
                 "name": model[1],
@@ -2430,7 +2445,8 @@ async def get_experiment_history(run_id: str):
                 "status": model[3],
                 "experiment_run_id": model[4],
                 "created_at": model[5],
-                "completed_at": model[6]
+                "completed_at": model[6],
+                "evaluation_metrics": evaluation_metrics
             }
 
             history["trained_models"].append(trained_model)
@@ -3022,9 +3038,76 @@ async def delete_trained_model(model_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@case_study_v2_router.patch("/trained-models/{model_id}/rename")
+async def rename_trained_model(model_id: str, request: dict):
+    """Rename a trained model"""
+    try:
+
+
+        new_name = request.get("new_name", "").strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="新名稱不能為空 | New name cannot be empty")
+
+        if len(new_name) > 100:
+            raise HTTPException(status_code=400, detail="名稱長度不能超過100個字符 | Name cannot exceed 100 characters")
+
+        logger.info(f"🏷️ 重命名訓練模型請求 | Rename trained model request: {model_id} -> {new_name}")
+
+        import sqlite3
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 先檢查模型是否存在
+        cursor.execute('SELECT name FROM trained_models WHERE id = ?', (model_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            conn.close()
+            logger.error(f"❌ 模型不存在 | Model not found: {model_id}")
+            raise HTTPException(status_code=404, detail="訓練模型不存在 | Trained model not found")
+
+        old_name = result[0]
+
+        # 檢查新名稱是否與其他模型重複
+        cursor.execute('SELECT id FROM trained_models WHERE name = ? AND id != ?', (new_name, model_id))
+        if cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=400, detail="模型名稱已存在 | Model name already exists")
+
+        # 更新模型名稱
+        cursor.execute('UPDATE trained_models SET name = ? WHERE id = ?', (new_name, model_id))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            logger.error(f"❌ 重命名失敗 | Failed to rename model: {model_id}")
+            raise HTTPException(status_code=404, detail="Failed to rename trained model")
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"✅ 成功重命名模型 | Successfully renamed model: {old_name} -> {new_name}")
+
+        return {
+            "success": True,
+            "message": f"Successfully renamed model from '{old_name}' to '{new_name}'",
+            "modelId": model_id,
+            "oldName": old_name,
+            "newName": new_name
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 重命名模型時發生錯誤 | Error renaming trained model: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @case_study_v2_router.delete("/evaluation-runs/{evaluation_id}")
 async def delete_evaluation_run(evaluation_id: str):
-    """Delete a specific evaluation run"""
+    """Delete a specific evaluation run. This operation is idempotent."""
     try:
         import sqlite3
 
@@ -3033,37 +3116,97 @@ async def delete_evaluation_run(evaluation_id: str):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # Check if evaluation run exists and get details
+        # Get name for logging before deleting
+        cursor.execute('SELECT name FROM evaluation_runs WHERE id = ?', (evaluation_id,))
+        result = cursor.fetchone()
+        evaluation_name = result[0] if result else "Not Found"
+
+        # Delete the evaluation run
+        cursor.execute('DELETE FROM evaluation_runs WHERE id = ?', (evaluation_id,))
+        rows_deleted = cursor.rowcount
+
+        conn.commit()
+        conn.close()
+
+        if rows_deleted > 0:
+            logger.info(f"✅ 成功刪除評估結果 | Successfully deleted evaluation run: {evaluation_name} (ID: {evaluation_id})")
+            message = f"Successfully deleted evaluation run '{evaluation_name}'"
+        else:
+            logger.info(f"✅ 評估結果不存在，無需刪除 | Evaluation run not found, no deletion needed: {evaluation_id}")
+            message = f"Evaluation run with ID '{evaluation_id}' was not found, but considered deleted."
+
+        return {
+            "message": message,
+            "deletedEvaluationId": evaluation_id
+        }
+
+    except Exception as e:
+        logger.error(f"❌ 刪除評估結果時發生錯誤 | Error deleting evaluation run: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@case_study_v2_router.patch("/evaluation-runs/{evaluation_id}/rename")
+async def rename_evaluation_run(evaluation_id: str, request: dict):
+    """Rename an evaluation run"""
+    try:
+        new_name = request.get("new_name", "").strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="新名稱不能為空 | New name cannot be empty")
+
+        if len(new_name) > 100:
+            raise HTTPException(status_code=400, detail="名稱長度不能超過100個字符 | Name cannot exceed 100 characters")
+
+        logger.info(f"🏷️ 重命名評估請求 | Rename evaluation request: {evaluation_id} -> {new_name}")
+
+        import sqlite3
+
+        # Connect to database
+        db_path = '/home/infowin/Git-projects/pu-in-practice/backend/database/prisma/pu_practice.db'
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 先檢查評估是否存在
         cursor.execute('SELECT name FROM evaluation_runs WHERE id = ?', (evaluation_id,))
         result = cursor.fetchone()
 
         if not result:
             conn.close()
-            raise HTTPException(status_code=404, detail="Evaluation run not found")
+            logger.error(f"❌ 評估不存在 | Evaluation not found: {evaluation_id}")
+            raise HTTPException(status_code=404, detail="評估不存在 | Evaluation run not found")
 
-        evaluation_name = result[0]
+        old_name = result[0]
 
-        # Delete the evaluation run
-        cursor.execute('DELETE FROM evaluation_runs WHERE id = ?', (evaluation_id,))
+        # 檢查新名稱是否與其他評估重複
+        cursor.execute('SELECT id FROM evaluation_runs WHERE name = ? AND id != ?', (new_name, evaluation_id))
+        if cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=400, detail="評估名稱已存在 | Evaluation name already exists")
+
+        # 更新評估名稱
+        cursor.execute('UPDATE evaluation_runs SET name = ? WHERE id = ?', (new_name, evaluation_id))
 
         if cursor.rowcount == 0:
             conn.close()
-            raise HTTPException(status_code=404, detail="Evaluation run not found")
+            logger.error(f"❌ 重命名失敗 | Failed to rename evaluation: {evaluation_id}")
+            raise HTTPException(status_code=404, detail="Failed to rename evaluation run")
 
         conn.commit()
         conn.close()
 
-        logger.info(f"✅ 成功刪除評估結果 | Successfully deleted evaluation run: {evaluation_name} (ID: {evaluation_id})")
+        logger.info(f"✅ 成功重命名評估 | Successfully renamed evaluation: {old_name} -> {new_name}")
 
         return {
-            "message": f"Successfully deleted evaluation run '{evaluation_name}'",
-            "deletedEvaluationId": evaluation_id
+            "success": True,
+            "message": f"Successfully renamed evaluation from '{old_name}' to '{new_name}'",
+            "evaluationId": evaluation_id,
+            "oldName": old_name,
+            "newName": new_name
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ 刪除評估結果時發生錯誤 | Error deleting evaluation run: {str(e)}")
+        logger.error(f"❌ 重命名評估時發生錯誤 | Error renaming evaluation run: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -3616,18 +3759,99 @@ async def run_evaluation_job(evaluation_id: str, job_id: str):
             raise Exception(f"Evaluation run {evaluation_id} not found")
 
         trained_model_id, test_set_source_str = eval_row
-        conn.close()
+
+        # 🆕 獲取訓練模型的數據源配置，確保評估使用相同的數據來源
+        cursor.execute('''
+            SELECT data_source_config
+            FROM trained_models
+            WHERE id = ?
+        ''', (trained_model_id,))
+
+        model_row = cursor.fetchone()
+        if not model_row:
+            conn.close()
+            raise Exception(f"Trained model {trained_model_id} not found")
+
+        model_data_source_config_str = model_row[0]
+        conn.close()  # 🆕 在這裡關閉資料庫連接
 
         # Parse test_set_source from JSON string to dict
         import json
-        test_set_source = json.loads(test_set_source_str) if isinstance(test_set_source_str, str) else test_set_source_str
+
+        logger.info(f"🔍 Debug: Original test_set_source_str = {test_set_source_str}")
+        logger.info(f"🔍 Debug: test_set_source_str type = {type(test_set_source_str)}")
+
+        try:
+            if isinstance(test_set_source_str, str):
+                test_set_source = json.loads(test_set_source_str)
+                logger.info(f"🔍 Debug: JSON parsing successful, parsed to dict")
+            else:
+                test_set_source = test_set_source_str
+                logger.info(f"🔍 Debug: No parsing needed, already a dict")
+
+            logger.info(f"🔍 Debug: Final test_set_source type = {type(test_set_source)}")
+            logger.info(f"🔍 Debug: Final test_set_source = {test_set_source}")
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse test_set_source_str: {e}")
+            logger.error(f"Raw test_set_source_str: {test_set_source_str}")
+            raise Exception(f"Invalid test_set_source JSON: {e}")
+
+        try:
+            if isinstance(model_data_source_config_str, str):
+                model_data_source_config = json.loads(model_data_source_config_str)
+            else:
+                model_data_source_config = model_data_source_config_str
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse model_data_source_config_str: {e}")
+            logger.error(f"Raw model_data_source_config_str: {model_data_source_config_str}")
+            # Set to empty dict as fallback
+            model_data_source_config = {}
+
+        # Validate that test_set_source is a dict
+        if not isinstance(test_set_source, dict):
+            logger.error(f"❌ CRITICAL: test_set_source is not a dict after parsing!")
+            logger.error(f"   Type: {type(test_set_source)}")
+            logger.error(f"   Value: {test_set_source}")
+            logger.error(f"   Original string: {test_set_source_str}")
+            # Try to force parse one more time
+            try:
+                # If the first parse resulted in a string, it might be double-encoded JSON.
+                # So, we parse the *result* of the first parse.
+                if isinstance(test_set_source, str):
+                    test_set_source = json.loads(test_set_source)
+                else:
+                    # Fallback to parsing the original string again, just in case.
+                    test_set_source = json.loads(test_set_source_str)
+                logger.info(f"✅ Force parsing successful: {type(test_set_source)}")
+            except Exception as force_error:
+                logger.error(f"❌ Force parsing also failed: {force_error}")
+                raise Exception(f"test_set_source must be a dictionary, got {type(test_set_source)}")
+        else:
+            logger.info(f"✅ test_set_source is correctly parsed as dict")
+
+        # 🆕 Enhanced test_set_source with training data source information
+        enhanced_test_set_source = {
+            **test_set_source,
+            # 從訓練模型配置中獲取數據源信息
+            "positive_data_source_ids": model_data_source_config.get("positive_data_source_ids", []),
+            "unlabeled_data_source_ids": model_data_source_config.get("unlabeled_data_source_ids", []),
+            "source_dataset_ids": model_data_source_config.get("source_dataset_ids", []),
+            "split_ratios": model_data_source_config.get("split_ratios", {}),
+            "split_method": model_data_source_config.get("split_method", "time_based"),
+            "training_sampling": model_data_source_config.get("training_sampling", {})
+        }
+
+        logger.info(f"🔍 Enhanced test_set_source with training data sources:")
+        logger.info(f"   - Original: {test_set_source}")
+        logger.info(f"   - Enhanced: {enhanced_test_set_source}")
 
         # Create a minimal config object for the evaluator
         # The evaluator will handle all the complex logic
         config_dict = {
             "evaluation_id": evaluation_id,
             "trained_model_id": trained_model_id,
-            "test_set_source": test_set_source
+            "test_set_source": enhanced_test_set_source  # 🆕 使用增強的測試集配置
         }
 
         # Import the StartEvaluationJobRequest model

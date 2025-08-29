@@ -29,6 +29,7 @@ import {
 	CheckCircle,
 	Clock,
 	Database,
+	Edit3,
 	HelpCircle,
 	Loader2,
 	Play,
@@ -78,6 +79,27 @@ function DeleteButton({
 			title={title}
 		>
 			<Trash2 className="h-3 w-3" />
+		</Button>
+	);
+}
+
+// 操作按鈕組件 - 統一的重命名按鈕樣式
+function RenameButton({
+	onClick,
+	title,
+}: {
+	onClick: (e: React.MouseEvent) => void;
+	title: string;
+}) {
+	return (
+		<Button
+			variant="outline"
+			size="sm"
+			className="h-7 w-7 p-0 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+			onClick={onClick}
+			title={title}
+		>
+			<Edit3 className="h-3 w-3" />
 		</Button>
 	);
 }
@@ -754,7 +776,12 @@ function TrainingModelEvaluations({
 						</div>
 						<div className="text-gray-600">
 							Created:{" "}
-							{new Date(evaluation.createdAt).toLocaleString()}
+							{new Date(evaluation.createdAt).toLocaleString(
+								"zh-TW",
+								{
+									timeZone: "Asia/Taipei",
+								},
+							)}
 						</div>
 						{evaluation.evaluationMetrics && (
 							<div className="mt-1 p-1 bg-gray-50 rounded">
@@ -1064,12 +1091,305 @@ function TrainingDataInformation({
 	);
 }
 
+// Trained Model Item 組件 - 單個模型顯示項目（包含展開/摺疊邏輯）
+function TrainedModelItem({
+	model,
+	evaluationCount,
+	modelEvaluations,
+	onRename,
+	onDelete,
+}: {
+	model: TrainedModel;
+	evaluationCount: number;
+	modelEvaluations: EvaluationRun[];
+	onRename: (
+		modelId: string,
+		currentName: string,
+		e: React.MouseEvent,
+	) => void;
+	onDelete: (modelId: string, modelName: string, e: React.MouseEvent) => void;
+}) {
+	// 內部狀態管理 - 展開詳細資訊
+	const [isExpanded, setIsExpanded] = useState(false);
+
+	// 內部函數 - 處理詳細資訊的展開/摺疊
+	const handleToggle = () => {
+		setIsExpanded(!isExpanded);
+	};
+
+	// 內部函數 - 處理鍵盤事件
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			handleToggle();
+		}
+	};
+
+	return (
+		<div className="border rounded-lg">
+			<div
+				className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
+					isExpanded ? "bg-blue-50 border-blue-200" : ""
+				}`}
+				onClick={handleToggle}
+				onKeyDown={handleKeyDown}
+				role="button"
+				tabIndex={0}
+				aria-expanded={isExpanded}
+			>
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<StatusIcon status={model.status} />
+						<span className="font-medium">{model.name}</span>
+						<Badge variant="outline">{model.scenarioType}</Badge>
+						{evaluationCount > 0 && (
+							<Badge
+								variant="secondary"
+								className="bg-green-100 text-green-800"
+							>
+								{evaluationCount} evaluations
+							</Badge>
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						<RenameButton
+							onClick={(e) => onRename(model.id, model.name, e)}
+							title="Rename model"
+						/>
+						<DeleteButton
+							onClick={(e) => onDelete(model.id, model.name, e)}
+							title="Delete model and related evaluations"
+						/>
+						<Badge
+							variant={
+								model.status === "COMPLETED"
+									? "default"
+									: "secondary"
+							}
+						>
+							{model.status}
+						</Badge>
+						{evaluationCount > 0 && (
+							<div className="text-xs text-muted-foreground">
+								{isExpanded ? "▼" : "▶"}
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Model Performance Metrics - Compact Display */}
+				{model.training_metrics &&
+					(() => {
+						try {
+							const metrics =
+								typeof model.training_metrics === "string"
+									? JSON.parse(model.training_metrics)
+									: model.training_metrics;
+
+							return (
+								<div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+									{metrics.final_test_f1_score !==
+										undefined && (
+										<div className="bg-green-50 p-2 rounded border border-green-200 text-center">
+											<MetricTooltip
+												explanation={
+													METRIC_EXPLANATIONS[
+														"Test F1"
+													]
+												}
+												className="text-green-700 font-medium"
+											>
+												<span>F1-Score</span>
+											</MetricTooltip>
+											<div className="text-sm font-bold text-green-800">
+												{(
+													metrics.final_test_f1_score *
+													100
+												).toFixed(1)}
+												%
+											</div>
+										</div>
+									)}
+									{metrics.final_test_precision !==
+										undefined && (
+										<div className="bg-blue-50 p-2 rounded border border-blue-200 text-center">
+											<MetricTooltip
+												explanation={
+													METRIC_EXPLANATIONS[
+														"Test Precision"
+													]
+												}
+												className="text-blue-700 font-medium"
+											>
+												<span>Precision</span>
+											</MetricTooltip>
+											<div className="text-sm font-bold text-blue-800">
+												{(
+													metrics.final_test_precision *
+													100
+												).toFixed(1)}
+												%
+											</div>
+										</div>
+									)}
+									{metrics.final_test_recall !==
+										undefined && (
+										<div className="bg-pink-50 p-2 rounded border border-pink-200 text-center">
+											<MetricTooltip
+												explanation={
+													METRIC_EXPLANATIONS[
+														"Test Recall"
+													]
+												}
+												className="text-pink-700 font-medium"
+											>
+												<span>Recall</span>
+											</MetricTooltip>
+											<div className="text-sm font-bold text-pink-800">
+												{(
+													metrics.final_test_recall *
+													100
+												).toFixed(1)}
+												%
+											</div>
+										</div>
+									)}
+									{metrics.confusion_matrix?.true_negative !==
+										undefined && (
+										<div className="bg-gray-50 p-2 rounded border border-gray-200 text-center">
+											<div className="text-gray-700 font-medium">
+												True Negative
+											</div>
+											<div className="text-sm font-bold text-gray-800">
+												{
+													metrics.confusion_matrix
+														.true_negative
+												}
+											</div>
+										</div>
+									)}
+								</div>
+							);
+						} catch (error) {
+							return null;
+						}
+					})()}
+
+				{/* Training and Test Set Information */}
+				{(() => {
+					// 解析數據源配置的輔助函數
+					const getDataSourceInfo = () => {
+						try {
+							const dataSourceConfig =
+								typeof model.data_source_config === "string"
+									? JSON.parse(model.data_source_config)
+									: model.data_source_config;
+
+							// 獲取訓練集信息
+							let trainingSetInfo = "Unknown Training Set";
+							if (
+								dataSourceConfig.pDataSources?.datasetIds ||
+								dataSourceConfig.uDataSources?.datasetIds
+							) {
+								const pDatasets =
+									dataSourceConfig.pDataSources?.datasetIds ||
+									[];
+								const uDatasets =
+									dataSourceConfig.uDataSources?.datasetIds ||
+									[];
+								const totalDatasets = [
+									...new Set([...pDatasets, ...uDatasets]),
+								];
+								trainingSetInfo = `${totalDatasets.length} Dataset${totalDatasets.length > 1 ? "s" : ""}`;
+							} else if (dataSourceConfig.selectedDatasets) {
+								trainingSetInfo = `${dataSourceConfig.selectedDatasets.length} Dataset${dataSourceConfig.selectedDatasets.length > 1 ? "s" : ""}`;
+							}
+
+							// 獲取測試集信息 (基於split ratio)
+							let testSetInfo = "Training Holdout";
+							const splitRatios =
+								dataSourceConfig.splitRatios ||
+								dataSourceConfig.split_ratios;
+							if (splitRatios?.test || splitRatios?.testRatio) {
+								const testRatio =
+									(splitRatios.test ||
+										splitRatios.testRatio ||
+										0.1) * 100;
+								testSetInfo = `Holdout (${testRatio.toFixed(0)}%)`;
+							}
+
+							return { trainingSetInfo, testSetInfo };
+						} catch (error) {
+							return {
+								trainingSetInfo: "Unknown Training Set",
+								testSetInfo: "Unknown Test Set",
+							};
+						}
+					};
+
+					const { trainingSetInfo, testSetInfo } =
+						getDataSourceInfo();
+
+					return (
+						<div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
+							{/* <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded border border-purple-200">
+								<Database className="h-3 w-3 text-purple-600" />
+								<span className="font-medium text-purple-700">
+									Training:
+								</span>
+								<span>{trainingSetInfo}</span>
+							</div> */}
+							<div className="flex items-center gap-1 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+								<BarChart className="h-3 w-3 text-orange-600" />
+								<span className="font-medium text-orange-700">
+									Test Set:
+								</span>
+								<span>{testSetInfo}</span>
+							</div>
+						</div>
+					);
+				})()}
+
+				<div className="text-sm text-muted-foreground mt-1">
+					Created:{" "}
+					{new Date(model.created_at).toLocaleString("zh-TW", {
+						timeZone: "Asia/Taipei",
+					})}
+				</div>
+			</div>
+
+			{/* Training Data Information - Only show when expanded and data info exists */}
+			{isExpanded && model.training_data_info && (
+				<TrainingDataInformation
+					trainingDataInfo={model.training_data_info}
+				/>
+			)}
+
+			{/* Training Metrics - Only show when expanded and metrics exist */}
+			{isExpanded && model.training_metrics && (
+				<TrainingMetrics trainingMetrics={model.training_metrics} />
+			)}
+
+			{/* Model Configuration - Only show when expanded and config exists */}
+			{isExpanded && model.model_config && (
+				<TrainingModelConfiguration modelConfig={model.model_config} />
+			)}
+
+			{/* Model Evaluations - Only show when expanded */}
+			{isExpanded && modelEvaluations.length > 0 && (
+				<TrainingModelEvaluations modelEvaluations={modelEvaluations} />
+			)}
+		</div>
+	);
+}
+
 // Trained Models 組件 - 完整的模型管理組件
 function TrainedModels({
 	trainedModels,
 	getEvaluationCount,
 	getModelEvaluations,
 	handleDeleteModel,
+	handleRenameModel,
 }: {
 	trainedModels: TrainedModel[];
 	getEvaluationCount: (modelId: string) => number;
@@ -1079,14 +1399,12 @@ function TrainedModels({
 		modelName: string,
 		e: React.MouseEvent,
 	) => void;
+	handleRenameModel: (
+		modelId: string,
+		currentName: string,
+		e: React.MouseEvent,
+	) => void;
 }) {
-	// 內部狀態管理 - 展開詳細資訊的模型
-	const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
-
-	// 內部函數 - 處理模型詳細資訊的展開/摺疊
-	const handleModelDetailToggle = (modelId: string) => {
-		setExpandedModelId(expandedModelId === modelId ? null : modelId);
-	};
 	return (
 		<Card>
 			<CardHeader>
@@ -1107,237 +1425,19 @@ function TrainedModels({
 							const evaluationCount = getEvaluationCount(
 								model.id,
 							);
-							const isExpanded = expandedModelId === model.id;
 							const modelEvaluations = getModelEvaluations(
 								model.id,
 							);
 
 							return (
-								<div
+								<TrainedModelItem
 									key={model.id}
-									className="border rounded-lg"
-								>
-									<div
-										className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
-											isExpanded
-												? "bg-blue-50 border-blue-200"
-												: ""
-										}`}
-										onClick={() =>
-											handleModelDetailToggle(model.id)
-										}
-									>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<StatusIcon
-													status={model.status}
-												/>
-												<span className="font-medium">
-													{model.name}
-												</span>
-												<Badge variant="outline">
-													{model.scenarioType}
-												</Badge>
-												{evaluationCount > 0 && (
-													<Badge
-														variant="secondary"
-														className="bg-green-100 text-green-800"
-													>
-														{evaluationCount}{" "}
-														evaluations
-													</Badge>
-												)}
-											</div>
-											<div className="flex items-center gap-2">
-												<DeleteButton
-													onClick={(e) =>
-														handleDeleteModel(
-															model.id,
-															model.name,
-															e,
-														)
-													}
-													title="Delete model and related evaluations"
-												/>
-												<Badge
-													variant={
-														model.status ===
-														"COMPLETED"
-															? "default"
-															: "secondary"
-													}
-												>
-													{model.status}
-												</Badge>
-												{evaluationCount > 0 && (
-													<div className="text-xs text-muted-foreground">
-														Click to view{" "}
-														{isExpanded ? "▼" : "▶"}
-													</div>
-												)}
-											</div>
-										</div>
-
-										{/* Model Performance Metrics - Compact Display */}
-										{model.training_metrics &&
-											(() => {
-												try {
-													const metrics =
-														typeof model.training_metrics ===
-														"string"
-															? JSON.parse(
-																	model.training_metrics,
-																)
-															: model.training_metrics;
-
-													return (
-														<div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-															{metrics.final_test_f1_score !==
-																undefined && (
-																<div className="bg-green-50 p-2 rounded border border-green-200 text-center">
-																	<MetricTooltip
-																		explanation={
-																			METRIC_EXPLANATIONS[
-																				"Test F1"
-																			]
-																		}
-																		className="text-green-700 font-medium"
-																	>
-																		<span>
-																			F1-Score
-																		</span>
-																	</MetricTooltip>
-																	<div className="text-sm font-bold text-green-800">
-																		{(
-																			metrics.final_test_f1_score *
-																			100
-																		).toFixed(
-																			1,
-																		)}
-																		%
-																	</div>
-																</div>
-															)}
-															{metrics.final_test_precision !==
-																undefined && (
-																<div className="bg-blue-50 p-2 rounded border border-blue-200 text-center">
-																	<MetricTooltip
-																		explanation={
-																			METRIC_EXPLANATIONS[
-																				"Test Precision"
-																			]
-																		}
-																		className="text-blue-700 font-medium"
-																	>
-																		<span>
-																			Precision
-																		</span>
-																	</MetricTooltip>
-																	<div className="text-sm font-bold text-blue-800">
-																		{(
-																			metrics.final_test_precision *
-																			100
-																		).toFixed(
-																			1,
-																		)}
-																		%
-																	</div>
-																</div>
-															)}
-															{metrics.final_test_recall !==
-																undefined && (
-																<div className="bg-pink-50 p-2 rounded border border-pink-200 text-center">
-																	<MetricTooltip
-																		explanation={
-																			METRIC_EXPLANATIONS[
-																				"Test Recall"
-																			]
-																		}
-																		className="text-pink-700 font-medium"
-																	>
-																		<span>
-																			Recall
-																		</span>
-																	</MetricTooltip>
-																	<div className="text-sm font-bold text-pink-800">
-																		{(
-																			metrics.final_test_recall *
-																			100
-																		).toFixed(
-																			1,
-																		)}
-																		%
-																	</div>
-																</div>
-															)}
-															{metrics
-																.confusion_matrix
-																?.true_negative !==
-																undefined && (
-																<div className="bg-gray-50 p-2 rounded border border-gray-200 text-center">
-																	<div className="text-gray-700 font-medium">
-																		True
-																		Negative
-																	</div>
-																	<div className="text-sm font-bold text-gray-800">
-																		{
-																			metrics
-																				.confusion_matrix
-																				.true_negative
-																		}
-																	</div>
-																</div>
-															)}
-														</div>
-													);
-												} catch (error) {
-													return null;
-												}
-											})()}
-
-										<div className="text-sm text-muted-foreground mt-1">
-											Created:{" "}
-											{new Date(
-												model.created_at,
-											).toLocaleString()}
-										</div>
-									</div>
-
-									{/* Training Data Information - Only show when expanded and data info exists */}
-									{isExpanded && model.training_data_info && (
-										<TrainingDataInformation
-											trainingDataInfo={
-												model.training_data_info
-											}
-										/>
-									)}
-
-									{/* Training Metrics - Only show when expanded and metrics exist */}
-									{isExpanded && model.training_metrics && (
-										<TrainingMetrics
-											trainingMetrics={
-												model.training_metrics
-											}
-										/>
-									)}
-
-									{/* Model Configuration - Only show when expanded and config exists */}
-									{isExpanded && model.model_config && (
-										<TrainingModelConfiguration
-											modelConfig={model.model_config}
-										/>
-									)}
-
-									{/* Model Evaluations - Only show when expanded */}
-									{isExpanded &&
-										modelEvaluations.length > 0 && (
-											<TrainingModelEvaluations
-												modelEvaluations={
-													modelEvaluations
-												}
-											/>
-										)}
-								</div>
+									model={model}
+									evaluationCount={evaluationCount}
+									modelEvaluations={modelEvaluations}
+									onRename={handleRenameModel}
+									onDelete={handleDeleteModel}
+								/>
 							);
 						})}
 					</div>
@@ -1405,12 +1505,20 @@ interface EvaluationDataConfig {
 // Evaluation Results 組件 - 評估結果顯示和管理
 function EvaluationResults({
 	evaluationRuns,
+	trainedModels,
 	handleDeleteEvaluation,
+	handleRenameEvaluation,
 }: {
 	evaluationRuns: EvaluationRun[];
+	trainedModels: TrainedModel[];
 	handleDeleteEvaluation: (
 		evaluationId: string,
 		evaluationName: string,
+		event: React.MouseEvent,
+	) => void;
+	handleRenameEvaluation: (
+		evaluationId: string,
+		currentName: string,
 		event: React.MouseEvent,
 	) => void;
 }) {
@@ -1418,6 +1526,36 @@ function EvaluationResults({
 	const [expandedEvaluations, setExpandedEvaluations] = useState<Set<string>>(
 		new Set(),
 	);
+
+	// 獲取模型名稱的輔助函數
+	const getModelName = (trainedModelId: string): string => {
+		const model = trainedModels.find((m) => m.id === trainedModelId);
+		return model ? model.name : `Model ID: ${trainedModelId}`;
+	};
+
+	// 解析測試集來源信息的輔助函數
+	const getTestSetInfo = (testSetSource: string): string => {
+		try {
+			const testSetConfig = JSON.parse(testSetSource);
+
+			// 檢查是否有目標數據集信息 (用於 Domain Adaptation 或 Generalization Challenge)
+			if (testSetConfig.targetDataset) {
+				const { building, floor, room } = testSetConfig.targetDataset;
+				return `${building} ${floor} ${room}`;
+			}
+
+			// 檢查測試數據來源類型
+			if (testSetConfig.testDataSource === "training_holdout") {
+				return "Training Holdout";
+			}
+			if (testSetConfig.testDataSource === "target_dataset") {
+				return "Target Dataset";
+			}
+			return "Custom Test Set";
+		} catch (error) {
+			return "Unknown Test Set";
+		}
+	};
 
 	// 內部函數 - 處理評估結果的展開/摺疊
 	const handleEvaluationToggle = (evaluationId: string) => {
@@ -1430,6 +1568,14 @@ function EvaluationResults({
 			}
 			return newSet;
 		});
+	};
+
+	// 內部函數 - 處理鍵盤事件
+	const handleKeyDown = (e: React.KeyboardEvent, evaluationId: string) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			handleEvaluationToggle(evaluationId);
+		}
 	};
 	return (
 		<Card>
@@ -1461,6 +1607,12 @@ function EvaluationResults({
 										onClick={() =>
 											handleEvaluationToggle(run.id)
 										}
+										onKeyDown={(e) =>
+											handleKeyDown(e, run.id)
+										}
+										role="button"
+										tabIndex={0}
+										aria-expanded={isExpanded}
 									>
 										<div className="flex items-center justify-between">
 											<div className="flex items-center gap-2">
@@ -1475,6 +1627,16 @@ function EvaluationResults({
 												</Badge>
 											</div>
 											<div className="flex items-center gap-2">
+												<RenameButton
+													onClick={(e) =>
+														handleRenameEvaluation(
+															run.id,
+															run.name,
+															e,
+														)
+													}
+													title="Rename evaluation"
+												/>
 												<DeleteButton
 													onClick={(e) =>
 														handleDeleteEvaluation(
@@ -1504,11 +1666,147 @@ function EvaluationResults({
 												</div>
 											</div>
 										</div>
+
+										{/* Model and Test Set Information */}
+										<div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
+											<div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+												<Brain className="h-3 w-3 text-blue-600" />
+												<span className="font-medium text-blue-700">
+													Model:
+												</span>
+												<span>
+													{getModelName(
+														run.trainedModelId,
+													)}
+												</span>
+											</div>
+											<div className="flex items-center gap-1 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+												<Database className="h-3 w-3 text-orange-600" />
+												<span className="font-medium text-orange-700">
+													Test Set:
+												</span>
+												<span>
+													{getTestSetInfo(
+														run.testSetSource,
+													)}
+												</span>
+											</div>
+										</div>
+
+										{/* Evaluation Performance Metrics - Compact Display */}
+										{run.evaluationMetrics &&
+											(() => {
+												try {
+													const metrics =
+														typeof run.evaluationMetrics ===
+														"string"
+															? JSON.parse(
+																	run.evaluationMetrics,
+																)
+															: run.evaluationMetrics;
+
+													if (
+														!metrics ||
+														!metrics.precision ||
+														!metrics.recall
+													) {
+														return null;
+													}
+
+													return (
+														<div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+															{metrics.f1_score !==
+																undefined && (
+																<div className="bg-green-50 p-2 rounded border border-green-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test F1"
+																			]
+																		}
+																		className="text-green-700 font-medium"
+																	>
+																		<span>
+																			F1-Score
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-green-800">
+																		{(
+																			metrics.f1_score *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+															{metrics.precision !==
+																undefined && (
+																<div className="bg-blue-50 p-2 rounded border border-blue-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test Precision"
+																			]
+																		}
+																		className="text-blue-700 font-medium"
+																	>
+																		<span>
+																			Precision
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-blue-800">
+																		{(
+																			metrics.precision *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+															{metrics.recall !==
+																undefined && (
+																<div className="bg-pink-50 p-2 rounded border border-pink-200 text-center">
+																	<MetricTooltip
+																		explanation={
+																			METRIC_EXPLANATIONS[
+																				"Test Recall"
+																			]
+																		}
+																		className="text-pink-700 font-medium"
+																	>
+																		<span>
+																			Recall
+																		</span>
+																	</MetricTooltip>
+																	<div className="text-sm font-bold text-pink-800">
+																		{(
+																			metrics.recall *
+																			100
+																		).toFixed(
+																			1,
+																		)}
+																		%
+																	</div>
+																</div>
+															)}
+														</div>
+													);
+												} catch (error) {
+													return null;
+												}
+											})()}
+
 										<div className="text-sm text-muted-foreground mt-1">
 											Created:{" "}
 											{new Date(
 												run.createdAt,
-											).toLocaleString()}
+											).toLocaleString("zh-TW", {
+												timeZone: "Asia/Taipei",
+											})}
 										</div>
 									</div>
 
@@ -1666,121 +1964,6 @@ function EvaluationResults({
 
 												return (
 													<div className="mt-4 space-y-6">
-														{/* Performance Metrics Table */}
-														<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-															<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-																<h4 className="text-lg font-semibold text-gray-800">
-																	Classification
-																	Performance
-																	Metrics
-																</h4>
-																<p className="text-sm text-gray-600 mt-1">
-																	Statistical
-																	evaluation
-																	of model
-																	performance
-																	on anomaly
-																	detection
-																	task
-																</p>
-															</div>
-															<div className="p-6">
-																<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-																	<div className="text-center">
-																		<div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-3">
-																			<span className="text-xl font-bold text-blue-700">
-																				F₁
-																			</span>
-																		</div>
-																		<div className="text-2xl font-bold text-gray-800 mb-1">
-																			{
-																				f1Score
-																			}
-																			%
-																		</div>
-																		<div className="text-sm font-medium text-gray-700 mb-1">
-																			F₁-Score
-																		</div>
-																		<div className="text-xs text-gray-500">
-																			Harmonic
-																			mean
-																			of
-																			precision
-																			and
-																			recall
-																		</div>
-																	</div>
-																	<div className="text-center">
-																		<div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-3">
-																			<span className="text-xl font-bold text-green-700">
-																				P
-																			</span>
-																		</div>
-																		<div className="text-2xl font-bold text-gray-800 mb-1">
-																			{
-																				precision
-																			}
-																			%
-																		</div>
-																		<div className="text-sm font-medium text-gray-700 mb-1">
-																			Precision
-																		</div>
-																		<div className="text-xs text-gray-500">
-																			TP /
-																			(TP
-																			+
-																			FP)
-																		</div>
-																	</div>
-																	<div className="text-center">
-																		<div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-3">
-																			<span className="text-xl font-bold text-orange-700">
-																				R
-																			</span>
-																		</div>
-																		<div className="text-2xl font-bold text-gray-800 mb-1">
-																			{
-																				recall
-																			}
-																			%
-																		</div>
-																		<div className="text-sm font-medium text-gray-700 mb-1">
-																			Recall
-																			(Sensitivity)
-																		</div>
-																		<div className="text-xs text-gray-500">
-																			TP /
-																			(TP
-																			+
-																			FN)
-																		</div>
-																	</div>
-																	<div className="text-center">
-																		<div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-3">
-																			<span className="text-xl font-bold text-purple-700">
-																				AUC
-																			</span>
-																		</div>
-																		<div className="text-2xl font-bold text-gray-800 mb-1">
-																			{
-																				aucRoc
-																			}
-																			%
-																		</div>
-																		<div className="text-sm font-medium text-gray-700 mb-1">
-																			AUC-ROC
-																		</div>
-																		<div className="text-xs text-gray-500">
-																			Area
-																			under
-																			ROC
-																			curve
-																		</div>
-																	</div>
-																</div>
-															</div>
-														</div>
-
 														{/* Confusion Matrix - Only show when data is available */}
 														{(tp > 0 ||
 															fp > 0 ||
@@ -1953,138 +2136,6 @@ function EvaluationResults({
 																</div>
 															</div>
 														)}
-
-														{/* Metric Explanations */}
-														<div className="bg-gray-50 border rounded-lg p-4">
-															<h4 className="text-lg font-semibold mb-3">
-																Metric
-																Interpretations
-															</h4>
-															<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-																<div className="space-y-2">
-																	<div>
-																		<strong className="text-green-700">
-																			Precision
-																			(
-																			{
-																				precision
-																			}
-																			%)
-																		</strong>
-																		<p className="text-gray-600">
-																			Of
-																			all
-																			alerts,{" "}
-																			{
-																				precision
-																			}
-																			%
-																			are
-																			real
-																			anomalies.
-																			The
-																			remaining{" "}
-																			{(
-																				100 -
-																				Number.parseFloat(
-																					precision,
-																				)
-																			).toFixed(
-																				1,
-																			)}
-																			%
-																			are
-																			false
-																			alarms.
-																		</p>
-																	</div>
-																	<div>
-																		<strong className="text-orange-700">
-																			Recall
-																			(
-																			{
-																				recall
-																			}
-																			%)
-																		</strong>
-																		<p className="text-gray-600">
-																			Successfully
-																			detected{" "}
-																			{
-																				recall
-																			}
-																			% of
-																			real
-																			anomalies.{" "}
-																			{(
-																				100 -
-																				Number.parseFloat(
-																					recall,
-																				)
-																			).toFixed(
-																				1,
-																			)}
-																			% of
-																			anomalies
-																			were
-																			missed.
-																		</p>
-																	</div>
-																</div>
-																<div className="space-y-2">
-																	<div>
-																		<strong className="text-blue-700">
-																			F1-Score
-																			(
-																			{
-																				f1Score
-																			}
-																			%)
-																		</strong>
-																		<p className="text-gray-600">
-																			Harmonic
-																			mean
-																			of
-																			Precision
-																			and
-																			Recall,
-																			providing
-																			a
-																			balanced
-																			performance
-																			metric.
-																		</p>
-																	</div>
-																	<div>
-																		<strong className="text-purple-700">
-																			AUC-ROC
-																			(
-																			{
-																				aucRoc
-																			}
-																			%)
-																		</strong>
-																		<p className="text-gray-600">
-																			Model's
-																			ability
-																			to
-																			distinguish
-																			between
-																			anomalies
-																			and
-																			normal
-																			patterns.
-																			Closer
-																			to
-																			100%
-																			is
-																			better.
-																		</p>
-																	</div>
-																</div>
-															</div>
-														</div>
-
 														{/* Business Impact Assessment */}
 														<div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
 															<div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
@@ -2587,6 +2638,79 @@ export function Stage3TrainingWorkbench({
 		}
 	};
 
+	// Handle model renaming
+	const handleRenameModel = async (
+		modelId: string,
+		currentName: string,
+		e: React.MouseEvent,
+	) => {
+		// Prevent event bubbling to the parent div
+		e.stopPropagation();
+
+		const newName = prompt(
+			`Enter new name for model "${currentName}":`,
+			currentName,
+		);
+
+		if (
+			!newName ||
+			newName.trim() === "" ||
+			newName.trim() === currentName
+		) {
+			return; // User cancelled or entered same name
+		}
+
+		if (newName.trim().length > 100) {
+			toast.error("Model name cannot exceed 100 characters");
+			return;
+		}
+
+		try {
+			console.log(
+				"🏷️ Rename model request:",
+				modelId,
+				"->",
+				newName.trim(),
+			);
+
+			const response = await fetch(
+				`http://localhost:8000/api/v2/trained-models/${modelId}/rename`,
+				{
+					method: "PATCH",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						new_name: newName.trim(),
+					}),
+				},
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(
+					errorData.detail ||
+						`HTTP error! status: ${response.status}`,
+				);
+			}
+
+			const result = await response.json();
+			console.log("✅ Model renamed successfully:", result);
+
+			toast.success(
+				`Model successfully renamed from "${currentName}" to "${newName.trim()}"`,
+			);
+
+			// Reload trained models to reflect the changes
+			await loadTrainedModels();
+		} catch (error) {
+			console.error("❌ Failed to rename model:", error);
+			toast.error(
+				`Failed to rename model: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	};
+
 	// Handle evaluation deletion
 	const handleDeleteEvaluation = async (
 		evaluationId: string,
@@ -2630,6 +2754,79 @@ export function Stage3TrainingWorkbench({
 			console.error("❌ Failed to delete evaluation:", error);
 			toast.error(
 				`Failed to delete evaluation: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	};
+
+	// Handle evaluation renaming
+	const handleRenameEvaluation = async (
+		evaluationId: string,
+		currentName: string,
+		e: React.MouseEvent,
+	) => {
+		// Prevent event bubbling to the parent div
+		e.stopPropagation();
+
+		const newName = prompt(
+			`Enter new name for evaluation "${currentName}":`,
+			currentName,
+		);
+
+		if (
+			!newName ||
+			newName.trim() === "" ||
+			newName.trim() === currentName
+		) {
+			return; // User cancelled or entered same name
+		}
+
+		if (newName.trim().length > 100) {
+			toast.error("Evaluation name cannot exceed 100 characters");
+			return;
+		}
+
+		try {
+			console.log(
+				"🏷️ Rename evaluation request:",
+				evaluationId,
+				"->",
+				newName.trim(),
+			);
+
+			const response = await fetch(
+				`http://localhost:8000/api/v2/evaluation-runs/${evaluationId}/rename`,
+				{
+					method: "PATCH",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						new_name: newName.trim(),
+					}),
+				},
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(
+					errorData.detail ||
+						`HTTP error! status: ${response.status}`,
+				);
+			}
+
+			const result = await response.json();
+			console.log("✅ Evaluation renamed successfully:", result);
+
+			toast.success(
+				`Evaluation successfully renamed from "${currentName}" to "${newName.trim()}"`,
+			);
+
+			// Reload evaluation runs to reflect the changes
+			await loadEvaluationRuns();
+		} catch (error) {
+			console.error("❌ Failed to rename evaluation:", error);
+			toast.error(
+				`Failed to rename evaluation: ${error instanceof Error ? error.message : "Unknown error"}`,
 			);
 		}
 	};
@@ -2792,7 +2989,10 @@ export function Stage3TrainingWorkbench({
 			// Prepare test set configuration based on scenario type
 			let testSetConfig: any = evaluationDataConfig;
 
-			if (scenarioType === "DOMAIN_ADAPTATION") {
+			if (
+				scenarioType === "DOMAIN_ADAPTATION" ||
+				scenarioType === "GENERALIZATION_CHALLENGE"
+			) {
 				// For Domain Adaptation, use the selected target dataset
 				const selectedDataset = availableDatasets.find(
 					(dataset) =>
@@ -2818,6 +3018,14 @@ export function Stage3TrainingWorkbench({
 				}
 			}
 
+			// Generate evaluation name with Taiwan time
+			const taiwanTime = new Date()
+				.toLocaleString("sv-SE", {
+					timeZone: "Asia/Taipei",
+				})
+				.replace(" ", "_")
+				.replace(/:/g, "-");
+
 			const response = await fetch(
 				"http://localhost:8000/api/v2/evaluation-runs",
 				{
@@ -2826,7 +3034,7 @@ export function Stage3TrainingWorkbench({
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
-						name: `Eval_${scenarioType}_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}`,
+						name: `Eval_${scenarioType}_${taiwanTime}`,
 						scenario_type: scenarioType,
 						trained_model_id: modelToUse,
 						testSetSource: JSON.stringify(testSetConfig),
@@ -3150,6 +3358,7 @@ export function Stage3TrainingWorkbench({
 												key={dataset.id}
 												value={dataset.id.toString()}
 											>
+												{dataset.name.substring(5, 10)}
 												{dataset.building_name ||
 													dataset.building}{" "}
 												{dataset.floor_name ||
@@ -3347,13 +3556,18 @@ export function Stage3TrainingWorkbench({
 												key={dataset.id}
 												value={dataset.id.toString()}
 											>
+												{dataset.name.substring(5, 10)}
 												{dataset.building_name ||
 													dataset.building}{" "}
 												{dataset.floor_name ||
 													dataset.floor}{" "}
 												{dataset.room_name ||
 													dataset.room}
-												:{" "}
+												{": P"}{" "}
+												{dataset.anomaly_count ||
+													dataset.positiveLabels ||
+													0}
+												{" / Total "}
 												{dataset.record_count ||
 													dataset.totalRecords ||
 													0}
@@ -3830,7 +4044,7 @@ export function Stage3TrainingWorkbench({
 		);
 	};
 
-	console.log("evaluationRuns", evaluationRuns);
+	// console.log("evaluationRuns", evaluationRuns);
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -4266,16 +4480,6 @@ export function Stage3TrainingWorkbench({
 									</Button>
 								)}
 
-								{/* Reload Data Button */}
-								<Button
-									onClick={refreshData}
-									variant="outline"
-									className="w-full"
-								>
-									<RefreshCw className="h-4 w-4 mr-2" />
-									Reload Models & Evaluation Data
-								</Button>
-
 								{/* Model Selection and Evaluation for ERM_BASELINE */}
 								{scenarioType === "ERM_BASELINE" &&
 									trainedModels.length > 0 && (
@@ -4487,6 +4691,16 @@ export function Stage3TrainingWorkbench({
 										)}
 									</Button>
 								)}
+
+								{/* Reload Data Button */}
+								<Button
+									onClick={refreshData}
+									variant="outline"
+									className="w-full"
+								>
+									<RefreshCw className="h-4 w-4 mr-2" />
+									Reload Models & Evaluation Data
+								</Button>
 							</div>
 						</CardContent>
 					</Card>
@@ -4495,7 +4709,7 @@ export function Stage3TrainingWorkbench({
 				{/* Right Panel: Monitoring and Results */}
 				<div className="lg:col-span-8 space-y-6">
 					{/* Monitoring Section */}
-					<div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 xl:grid-cols-2 gap-4 hidden">
 						{/* Training Monitor */}
 						<Card>
 							<CardHeader>
@@ -4583,12 +4797,15 @@ export function Stage3TrainingWorkbench({
 						getEvaluationCount={getEvaluationCount}
 						getModelEvaluations={getModelEvaluations}
 						handleDeleteModel={handleDeleteModel}
+						handleRenameModel={handleRenameModel}
 					/>
 
 					{/* Evaluation Results */}
 					<EvaluationResults
 						evaluationRuns={evaluationRuns}
+						trainedModels={trainedModels}
 						handleDeleteEvaluation={handleDeleteEvaluation}
+						handleRenameEvaluation={handleRenameEvaluation}
 					/>
 				</div>
 			</div>
