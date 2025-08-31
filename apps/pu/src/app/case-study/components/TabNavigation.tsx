@@ -2,7 +2,7 @@
 
 import { BarChart, BookOpen, Code, Database, NotebookPen } from "lucide-react";
 import Link from "next/link";
-import React from "react";
+import type React from "react";
 
 export type TabKey =
 	| "problem"
@@ -64,7 +64,7 @@ export default function TabNavigation({
 				<div className="flex items-center justify-between">
 					<div>
 						<h1 className="text-xl font-bold text-slate-800">
-							PU Learning Case Study
+							LSTM + PU Learning Case Study
 						</h1>
 					</div>
 					<div className="flex space-x-4">

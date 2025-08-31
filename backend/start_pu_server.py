@@ -35,8 +35,8 @@ def start_pu_learning_server():
         return
 
     print("Starting PU Learning Simulation Engine...")
-    print("Server will be available at: http://localhost:8000")
-    print("API Documentation: http://localhost:8000/docs")
+    print("Server will be available at: https://python.yinchen.tw")
+    print("API Documentation: https://python.yinchen.tw/docs")
 
     try:
         # 啟動服務

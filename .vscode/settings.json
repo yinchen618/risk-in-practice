@@ -10,6 +10,8 @@
 		"quickfix.biome": "explicit",
 		"source.organizeImports.biome": "explicit"
 	},
+	"biome.lsp.bin": "./node_modules/@biomejs/biome/bin/biome",
+	"biome.requireConfigFile": true,
 	"typescript.preferences.importModuleSpecifier": "non-relative",
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"i18n-ally.localesPaths": ["packages/i18n/translations"],

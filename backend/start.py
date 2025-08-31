@@ -22,42 +22,42 @@ def print_banner():
 def check_requirements():
     """检查必要的依赖"""
     print("📋 检查环境依赖...")
-    
+
     # 检查Python版本
     if sys.version_info < (3, 8):
         print("❌ 错误：需要 Python 3.8 或更高版本")
         return False
-    
+
     # 检查是否有pip
     try:
-        subprocess.run([sys.executable, "-m", "pip", "--version"], 
+        subprocess.run([sys.executable, "-m", "pip", "--version"],
                       check=True, capture_output=True)
     except subprocess.CalledProcessError:
         print("❌ 错误：未找到 pip")
         return False
-    
+
     # 检查是否有pnpm或npm
     has_pnpm = False
     has_npm = False
-    
+
     try:
-        subprocess.run(["pnpm", "--version"], 
+        subprocess.run(["pnpm", "--version"],
                       check=True, capture_output=True)
         has_pnpm = True
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-    
+
     try:
-        subprocess.run(["npm", "--version"], 
+        subprocess.run(["npm", "--version"],
                       check=True, capture_output=True)
         has_npm = True
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-    
+
     if not has_pnpm and not has_npm:
         print("❌ 错误：未找到 pnpm 或 npm，请安装 Node.js")
         return False
-    
+
     print("✅ 环境检查通过")
     return True
 
@@ -65,7 +65,7 @@ def install_python_deps():
     """安装Python依赖"""
     print("📦 安装Python依赖...")
     try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], 
+        subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
                       check=True)
         print("✅ Python依赖安装完成")
         return True
@@ -122,36 +122,36 @@ def start_frontend():
 
 def main():
     print_banner()
-    
+
     # 检查环境
     if not check_requirements():
         return
-    
+
     # 询问是否安装依赖
     install_deps = input("🤔 是否需要安装/更新依赖？(y/n): ").lower().strip() == 'y'
-    
+
     if install_deps:
         if not install_python_deps():
             return
         if not install_node_deps():
             return
-    
+
     print("\n🎯 准备启动服务...")
-    print("📍 后端地址: http://localhost:8000")
+    print("📍 后端地址: https://python.yinchen.tw")
     print("📍 前端地址: http://localhost:3000")
     print("📍 按 Ctrl+C 停止服务")
-    
+
     # 等待用户确认
     input("\n按回车键开始启动服务...")
-    
+
     # 启动后端服务（在新线程中）
     backend_thread = threading.Thread(target=start_backend, daemon=True)
     backend_thread.start()
-    
+
     # 等待后端启动
     print("⏳ 等待后端服务启动...")
     time.sleep(3)
-    
+
     # 启动前端服务
     try:
         start_frontend()
@@ -160,4 +160,4 @@ def main():
         print("📚 如有问题，请查看 README.md 或提交 issue")
 
 if __name__ == "__main__":
-    main() 
+    main()

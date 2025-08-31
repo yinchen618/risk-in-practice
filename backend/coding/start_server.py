@@ -19,14 +19,14 @@ if __name__ == "__main__":
     print("   2. 已安裝 deepseek-coder 模型")
     print("   3. 執行: ollama run deepseek-coder")
     print("")
-    print("🌐 API 文件: http://localhost:8000/docs")
-    print("🔗 健康檢查: http://localhost:8000/coding/health")
+    print("🌐 API 文件: https://python.yinchen.tw/docs")
+    print("🔗 健康檢查: https://python.yinchen.tw/coding/health")
     print("")
-    
+
     try:
         uvicorn.run(
-            app, 
-            host="0.0.0.0", 
+            app,
+            host="0.0.0.0",
             port=8000,
             reload=False,
             log_level="info"
@@ -35,4 +35,4 @@ if __name__ == "__main__":
         print("\n👋 服務已停止")
     except Exception as e:
         print(f"❌ 啟動失敗: {e}")
-        sys.exit(1) 
+        sys.exit(1)

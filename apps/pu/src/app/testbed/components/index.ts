@@ -1,13 +1,13 @@
-export { OverviewMetrics } from "./overview-metrics";
-export { OverviewDetails } from "./overview-details";
-export { ResearchValue } from "./research-value";
-export { ExplorerControls } from "./explorer-controls";
-export { SimpleTimeChart } from "./simple-time-chart";
-export { DataStatistics } from "./data-statistics";
-export { OverviewTab } from "./overview-tab";
-export { ExplorerTab } from "./explorer-tab";
-export { TestbedNavigation } from "./testbed-navigation";
-export { default as TabNavigation } from "./TabNavigation";
-export { TestbedImageGrid } from "./testbed-image-grid";
-export { TestbedInfrastructure } from "./testbed-infrastructure";
-export { DetailedPhotoGallery } from "./detailed-photo-gallery";
+export { DataStatistics } from './data-statistics'
+export { DetailedPhotoGallery } from './detailed-photo-gallery'
+export { ExplorerControls } from './explorer-controls'
+export { ExplorerTab } from './explorer-tab'
+export { OverviewDetails } from './overview-details'
+export { OverviewMetrics } from './overview-metrics'
+export { OverviewTab } from './overview-tab'
+export { ResearchValue } from './research-value'
+export { SimpleTimeChart } from './simple-time-chart'
+export { default as TabNavigation } from './TabNavigation'
+export { TestbedImageGrid } from './testbed-image-grid'
+export { TestbedInfrastructure } from './testbed-infrastructure'
+export { TestbedNavigation } from './testbed-navigation'

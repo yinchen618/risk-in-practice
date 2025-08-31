@@ -7,34 +7,24 @@ import {
 	Brain,
 	Building,
 	Calendar,
-	Code,
 	Code2,
-	Cpu,
 	Download,
 	Github,
 	Globe,
 	GraduationCap,
-	Linkedin,
 	Mail,
 	MapPin,
 	Server,
-	Wrench,
-	Zap,
 } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
 export default function AboutPage() {
-	function PublicationsList() {
-		const [items, setItems] = React.useState<any[]>([]);
-		React.useEffect(() => {
-			fetch("/data/publications.json")
-				.then((r) => r.json())
-				.then((j) => setItems(j.publications || []))
-				.catch(() => setItems([]));
-		}, []);
+	// 1. 先替換掉原本的 PublicationsList 元件
+	function PublicationsList({ items }: { items: any[] }) {
+		// Now this component just receives items and renders them.
 		return (
-			<div className="space-y-4">
+			<div className="space-y-6">
 				{items.map((p) => {
 					const verified =
 						typeof p.citations === "number" &&
@@ -44,46 +34,31 @@ export default function AboutPage() {
 							key={p.key}
 							className="border-l-4 border-slate-600 pl-4"
 						>
-							<p className="text-slate-700 leading-relaxed mb-1">
-								<strong>{p.title}</strong>. <em>{p.venue}</em>,{" "}
-								{p.year}{" "}
-								{p.type === "journal" && (
-									<span className="ml-1 inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs align-middle">
-										Journal
-									</span>
-								)}
-								{p.type === "conference" && (
-									<span className="ml-1 inline-block px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 text-xs align-middle">
-										Conference
-									</span>
-								)}
-								.
+							{/* [MODIFIED] Added authors list for a formal citation format */}
+							<p className="text-slate-700 text-[0.95em]">
+								{p.authors.join(", ")}. ({p.year}).
 							</p>
-							<div className="flex flex-wrap items-center gap-2 text-xs">
+							<h4 className="font-semibold text-slate-800 leading-snug">
+								{p.title}
+							</h4>
+							<div className="flex items-center gap-2 mt-1">
+								<p className="text-slate-600 italic text-sm">
+									{p.venue}.
+								</p>
+								{/* [NEW] Publication Type Badge */}
 								<span
-									className={`px-2 py-0.5 rounded ${p.used_in_project === true ? "bg-green-100 text-green-800" : p.used_in_project === "partial" ? "bg-yellow-100 text-yellow-800" : "bg-slate-100 text-slate-700"}`}
+									className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+										p.type === "journal"
+											? "bg-blue-100 text-blue-800 border border-blue-200"
+											: "bg-green-100 text-green-800 border border-green-200"
+									}`}
 								>
-									{p.used_in_project === true
-										? "Used in this project"
-										: p.used_in_project === "partial"
-											? "Partial"
-											: "Reference"}
+									{p.type === "journal"
+										? "Journal"
+										: "Conference"}
 								</span>
-								<span
-									className={`px-2 py-0.5 rounded ${verified ? "bg-[#E6F0FA] text-[#1A73E8]" : "bg-[#F5F5F5] text-[#757575]"}`}
-								>
-									Citations:{" "}
-									{verified ? p.citations : "Updating…"}
-									{verified && (
-										<span className="ml-1 text-slate-500">
-											(verified{" "}
-											{String(
-												p.citations_last_verified,
-											).slice(0, 10)}
-											)
-										</span>
-									)}
-								</span>
+							</div>
+							<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-2">
 								{p.pdf_url && (
 									<a
 										href={p.pdf_url}
@@ -104,6 +79,18 @@ export default function AboutPage() {
 										[Google Scholar]
 									</a>
 								)}
+								{p.citations !== null && (
+									<span
+										className={`px-2 py-0.5 rounded ${
+											verified
+												? "bg-blue-100 text-blue-800"
+												: "bg-slate-100 text-slate-700"
+										}`}
+									>
+										Cited by:{" "}
+										{verified ? p.citations : "N/A"}
+									</span>
+								)}
 							</div>
 						</div>
 					);
@@ -111,14 +98,27 @@ export default function AboutPage() {
 			</div>
 		);
 	}
+	// 2. 在您的 AboutPage 元件內部，return 語句之前，加入這段數據處理邏輯
+	const [publications, setPublications] = React.useState<any[]>([]);
+	React.useEffect(() => {
+		fetch("/data/publications.json")
+			.then((r) => r.json())
+			.then((j) => setPublications(j.publications || []))
+			.catch(() => setPublications([]));
+	}, []);
+
+	const recentPubs = publications.filter((p) => p.category === "recent");
+	const foundationalPubs = publications.filter(
+		(p) => p.category === "foundational",
+	);
 
 	return (
 		<div
 			className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100"
 			id="top"
 		>
-			<div className="container mx-auto px-4 py-12">
-				{/* Hero Section */}
+			<div className="container mx-auto px-4 py-12 md:py-16">
+				{/* --- [MODIFIED] Hero Section: Changed to a Statement of Purpose --- */}
 				<div className="text-center mb-16">
 					<div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-r from-slate-700 to-slate-800 text-white mb-8">
 						<GraduationCap className="h-12 w-12" />
@@ -126,250 +126,119 @@ export default function AboutPage() {
 					<h1 className="text-4xl md:text-5xl font-bold text-slate-800">
 						Yin‑Chen Chen
 					</h1>
-					<p className="mt-2 text-xl md:text-2xl font-semibold text-slate-600">
+					<h2 className="mt-2 text-xl md:text-2xl font-semibold text-slate-600">
 						Prospective PhD Student – Machine Learning & IoT Systems
+					</h2>
+					{/* --- [NEW] Statement of Purpose Paragraph --- */}
+					<p className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mt-6">
+						With over a decade of experience architecting
+						enterprise-level IoT systems and conducting independent
+						research, I am now seeking to pursue a PhD to address
+						fundamental challenges in machine learning. My focus
+						lies in applying weakly-supervised methods, like PU
+						learning, to noisy, non-stationary real-world data. My
+						long-term goal is to bridge the gap between robust
+						theoretical models and their practical, large-scale
+						implementation—a vision I believe aligns strongly with
+						the work of{" "}
+						<strong>
+							Prof. Masashi Sugiyama's lab at the University of
+							Tokyo
+						</strong>
+						.
 					</p>
-					<div className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mb-6 mt-4">
-						<ul className="space-y-[0.4em] list-none">
-							<li className="xl:whitespace-nowrap">
-								• Built and operate a{" "}
-								<strong>
-									95‑unit smart residential testbed
-								</strong>{" "}
-								to study Positive‑Unlabeled (PU) learning at
-								scale
-								<br className="xl:hidden" />
-								<a
-									className="ml-2 text-blue-700 hover:underline"
-									href="/testbed?tab=overview#top"
-								>
-									↗ Testbed Overview
-								</a>
-							</li>
-							<li className="xl:whitespace-nowrap">
-								• Reproduced <strong>uPU/nnPU</strong> and
-								validated debugging insights on real,
-								non‑stationary data
-								<br className="xl:hidden" />
-								<a
-									className="ml-2 text-blue-700 hover:underline"
-									href="/pu-learning?tab=demo#top"
-								>
-									↗ PU Demo
-								</a>
-								<a
-									className="ml-2 text-blue-700 hover:underline"
-									href="/case-study#stage-3"
-								>
-									↗ Case Study – Stage‑3
-								</a>
-							</li>
-							<li className="xl:whitespace-nowrap">
-								• Seeking to extend{" "}
-								<strong>class‑prior estimation</strong> and
-								<strong> non‑negative risk training</strong> for
-								dynamic,
-								<strong> label‑shifted environments</strong>
-								<br className="xl:hidden" />
-								<a
-									className="ml-2 text-blue-700 hover:underline"
-									href="/pu-learning?tab=theory#top"
-								>
-									↗ PU Theory
-								</a>
-								<a
-									className="ml-2 text-blue-700 hover:underline"
-									href="/case-study#backtest"
-								>
-									↗ Backtest
-								</a>
-							</li>
-						</ul>
-					</div>
-					<div className="text-sm text-slate-600 mb-8">
-						Fast path:
-						<a
-							className="ml-2 text-blue-700 hover:underline"
-							href="/pu-learning?tab=demo#top"
-						>
-							Demo
-						</a>
-						<span className="mx-2">→</span>
-						<a
-							className="text-blue-700 hover:underline"
-							href="/case-study#stage-2"
-						>
-							Labeling
-						</a>
-						<span className="mx-2">→</span>
-						<a
-							className="text-blue-700 hover:underline"
-							href="/case-study#stage-3"
-						>
-							Training
-						</a>
-					</div>
-					<div className="flex flex-wrap justify-center gap-4 text-sm text-slate-500 mb-8">
+					<div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-slate-500 mb-8">
 						<div className="flex items-center gap-2">
 							<MapPin className="h-4 w-4" />
 							<span>Taiwan</span>
 						</div>
 						<div className="flex items-center gap-2">
-							<Calendar className="h-4 w-4" />
-							<span>PhD Application 2026</span>
+							<Building className="h-4 w-4" />
+							<span>
+								Target: Dept. of Complexity Science and
+								Engineering, GSFS, UTokyo
+							</span>
 						</div>
 						<div className="flex items-center gap-2">
-							<Code className="h-4 w-4" />
-							<span>Machine Learning & IoT</span>
+							<Calendar className="h-4 w-4" />
+							<span>
+								Seeking PhD Admission for 2026 Schedule B
+							</span>
 						</div>
 					</div>
 					<div className="flex justify-center gap-4">
-						<Button asChild>
+						<Button
+							asChild
+							className="bg-slate-800 hover:bg-slate-700"
+						>
 							<Link
 								href="/CV_YinChen_Chen_U-Tokyo_PhD_2026.pdf"
 								target="_blank"
 							>
 								<Download className="h-4 w-4 mr-2" />
-								Download CV as PDF
+								Download Full CV (PDF)
 							</Link>
 						</Button>
 					</div>
 				</div>
 
-				{/* Publications Section with safe citations */}
-				<div className="mb-16" id="publications">
-					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
-						Selected Publications
-					</h2>
-					<div className="max-w-4xl mx-auto">
-						<Card className="border-slate-200">
-							<CardContent className="pt-6">
-								<div className="mb-4">
-									<p className="text-slate-600 italic text-sm">
-										Note: Earlier publications were
-										published under the name Ying‑Chen Chen.
-									</p>
-									<hr className="border-slate-300 mt-3" />
-								</div>
-								<div className="space-y-6">
-									<PublicationsList />
-									<div className="text-sm text-slate-600">
-										Earlier works are available in the full
-										CV.{" "}
-										<a
-											className="text-blue-700 hover:underline"
-											href="/CV_YinChen_Chen_U-Tokyo_PhD_2026.pdf"
-											id="cv"
-										>
-											Open CV PDF
-										</a>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-				</div>
-
-				{/* Academic & Professional Trajectory Section - MOVED UP */}
+				{/* --- Academic & Professional Trajectory Section --- */}
 				<div className="mb-16">
 					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
 						Academic & Professional Trajectory
 					</h2>
 					<div className="max-w-4xl mx-auto space-y-8">
-						{/* Teaching Experience */}
-						<Card className="border-slate-200">
-							<CardHeader>
-								<CardTitle className="text-xl text-slate-800 flex items-center gap-2">
-									<GraduationCap className="h-5 w-5 text-slate-500" />
-									Teaching Experience
-								</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="border-l-4 border-slate-600 pl-4">
-									<h3 className="font-semibold text-slate-800">
-										Part-time Lecturer (AI & Programming)
-									</h3>
-									<p className="text-slate-600">
-										Chung Yuan Christian University, Dept.
-										of Commercial Design
-									</p>
-									<p className="text-sm text-slate-500">
-										2022 - Present
-									</p>
-									<ul className="text-slate-600 mt-2 space-y-1">
-										<li>
-											• Designed and taught foundational
-											AI and computing courses for
-											non-STEM students
-										</li>
-										<li>
-											• Achieved consistent teaching
-											evaluations above 4.6/5.0 across all
-											semesters
-										</li>
-										<li>
-											• Developed custom systems including
-											facial recognition attendance
-											tracker
-										</li>
-									</ul>
-								</div>
-							</CardContent>
-						</Card>
-
-						{/* Research Experience - ENHANCED */}
+						{/* --- [ENHANCED] Research Experience --- */}
 						<Card className="border-slate-200">
 							<CardHeader>
 								<CardTitle className="text-xl text-slate-800 flex items-center gap-2">
 									<Brain className="h-5 w-5 text-slate-500" />
-									Research Experience
+									Independent Research
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div className="border-l-4 border-slate-600 pl-4">
 									<h3 className="font-semibold text-slate-800">
-										Real-World Human Dynamics Laboratory
-										(Smart Residential Testbed)
+										Lead Researcher & Architect, Smart
+										Residential Testbed
 									</h3>
-									<p className="text-slate-600">
-										Lead Researcher & System Architect
-									</p>
 									<p className="text-sm text-slate-500">
 										2015 - Present
 									</p>
+									<p className="text-slate-600 mt-2 italic text-sm">
+										A self-directed research initiative to
+										create a living laboratory for studying
+										human dynamics and robust machine
+										learning with real-world, high-frequency
+										data.
+									</p>
 									<ul className="text-slate-600 mt-2 space-y-1">
 										<li>
-											• <strong>Led</strong> the design
-											and implementation of a 95-unit
-											smart residential IoT testbed for
-											research in human behavior modeling
-											and robust machine learning
+											• <strong>Architected</strong> and{" "}
+											<strong>deployed</strong> a 95-unit
+											smart residential IoT testbed from
+											the ground up.
 										</li>
 										<li>
-											• <strong>Developed</strong> a
-											complete data pipeline for
-											collecting, processing, and
-											analyzing high-resolution,
-											multimodal time-series data
+											• <strong>Developed</strong> a full
+											data pipeline for collecting,
+											processing, and analyzing multimodal
+											time-series data (power,
+											environment, etc.).
 										</li>
 										<li>
-											• <strong>Authored</strong> and{" "}
-											<strong>co-authored</strong> four
-											peer-reviewed conference and journal
-											papers in the fields of wireless
-											sensor networks and IoT systems
-										</li>
-										<li>
-											• Built on-premise AI systems for
-											LLM (DeepSeek) and generative AI
-											(Stable Diffusion) experimentation
+											• <strong>Applied</strong>{" "}
+											weakly-supervised learning
+											(uPU/nnPU) to validate theoretical
+											models against non-stationary,
+											real-world data streams.
 										</li>
 									</ul>
 								</div>
 							</CardContent>
 						</Card>
 
-						{/* Professional Experience - ENHANCED */}
+						{/* --- [ENHANCED] Professional Experience --- */}
 						<Card className="border-slate-200">
 							<CardHeader>
 								<CardTitle className="text-xl text-slate-800 flex items-center gap-2">
@@ -380,7 +249,7 @@ export default function AboutPage() {
 							<CardContent className="space-y-4">
 								<div className="border-l-4 border-slate-600 pl-4">
 									<h3 className="font-semibold text-slate-800">
-										Founder / General Manager
+										Founder & General Manager
 									</h3>
 									<p className="text-slate-600">
 										Infowin Technology Co., Ltd., Taiwan
@@ -390,26 +259,49 @@ export default function AboutPage() {
 									</p>
 									<ul className="text-slate-600 mt-2 space-y-1">
 										<li>
-											• Led a team of 3-7 to deliver
-											end-to-end enterprise systems,
-											managing software architecture,
-											cloud deployment, and international
-											client communication
+											• As founder, I{" "}
+											<strong>directed</strong> all
+											technical and business operations,
+											leading the design of bespoke
+											enterprise systems for clients in
+											finance, education, religious
+											organizations, and real estate,
+											including a portfolio platform for a
+											Singapore-based investment firm.
 										</li>
 										<li>
-											• Architected and deployed a smart
-											campus system for Aichi
-											International Academy in Nagoya,
-											Japan,{" "}
-											<strong>
-												serving over 500 students
-											</strong>{" "}
-											and integrating multiple IoT sensors
-										</li>
-										<li>
-											• Designed management systems for
-											education, finance, religion, and
-											real estate sectors
+											• <strong>Spearheaded</strong> the
+											Aichi International Academy smart
+											campus project in Nagoya, from
+											initial architecture to final
+											deployment. This required a
+											significant on-site presence in
+											Japan from{" "}
+											<strong>2017-2019</strong> to manage
+											implementation, client
+											collaboration, and the digital
+											transformation of campus operations
+											using IoT sensors. Key achievements
+											included:
+											<ul className="ml-4 mt-2 space-y-1">
+												<li>
+													• Built comprehensive
+													internal management systems
+													for campus operations
+												</li>
+												<li>
+													• Developed and deployed
+													facial recognition systems
+													for automated attendance
+													tracking and temperature
+													monitoring
+												</li>
+												<li>
+													• Integrated IoT sensor
+													networks throughout the
+													dormitory infrastructure
+												</li>
+											</ul>
 										</li>
 									</ul>
 								</div>
@@ -425,24 +317,144 @@ export default function AboutPage() {
 									</p>
 									<ul className="text-slate-600 mt-2 space-y-1">
 										<li>
-											• Developed and debugged UEFI
-											firmware for IBM System x servers
+											• Developed low-level UEFI firmware
+											for IBM System x servers, focusing
+											on mission-critical RAS
+											(Reliability, Availability,
+											Serviceability) features.
 										</li>
 										<li>
-											• Served on global UEFI solution
-											team for critical system issues
+											• As part of a global solution team,
+											performed root-cause analysis for
+											critical system failures in
+											high-stakes data center
+											environments.
 										</li>
 									</ul>
 								</div>
 							</CardContent>
 						</Card>
-
-						{/* Education */}
+						{/* --- [ENHANCED] Teaching Experience Card with Syllabi Links --- */}
 						<Card className="border-slate-200">
 							<CardHeader>
 								<CardTitle className="text-xl text-slate-800 flex items-center gap-2">
 									<GraduationCap className="h-5 w-5 text-slate-500" />
-									Education
+									Teaching Experience
+								</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="border-l-4 border-slate-600 pl-4">
+									<h3 className="font-semibold text-slate-800">
+										Part-time Lecturer (AI & Programming)
+									</h3>
+									<p className="text-slate-600">
+										Chung Yuan Christian University, Dept.
+										of Commercial Design
+									</p>
+									<p className="text-sm text-slate-500">
+										2022 – Present
+									</p>
+									<ul className="text-slate-600 mt-2 space-y-1">
+										<li>
+											• Designed and taught foundational
+											AI and computing courses for
+											non-STEM students.
+										</li>
+										<li>
+											• Achieved consistent student
+											evaluation scores averaging 4.66/5.0
+											across 12 courses since 2022, and
+											was consecutively selected for the
+											University-Level Excellent Course
+											Design Award in 2024 and 2025.
+										</li>
+										<li>
+											• Transformed the course into a live
+											demonstration of applied AI by
+											developing and deploying custom
+											systems, including a facial
+											recognition attendance tracker and a
+											conversational bot for grade
+											management.
+										</li>
+										{/* --- [NEW] Syllabi Links --- */}
+										{/* --- [FINAL] Syllabi Links with Nested List & Badges --- */}
+										<li className="pt-1">
+											<div className="flex">
+												<span className="mr-2">•</span>
+												<div>
+													<span className="font-semibold">
+														Official Syllabi:
+													</span>
+													<ul className="list-disc pl-5 mt-1 space-y-2">
+														<li>
+															<a
+																href="https://cmap.cycu.edu.tw:8443/Syllabus/CoursePreview.html?yearTerm=1141&opCode=CD000A&locale=en_US"
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-blue-700 hover:underline"
+															>
+																Introduction to
+																Natural Science
+																and AI
+															</a>
+															<Badge
+																variant="outline"
+																className="ml-2 border-green-600 bg-green-50 text-green-700"
+															>
+																Required
+															</Badge>
+														</li>
+														<li>
+															<a
+																href="https://cmap.cycu.edu.tw:8443/Syllabus/CoursePreview.html?yearTerm=1132&opCode=CD888A&locale=en_US"
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-blue-700 hover:underline"
+															>
+																Computational
+																Thinking and
+																Programming
+															</a>
+															<Badge
+																variant="outline"
+																className="ml-2 border-green-600 bg-green-50 text-green-700"
+															>
+																Required
+															</Badge>
+														</li>
+														<li>
+															<a
+																href="https://cmap.cycu.edu.tw:8443/Syllabus/CoursePreview.html?yearTerm=1131&opCode=CD637D&locale=en_US"
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-blue-700 hover:underline"
+															>
+																Introduction of
+																Computer
+																Programming
+															</a>
+															<Badge
+																variant="outline"
+																className="ml-2 border-sky-600 bg-sky-50 text-sky-700"
+															>
+																Elective
+															</Badge>
+														</li>
+													</ul>
+												</div>
+											</div>
+										</li>
+									</ul>
+								</div>
+							</CardContent>
+						</Card>
+						{/* --- [ENHANCED] Education Section --- */}
+						<Card className="border-slate-200">
+							<CardHeader>
+								<CardTitle className="text-xl text-slate-800 flex items-center gap-2">
+									<GraduationCap className="h-5 w-5 text-slate-500" />
+									Education & Academic Background
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -452,19 +464,16 @@ export default function AboutPage() {
 										Engineering
 									</h3>
 									<p className="text-slate-600">
-										National Taiwan University, Taiwan |
-										2009
+										National Taiwan University | 2009
 									</p>
-									<p className="text-slate-600 mt-2 italic">
-										&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Laboratory:
-										Information and Network Application Lab
-										(Advisor: Prof. Ray-I Chang)
+									<p className="text-slate-600 mt-1 italic text-sm">
+										Laboratory: Information and Network
+										Application Lab (Advisor: Prof. Ray-I
+										Chang)
 									</p>
-									<p className="text-slate-600 mt-2 italic">
-										&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Thesis:
-										A Study on Integration and Configuration
-										of Wireless Access Point and Wireless
-										Sensor Networks
+									<p className="text-slate-600 mt-1 italic text-sm">
+										Thesis: Integration of Wireless Access
+										Point and Sensor Networks
 									</p>
 								</div>
 								<div className="border-l-4 border-slate-600 pl-4">
@@ -472,23 +481,22 @@ export default function AboutPage() {
 										B.S., Computer Science and Engineering
 									</h3>
 									<p className="text-slate-600">
-										Tatung University, Taiwan | 2006
+										Tatung University | 2006
 									</p>
 								</div>
 								<div className="border-l-4 border-slate-600 pl-4">
 									<h3 className="font-semibold text-slate-800">
-										Admitted to PhD Program, Engineering
-										Science and Ocean Engineering
+										Prior PhD Program Admission (without
+										examination)
 									</h3>
 									<p className="text-slate-600">
-										National Taiwan University, Taiwan |
-										2009
+										National Taiwan University | 2009
 									</p>
-									<p className="text-slate-600 mt-2 italic">
-										&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Admitted
-										without oral examination; withdrew for
-										national service and to pursue industry
-										experience]
+									<p className="text-slate-600 mt-1 italic text-sm">
+										I withdrew to fulfill national service
+										and gain industry experience, a decision
+										that provided the practical foundation
+										for my current research interests.
 									</p>
 								</div>
 							</CardContent>
@@ -496,294 +504,129 @@ export default function AboutPage() {
 					</div>
 				</div>
 
-				{/* Core Competencies Section - ENHANCED DESCRIPTIONS */}
-				<div className="mb-16">
+				{/* --- [MODIFIED] Publications Section with Thematic Categories --- */}
+				<div className="mb-16" id="publications">
 					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
-						Core Competencies
+						Key Research Publications
 					</h2>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-						<Card className="text-center border-slate-200">
+					<div className="max-w-4xl mx-auto">
+						<Card className="border-slate-200">
 							<CardHeader>
-								<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-									<Brain className="h-6 w-6 text-white" />
-								</div>
-								<CardTitle className="text-lg text-slate-800">
-									Theoretical Depth
-								</CardTitle>
+								<p className="text-slate-600 italic text-sm">
+									Note: Earlier publications were published
+									under the name "Ying‑Chen Chen".
+								</p>
 							</CardHeader>
-							<CardContent>
-								<p className="text-slate-600">
-									Grounded in weakly-supervised learning
-									literature (e.g., PU Learning), with
-									experience translating concepts to noisy,
-									real-world data.
-								</p>
-								<p className="mt-2 text-[0.9em]">
-									<a
-										className="text-[#1A73E8] hover:underline"
-										href="/case-study#stage-3"
-									>
-										→{" "}
-										<span className="italic">
-											Applied uPU to anomaly detection in
-											smart meters
-										</span>
-									</a>
-								</p>
-							</CardContent>
-						</Card>
+							<CardContent className="space-y-8">
+								{/* Category 1: Recent Work */}
+								{recentPubs.length > 0 && (
+									<div>
+										<h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-300 pb-2">
+											Recent Work in Internet of Things
+											(IoT)
+										</h3>
+										<PublicationsList items={recentPubs} />
+									</div>
+								)}
 
-						<Card className="text-center border-slate-200">
-							<CardHeader>
-								<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-									<Building className="h-6 w-6 text-white" />
-								</div>
-								<CardTitle className="text-lg text-slate-800">
-									System Implementation
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className="text-slate-600">
-									Proven ability to architect and deploy
-									end-to-end hardware/software systems, from
-									sensor pipelines to user-facing
-									applications.
-								</p>
-								<p className="mt-2 text-[0.9em]">
-									<a
-										className="text-[#1A73E8] hover:underline"
-										href="/testbed"
-									>
-										→{" "}
-										<span className="italic">
-											Designed full IoT pipeline for
-											95‑unit Testbed
-										</span>
-									</a>
-								</p>
-							</CardContent>
-						</Card>
-
-						<Card className="text-center border-slate-200">
-							<CardHeader>
-								<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
-									<Zap className="h-6 w-6 text-white" />
-								</div>
-								<CardTitle className="text-lg text-slate-800">
-									Applied Problem Solving
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<p className="text-slate-600">
-									A decade of experience in translating
-									ambiguous real-world challenges into robust,
-									data-driven technical solutions.
-								</p>
-								<p className="mt-2 text-[0.9em]">
-									<a
-										className="text-[#1A73E8] hover:underline"
-										href="/pu-principle"
-									>
-										→{" "}
-										<span className="italic">
-											Mitigated seasonal label shift in
-											electricity usage prediction
-										</span>
-									</a>
-								</p>
+								{/* Category 2: Foundational Work */}
+								{foundationalPubs.length > 0 && (
+									<div>
+										<h3 className="text-lg font-semibold text-slate-800 mb-4 border-b border-slate-300 pb-2">
+											Foundational Work in Wireless Sensor
+											Networks (WSN)
+										</h3>
+										<PublicationsList
+											items={foundationalPubs}
+										/>
+									</div>
+								)}
 							</CardContent>
 						</Card>
 					</div>
 				</div>
 
-				{/* Technical Skills */}
+				{/* --- Technical Skills Section --- */}
 				<div className="mb-16">
 					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
-						Technical Skills
+						Technical Expertise
 					</h2>
 					<div className="max-w-4xl mx-auto">
 						<Card className="border-slate-200">
 							<CardContent className="pt-6">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									{/* Column 1 */}
-									<div className="space-y-6">
-										{/* Deep Learning & Models */}
-										<div>
-											<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-												<Brain className="h-4 w-4" />
-												Deep Learning & Models
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													PU Learning (uPU, nnPU)
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Class-Prior Estimation
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													PyTorch
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Scikit-learn
-												</Badge>
-											</div>
-										</div>
-
-										{/* IoT & Embedded Systems */}
-										<div>
-											<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-												<Cpu className="h-4 w-4" />
-												IoT & Embedded Systems
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Smart Meters
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Sensor Integration
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													MCU Development
-												</Badge>
-											</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+									<div>
+										<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+											<Brain className="h-4 w-4" />
+											Machine Learning
+										</h4>
+										<div className="flex flex-wrap gap-2">
+											<Badge variant="secondary">
+												PU Learning
+											</Badge>
+											<Badge variant="secondary">
+												Time-Series Analysis
+											</Badge>{" "}
+											{/* <-- New */}
+											<Badge variant="secondary">
+												Domain Adaptation
+											</Badge>{" "}
+											{/* <-- New */}
+											<Badge variant="secondary">
+												PyTorch
+											</Badge>
+											<Badge variant="secondary">
+												Scikit-learn
+											</Badge>
+											<Badge variant="secondary">
+												Pandas
+											</Badge>
 										</div>
 									</div>
-
-									{/* Column 2 */}
-									<div className="space-y-6">
-										{/* Programming & Data */}
-										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-												<Code2 className="h-4 w-4" />
-												Programming & Data
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Python
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													C/C++
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Java
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													JavaScript
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													PostgreSQL
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													MySQL
-												</Badge>
-											</div>
+									<div>
+										<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+											<Code2 className="h-4 w-4" />
+											Software Engineering
+										</h4>
+										<div className="flex flex-wrap gap-2">
+											<Badge variant="secondary">
+												Python
+											</Badge>
+											<Badge variant="secondary">
+												FastAPI
+											</Badge>
+											<Badge variant="secondary">
+												Next.js
+											</Badge>
+											<Badge variant="secondary">
+												TypeScript
+											</Badge>
+											<Badge variant="secondary">
+												PostgreSQL
+											</Badge>
+											<Badge variant="secondary">
+												C/C++
+											</Badge>
 										</div>
-
-										{/* Frameworks & Libraries */}
-										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-												<Wrench className="h-4 w-4" />
-												Frameworks & Libraries
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Next.js
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													FastAPI
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													OpenCV
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Pandas
-												</Badge>
-											</div>
-										</div>
-
-										{/* Infrastructure & Tools */}
-										<div>
-											<h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-												<Server className="h-4 w-4" />
-												Infrastructure & Tools
-											</h4>
-											<div className="flex flex-wrap gap-2">
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Docker
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													Git
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													AWS
-												</Badge>
-												<Badge
-													variant="secondary"
-													className="text-xs"
-												>
-													RESTful APIs
-												</Badge>
-											</div>
+									</div>
+									<div>
+										<h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+											<Server className="h-4 w-4" />
+											Systems & Infrastructure
+										</h4>
+										<div className="flex flex-wrap gap-2">
+											<Badge variant="secondary">
+												IoT Architecture
+											</Badge>
+											<Badge variant="secondary">
+												Docker
+											</Badge>
+											<Badge variant="secondary">
+												AWS
+											</Badge>
+											<Badge variant="secondary">
+												On-Premise Servers
+											</Badge>
 										</div>
 									</div>
 								</div>
@@ -792,7 +635,7 @@ export default function AboutPage() {
 					</div>
 				</div>
 
-				{/* Awards & Honors */}
+				{/* --- [MODIFIED] Awards & Honors, reverse chronological --- */}
 				<div className="mb-16">
 					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
 						Awards & Honors
@@ -800,108 +643,67 @@ export default function AboutPage() {
 					<div className="max-w-4xl mx-auto">
 						<Card className="border-slate-200">
 							<CardContent className="pt-6">
-								<div className="space-y-2">
-									<div className="flex items-start gap-2">
-										<div className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p className="text-slate-600">
+								<ul className="space-y-2">
+									<li className="flex items-start gap-3">
+										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
+										<p>
 											University-Level Excellent Course
-											Design Award, Chung Yuan Christian
-											University, 2024, 2025
+											Design Award (2024, 2025)
 										</p>
-									</div>
-									<div className="flex items-start gap-2">
-										<div className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p className="text-slate-600">
-											Outstanding Landlord Award, Chung
-											Yuan Christian University, 2018
-										</p>
-									</div>
-									<div className="flex items-start gap-2">
-										<div className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p className="text-slate-600">
+									</li>
+									<li className="flex items-start gap-3">
+										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
+										<p>
 											Third Prize, 4th ARM Code-O-Rama
-											Embedded Programming Contest, 2008
+											Embedded Programming Contest (2008)
 										</p>
-									</div>
-									<div className="flex items-start gap-2">
-										<div className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p className="text-slate-600">
+									</li>
+									<li className="flex items-start gap-3">
+										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
+										<p>
 											Champion, 3rd ARM Code-O-Rama
-											Embedded Programming Contest, 2007
+											Embedded Programming Contest (2007)
 										</p>
-									</div>
-									<div className="flex items-start gap-2">
-										<div className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p className="text-slate-600">
-											Champion, 7th NTU Innovation
-											Competition, 2007
+									</li>
+									<li className="flex items-start gap-3">
+										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
+										<p>
+											Champion, 7th National Taiwan
+											University Innovation Competition
+											(2007)
 										</p>
-									</div>
-								</div>
+									</li>
+								</ul>
 							</CardContent>
 						</Card>
 					</div>
 				</div>
 
-				{/* GitHub Section */}
-				<div className="mb-16">
-					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
-						Project Repository & Source Code
+				{/* --- Contact Section --- */}
+				<div className="text-center mt-16">
+					<h2 className="text-3xl font-bold mb-6 text-slate-800">
+						Contact & Links
 					</h2>
-					<Card className="border-slate-200 max-w-4xl mx-auto">
-						<CardContent className="space-y-4">
-							<p className="text-slate-600 leading-relaxed">
-								In the spirit of academic transparency and open
-								collaboration, the complete source code for this
-								website and its underlying projects is publicly
-								available on GitHub. This repository includes
-								the implementation of the IoT testbed data
-								explorer and the weakly-supervised learning case
-								study. I encourage you to inspect the code to
-								see the project's architecture, development
-								process, and technical details.
-							</p>
-							<div className="flex gap-4">
-								<Button asChild>
-									<Link
-										href="https://github.com/your-username/your-repo-name"
-										target="_blank"
-										rel="noopener noreferrer"
-									>
-										<Github className="h-4 w-4 mr-2" />
-										View on GitHub
-									</Link>
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-
-				{/* Contact Section */}
-				<div className="text-center">
-					<h2 className="text-3xl font-bold mb-8 text-slate-800">
-						Get in Touch
-					</h2>
-					<div className="flex justify-center gap-6">
+					<div className="flex justify-center flex-wrap gap-4">
 						<Button variant="outline" asChild>
 							<Link href="mailto:yinchen618@gmail.com">
 								<Mail className="h-4 w-4 mr-2" />
 								Email
 							</Link>
 						</Button>
-						<Button variant="outline" asChild>
+						{/* <Button variant="outline" asChild>
 							<Link
-								href="https://linkedin.com/in/your-profile"
+								href="https://linkedin.com/in/your-profile" // Remember to fill this in
 								target="_blank"
 								rel="noopener noreferrer"
 							>
 								<Linkedin className="h-4 w-4 mr-2" />
 								LinkedIn
 							</Link>
-						</Button>
+						</Button> */}
 						<Button variant="outline" asChild>
 							<Link
-								href="https://github.com/your-username"
+								href="https://github.com/yinchen618/pu-in-practice" // Remember to fill this in
 								target="_blank"
 								rel="noopener noreferrer"
 							>
@@ -910,7 +712,7 @@ export default function AboutPage() {
 							</Link>
 						</Button>
 					</div>
-					<div className="mt-4 text-sm text-slate-500">
+					<div className="mt-6 text-sm text-slate-500">
 						Languages: Mandarin Chinese (Native), English (Fluent),
 						Japanese (Intermediate, JLPT N2)
 					</div>

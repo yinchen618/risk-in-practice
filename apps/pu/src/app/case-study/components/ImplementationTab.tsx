@@ -1,357 +1,200 @@
 "use client";
-
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import {} from "@/components/ui/card";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
+	Activity,
+	BarChart3,
 	Brain,
-	CheckCircle2,
-	Code,
-	Database,
+	Filter,
 	GitBranch,
 	Layers,
-	Monitor,
-	Server,
-	Settings,
+	Network,
+	Shield,
+	Target,
+	Users,
 } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import {
+	DataPipelineFeatures,
+	ReliableImplementation,
+	StageImplementations,
+	SystemOverview,
+	TechnicalArchitecture,
+	TechnicalContributions,
+} from "./implementation";
+
+// 假設您有一個 CodeBlock 元件用於語法高亮
+// import { CodeBlock } from "@/components/CodeBlock";
+// 為了演示，我們用一個簡單的 pre 標籤代替
+const CodeBlock = ({
+	children,
+	lang,
+}: { children: React.ReactNode; lang: string }) => (
+	<pre
+		className={`bg-gray-800 text-white p-4 rounded-lg overflow-x-auto text-xs font-mono language-${lang}`}
+	>
+		<code>{children}</code>
+	</pre>
+);
 
 export default function ImplementationTab() {
+	const [activeSection, setActiveSection] = useState("system-overview");
+
+	// Handle scroll to update active section (與 ProblemApproachTab 相同)
+	useEffect(() => {
+		const handleScroll = () => {
+			const sections = [
+				"system-overview",
+				"architecture-design",
+				"data-pipeline",
+				"reliable-implementation",
+				"data-split-strategy",
+				"stage-1-implementation",
+				"stage-2-implementation",
+				"stage-3-implementation",
+				"stage-4-implementation",
+				"technical-contributions",
+			];
+			const scrollPosition = window.scrollY + 100;
+
+			for (const section of sections) {
+				const element = document.getElementById(section);
+				if (element) {
+					const { offsetTop, offsetHeight } = element;
+					if (
+						scrollPosition >= offsetTop &&
+						scrollPosition < offsetTop + offsetHeight
+					) {
+						setActiveSection(section);
+						break;
+					}
+				}
+			}
+		};
+
+		window.addEventListener("scroll", handleScroll);
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, []);
+
+	const scrollToSection = (sectionId: string) => {
+		const element = document.getElementById(sectionId);
+		if (element) {
+			const elementPosition = element.offsetTop;
+			const offsetPosition = elementPosition - 100;
+
+			window.scrollTo({
+				top: offsetPosition,
+				behavior: "smooth",
+			});
+		}
+	};
+
 	return (
-		<div className="space-y-8">
-			{/* Tab-specific heading */}
-			<div className="text-center mb-8">
-				<h2 className="text-3xl font-semibold text-slate-800 mb-4">
-					System Implementation & Architecture
-				</h2>
-				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
-					Full-stack implementation of the PU Learning pipeline with
-					modern web technologies
-				</p>
+		<div className="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+			<div className="flex mx-auto">
+				{/* Left Sidebar - Navigation (1/4) */}
+				<div className="w-1/4 p-6">
+					<div className="sticky top-6">
+						{/* Page Title */}
+						<div className="mb-8">
+							<h1 className="text-2xl font-bold text-slate-800 mb-2">
+								System Implementation & Architecture
+							</h1>
+							<p className="text-sm text-slate-600">
+								PU Learning Workbench for IoT Anomaly Detection
+							</p>
+						</div>
+
+						{/* Navigation */}
+						<nav className="space-y-2">
+							{[
+								{
+									id: "system-overview",
+									label: "System Overview",
+									icon: Brain,
+								},
+								{
+									id: "architecture-design",
+									label: "Technical Architecture",
+									icon: Layers,
+								},
+								{
+									id: "data-pipeline",
+									label: "Data Pipeline & Features",
+									icon: Activity,
+								},
+								{
+									id: "reliable-implementation",
+									label: "Reliable Training Pipeline",
+									icon: Shield,
+								},
+								{
+									id: "data-split-strategy",
+									label: "Data Split Strategy Evolution",
+									icon: GitBranch,
+								},
+								{
+									id: "stage-1-implementation",
+									label: "Stage 1: Candidate Generation",
+									icon: Filter,
+								},
+								{
+									id: "stage-2-implementation",
+									label: "Stage 2: Expert Labeling",
+									icon: Users,
+								},
+								{
+									id: "stage-3-implementation",
+									label: "Stage 3: PU Training",
+									icon: Network,
+								},
+								{
+									id: "stage-4-implementation",
+									label: "Stage 4: Results Analysis",
+									icon: BarChart3,
+								},
+								{
+									id: "model-architecture",
+									label: "LSTM+PU Model Architecture",
+									icon: Brain,
+								},
+								{
+									id: "technical-contributions",
+									label: "Technical Contributions",
+									icon: Target,
+								},
+							].map((item) => (
+								<div key={item.id}>
+									<button
+										type="button"
+										onClick={() => scrollToSection(item.id)}
+										className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
+											activeSection === item.id
+												? "bg-blue-100 text-blue-800 border-l-4 border-blue-600"
+												: "text-slate-600 hover:bg-slate-100"
+										}`}
+									>
+										<item.icon className="h-4 w-4" />
+										<span className="text-sm font-medium">
+											{item.label}
+										</span>
+									</button>
+								</div>
+							))}
+						</nav>
+					</div>
+				</div>
+
+				{/* Right Content Area (3/4) */}
+				<div className="w-3/4 p-6 space-y-12">
+					<SystemOverview />
+					<TechnicalArchitecture />
+					<DataPipelineFeatures />
+					<ReliableImplementation />
+					<StageImplementations />
+					<TechnicalContributions />
+				</div>
 			</div>
-
-			{/* Architecture Overview */}
-			<Card className="border-l-4 border-l-blue-500">
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Layers className="h-5 w-5 text-blue-500" />
-						System Architecture
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid md:grid-cols-3 gap-6">
-						<div className="text-center">
-							<div className="p-4 bg-blue-50 rounded-lg mb-3">
-								<Monitor className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-								<h4 className="font-semibold text-blue-700">
-									Frontend
-								</h4>
-							</div>
-							<ul className="text-sm space-y-1">
-								<li>• Next.js 14 (App Router)</li>
-								<li>• TypeScript</li>
-								<li>• Tailwind CSS</li>
-								<li>• shadcn/ui components</li>
-								<li>• Real-time WebSocket updates</li>
-							</ul>
-						</div>
-						<div className="text-center">
-							<div className="p-4 bg-green-50 rounded-lg mb-3">
-								<Server className="h-8 w-8 text-green-600 mx-auto mb-2" />
-								<h4 className="font-semibold text-green-700">
-									Backend API
-								</h4>
-							</div>
-							<ul className="text-sm space-y-1">
-								<li>• FastAPI (Python)</li>
-								<li>• Async/await architecture</li>
-								<li>• RESTful API design</li>
-								<li>• WebSocket support</li>
-								<li>• Background job processing</li>
-							</ul>
-						</div>
-						<div className="text-center">
-							<div className="p-4 bg-purple-50 rounded-lg mb-3">
-								<Database className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-								<h4 className="font-semibold text-purple-700">
-									Data Layer
-								</h4>
-							</div>
-							<ul className="text-sm space-y-1">
-								<li>• SQLite for development</li>
-								<li>• Prisma ORM</li>
-								<li>• PostgreSQL for production</li>
-								<li>• Versioned datasets</li>
-								<li>• Model artifact storage</li>
-							</ul>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* ML Pipeline Implementation */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Brain className="h-5 w-5 text-purple-500" />
-						ML Pipeline Implementation
-					</CardTitle>
-					<CardDescription>
-						End-to-end machine learning pipeline with PU learning
-						algorithms
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<div className="grid md:grid-cols-2 gap-6">
-						<div>
-							<h4 className="font-semibold mb-3 flex items-center gap-2">
-								<Code className="h-4 w-4" />
-								Core ML Components
-							</h4>
-							<div className="space-y-3">
-								<div className="p-3 bg-slate-50 rounded">
-									<Badge variant="secondary" className="mb-1">
-										Data Preprocessing
-									</Badge>
-									<p className="text-xs text-slate-600">
-										Multi-scale ETL with temporal feature
-										extraction
-									</p>
-								</div>
-								<div className="p-3 bg-blue-50 rounded">
-									<Badge className="mb-1">
-										LSTM Architecture
-									</Badge>
-									<p className="text-xs text-blue-700">
-										Configurable layers, dropout, attention
-										mechanisms
-									</p>
-								</div>
-								<div className="p-3 bg-green-50 rounded">
-									<Badge className="mb-1">
-										PU Loss Functions
-									</Badge>
-									<p className="text-xs text-green-700">
-										uPU and nnPU implementations with
-										auto-prior estimation
-									</p>
-								</div>
-								<div className="p-3 bg-purple-50 rounded">
-									<Badge className="mb-1">
-										Hyperparameter Optimization
-									</Badge>
-									<p className="text-xs text-purple-700">
-										Grid search with cross-validation
-									</p>
-								</div>
-							</div>
-						</div>
-						<div>
-							<h4 className="font-semibold mb-3 flex items-center gap-2">
-								<Settings className="h-4 w-4" />
-								Technical Features
-							</h4>
-							<div className="space-y-2">
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Async training with WebSocket progress
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Model versioning and artifact management
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Cross-domain evaluation framework
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Comprehensive metric tracking
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Experiment reproducibility
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<CheckCircle2 className="h-4 w-4 text-green-500" />
-									<span className="text-sm">
-										Real-time performance monitoring
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Key Implementation Details */}
-			<div className="grid md:grid-cols-2 gap-6">
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-lg">
-							Data Processing Pipeline
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="space-y-3">
-							<div className="border-l-4 border-blue-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									Multi-scale Feature Extraction
-								</h5>
-								<p className="text-xs text-slate-600">
-									15-minute and 60-minute sliding windows for
-									temporal patterns
-								</p>
-							</div>
-							<div className="border-l-4 border-green-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									Time-based Data Splitting
-								</h5>
-								<p className="text-xs text-slate-600">
-									Chronological splits to prevent data leakage
-								</p>
-							</div>
-							<div className="border-l-4 border-purple-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									Anomaly Event Association
-								</h5>
-								<p className="text-xs text-slate-600">
-									Automatic labeling based on temporal
-									proximity
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-lg">
-							Model Architecture
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="space-y-3">
-							<div className="border-l-4 border-red-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									LSTM Feature Encoder
-								</h5>
-								<p className="text-xs text-slate-600">
-									Bidirectional LSTM with configurable layers
-									and dropout
-								</p>
-							</div>
-							<div className="border-l-4 border-orange-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									PU Learning Loss
-								</h5>
-								<p className="text-xs text-slate-600">
-									Risk correction with automatic prior
-									estimation
-								</p>
-							</div>
-							<div className="border-l-4 border-teal-400 pl-3">
-								<h5 className="font-semibold text-sm">
-									Early Stopping
-								</h5>
-								<p className="text-xs text-slate-600">
-									F1-score based stopping with model
-									checkpointing
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			{/* API Endpoints */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<GitBranch className="h-5 w-5 text-green-500" />
-						API Implementation
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid md:grid-cols-2 gap-6">
-						<div>
-							<h4 className="font-semibold mb-3">
-								Experiment Management
-							</h4>
-							<div className="space-y-2 font-mono text-xs">
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-green-600">POST</span>{" "}
-									/api/v2/experiment-runs
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-blue-600">GET</span>{" "}
-									/api/v2/experiment-runs
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-blue-600">GET</span>{" "}
-									/api/v2/experiment-runs/:id/history
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-orange-600">
-										DELETE
-									</span>{" "}
-									/api/v2/experiment-runs/:id
-								</div>
-							</div>
-						</div>
-						<div>
-							<h4 className="font-semibold mb-3">
-								Training & Evaluation
-							</h4>
-							<div className="space-y-2 font-mono text-xs">
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-green-600">POST</span>{" "}
-									/api/v2/start-training-job
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-green-600">POST</span>{" "}
-									/api/v2/start-evaluation-job
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-blue-600">GET</span>{" "}
-									/api/v2/trained-models
-								</div>
-								<div className="p-2 bg-slate-100 rounded">
-									<span className="text-blue-600">GET</span>{" "}
-									/api/v2/evaluation-runs
-								</div>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Technology Stack Summary */}
-			<Alert>
-				<Code className="h-4 w-4" />
-				<AlertDescription>
-					<strong>Technology Stack Summary:</strong> Modern full-stack
-					implementation with Next.js frontend, FastAPI backend, and
-					comprehensive ML pipeline. The system supports real-time
-					training monitoring, experiment management, and cross-domain
-					evaluation with full reproducibility.
-				</AlertDescription>
-			</Alert>
 		</div>
 	);
 }

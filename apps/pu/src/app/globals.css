@@ -1,5 +1,8 @@
-html, body {
-  font-family: 'Inter', 'Noto Sans TC', 'Helvetica Neue', Arial, 'PingFang TC', 'Microsoft JhengHei', 'sans-serif';
+html,
+body {
+  font-family:
+    "Inter", "Noto Sans TC", "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei",
+    "sans-serif";
 }
 
 @import "tailwindcss";
