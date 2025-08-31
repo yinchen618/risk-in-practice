@@ -8,7 +8,6 @@ import FeatureEngineeringIsolationFlow from "../diagrams/FeatureEngineeringIsola
 import ModelConsistencyFlow from "../diagrams/ModelConsistencyFlow";
 import StratifiedTimeSplitFlow from "../diagrams/StratifiedTimeSplitFlow";
 import TimeSeriesSanctityFlow from "../diagrams/TimeSeriesSanctityFlow";
-import DataSplitStrategy from "./DataSplitStrategy";
 
 const CodeBlock = ({
 	children,
@@ -450,11 +449,6 @@ def load_and_reconstruct_model(model_path):
 					</div>
 				</CardContent>
 			</Card>
-
-			{/* Data Split Strategy Section */}
-			<div className="mt-12">
-				<DataSplitStrategy />
-			</div>
 		</section>
 	);
 }

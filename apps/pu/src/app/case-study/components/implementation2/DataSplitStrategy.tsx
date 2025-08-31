@@ -29,10 +29,18 @@ export default function DataSplitStrategy() {
 		<section id="data-split-strategy" className="scroll-mt-6">
 			<Card className="border-l-4 border-l-slate-500 bg-white shadow-lg">
 				<CardHeader>
+					<h2 className="text-base font-semibold uppercase text-blue-600 tracking-wider text-center mb-4">
+						Data Splitting Strategy
+					</h2>
 					<CardTitle className="text-3xl font-semibold text-slate-700 flex items-center gap-3">
 						<GitBranch className="h-8 w-8" />
-						Data Splitting Strategy for PU Learning
+						Stratified Time-based Split Strategy
 					</CardTitle>
+					<p className="text-lg text-gray-500 pt-2">
+						Completely eliminating data leakage and sample
+						distribution imbalance through robust temporal
+						stratification techniques for PU Learning scenarios.
+					</p>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					{/* 核心問題陳述 */}

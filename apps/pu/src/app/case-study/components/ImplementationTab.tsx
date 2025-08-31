@@ -5,23 +5,19 @@ import {
 	BarChart3,
 	Brain,
 	Filter,
-	GitBranch,
 	Layers,
 	Network,
-	Shield,
-	Target,
-	Users,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import {
-	DataPipelineFeatures,
-	ReliableImplementation,
-	StageImplementations,
-	SystemOverview,
-	TechnicalArchitecture,
-	TechnicalContributions,
-} from "./implementation";
+import {} from "./implementation";
+
+import ContinuousEvolution from "./implementation2/ContinuousEvolution";
+import DataPreprocessing from "./implementation2/DataPreprocessing";
+import ImplementationIntro from "./implementation2/ImplementationIntro";
+import ModelEvaluation from "./implementation2/ModelEvaluation";
+import ModelTraining from "./implementation2/ModelTraining";
+import TechStack from "./implementation2/TechStack";
 
 // 假設您有一個 CodeBlock 元件用於語法高亮
 // import { CodeBlock } from "@/components/CodeBlock";
@@ -44,16 +40,12 @@ export default function ImplementationTab() {
 	useEffect(() => {
 		const handleScroll = () => {
 			const sections = [
-				"system-overview",
-				"architecture-design",
-				"data-pipeline",
-				"reliable-implementation",
-				"data-split-strategy",
-				"stage-1-implementation",
-				"stage-2-implementation",
-				"stage-3-implementation",
-				"stage-4-implementation",
-				"technical-contributions",
+				"implementation-intro",
+				"data-preprocessing",
+				"model-training",
+				"model-evaluation",
+				"continuous-evolution",
+				"system-architecture",
 			];
 			const scrollPosition = window.scrollY + 100;
 
@@ -109,59 +101,34 @@ export default function ImplementationTab() {
 						<nav className="space-y-2">
 							{[
 								{
-									id: "system-overview",
-									label: "System Overview",
+									id: "implementation-intro",
+									label: "Introduction",
 									icon: Brain,
 								},
 								{
-									id: "architecture-design",
-									label: "Technical Architecture",
-									icon: Layers,
-								},
-								{
-									id: "data-pipeline",
-									label: "Data Pipeline & Features",
-									icon: Activity,
-								},
-								{
-									id: "reliable-implementation",
-									label: "Reliable Training Pipeline",
-									icon: Shield,
-								},
-								{
-									id: "data-split-strategy",
-									label: "Data Split Strategy Evolution",
-									icon: GitBranch,
-								},
-								{
-									id: "stage-1-implementation",
-									label: "Stage 1: Candidate Generation",
+									id: "data-preprocessing",
+									label: "Data Preprocessing",
 									icon: Filter,
 								},
 								{
-									id: "stage-2-implementation",
-									label: "Stage 2: Expert Labeling",
-									icon: Users,
-								},
-								{
-									id: "stage-3-implementation",
-									label: "Stage 3: PU Training",
+									id: "model-training",
+									label: "Model Training",
 									icon: Network,
 								},
 								{
-									id: "stage-4-implementation",
-									label: "Stage 4: Results Analysis",
+									id: "model-evaluation",
+									label: "Model Evaluation",
 									icon: BarChart3,
 								},
 								{
-									id: "model-architecture",
-									label: "LSTM+PU Model Architecture",
-									icon: Brain,
+									id: "continuous-evolution",
+									label: "Continuous Evolution",
+									icon: Activity,
 								},
 								{
-									id: "technical-contributions",
-									label: "Technical Contributions",
-									icon: Target,
+									id: "system-architecture",
+									label: "Technical Architecture",
+									icon: Layers,
 								},
 							].map((item) => (
 								<div key={item.id}>
@@ -187,12 +154,14 @@ export default function ImplementationTab() {
 
 				{/* Right Content Area (3/4) */}
 				<div className="w-3/4 p-6 space-y-12">
-					<SystemOverview />
-					<TechnicalArchitecture />
-					<DataPipelineFeatures />
-					<ReliableImplementation />
-					<StageImplementations />
-					<TechnicalContributions />
+					<ImplementationIntro />
+					<DataPreprocessing />
+					{/* <p>維度轉換</p> */}
+					<ModelTraining />
+					<ModelEvaluation />
+					<ContinuousEvolution />
+					{/* <p>3種情境</p> */}
+					<TechStack />
 				</div>
 			</div>
 		</div>

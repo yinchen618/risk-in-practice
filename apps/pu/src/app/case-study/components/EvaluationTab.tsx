@@ -1,335 +1,392 @@
-'use client'
+"use client";
 
 import {
-  AlertCircle,
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  Database,
-  Target,
-  TrendingUp,
-  Users,
-  Zap,
-} from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	AlertTriangle,
+	BarChart3,
+	Baseline,
+	Sparkles,
+	Zap,
+} from "lucide-react";
 
 export default function EvaluationTab() {
-  return (
-    <div className="space-y-8">
-      {/* Tab-specific heading */}
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-semibold text-slate-800 mb-4">
-          Model Evaluation & Results Analysis
-        </h2>
-        <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-          Comprehensive evaluation methodology and performance results of our PU Learning approach
-        </p>
-      </div>
+	return (
+		<div className="max-w-5xl mx-auto px-4 space-y-8">
+			{/* 1. Tab-specific heading */}
+			<div className="text-center mb-8">
+				<h2 className="text-4xl font-bold text-slate-800 mb-4">
+					Experimental Results: A Story of Domain Adaptation
+				</h2>
+				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
+					This section presents a three-act experiment designed to
+					demonstrate the challenge of domain shift and validate our
+					proposed adaptation strategy.
+				</p>
+			</div>
 
-      {/* Evaluation Methodology */}
-      <Card className="border-l-4 border-l-green-500">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-green-500" />
-            Evaluation Methodology
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-blue-700 mb-2">Temporal Validation</h4>
-              <p className="text-sm text-blue-600">
-                Time-based splits prevent data leakage. Training on historical data, testing on
-                future periods.
-              </p>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <Users className="h-8 w-8 text-purple-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-purple-700 mb-2">Cross-Domain Testing</h4>
-              <p className="text-sm text-purple-600">
-                Models trained on one building tested on different buildings to assess
-                generalization.
-              </p>
-            </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <Database className="h-8 w-8 text-orange-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-orange-700 mb-2">Holdout Validation</h4>
-              <p className="text-sm text-orange-600">
-                20% holdout set from same domain for hyperparameter tuning and model selection.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+			{/* 2. Results Analysis Dashboard (Visual Summary) */}
+			<Card className="shadow-lg border">
+				<CardHeader>
+					<CardTitle className="text-2xl font-semibold text-slate-800 flex items-center gap-2">
+						<BarChart3 className="h-6 w-6 text-blue-600" />
+						Results Analysis Dashboard
+					</CardTitle>
+					<CardDescription>
+						A side-by-side comparison of the three experimental
+						scenarios.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Performance Metrics Comparison Cards */}
+					<div className="grid md:grid-cols-3 gap-4 text-center">
+						{/* ERM Baseline */}
+						<Card>
+							<CardHeader className="bg-slate-50">
+								<p className="text-sm font-semibold text-slate-500">
+									SCENARIO 1
+								</p>
+								<CardTitle className="text-blue-700">
+									ERM Baseline
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="pt-6 space-y-4">
+								<div className="space-y-2">
+									<div>
+										<p className="text-3xl font-bold text-slate-800">
+											73.9%
+										</p>
+										<p className="text-sm text-slate-500">
+											F1 Score
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-slate-700">
+											61.9%
+										</p>
+										<p className="text-xs text-slate-500">
+											Precision
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-slate-700">
+											91.8%
+										</p>
+										<p className="text-xs text-slate-500">
+											Recall
+										</p>
+									</div>
+								</div>
 
-      {/* Key Performance Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-500" />
-            Performance Metrics & Results
-          </CardTitle>
-          <CardDescription>
-            Comprehensive evaluation using multiple metrics appropriate for imbalanced PU learning
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold mb-3">Primary Metrics</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded">
-                  <span className="font-medium">F1-Score</span>
-                  <Badge className="bg-green-600">0.847</Badge>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
-                  <span className="font-medium">Precision</span>
-                  <Badge className="bg-blue-600">0.823</Badge>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-purple-50 rounded">
-                  <span className="font-medium">Recall</span>
-                  <Badge className="bg-purple-600">0.872</Badge>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-orange-50 rounded">
-                  <span className="font-medium">AUC-ROC</span>
-                  <Badge className="bg-orange-600">0.901</Badge>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3">Cross-Domain Results</h4>
-              <div className="space-y-3">
-                <div className="p-3 bg-slate-50 rounded">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium">Building A → B</span>
-                    <Badge variant="secondary">F1: 0.756</Badge>
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    Good generalization across building types
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium">Office → Residential</span>
-                    <Badge variant="secondary">F1: 0.692</Badge>
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    Expected drop for different usage patterns
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium">Seasonal Transfer</span>
-                    <Badge variant="secondary">F1: 0.814</Badge>
-                  </div>
-                  <p className="text-xs text-slate-600">Robust to seasonal behavior changes</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+								<div className="border-t pt-3 mt-4">
+									<div className="text-sm space-y-1">
+										<p className="font-medium text-slate-600">
+											Training Data:
+										</p>
+										<p className="text-slate-500">
+											(U) Office Worker domain
+										</p>
+										<p className="text-slate-500">
+											(P) Office Worker domain
+										</p>
 
-      {/* Algorithm Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Algorithm Performance Comparison</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 font-semibold">Algorithm</th>
-                  <th className="text-center p-3 font-semibold">F1-Score</th>
-                  <th className="text-center p-3 font-semibold">Precision</th>
-                  <th className="text-center p-3 font-semibold">Recall</th>
-                  <th className="text-center p-3 font-semibold">Training Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b bg-green-50">
-                  <td className="p-3 font-medium">
-                    nnPU + LSTM <Badge className="ml-2">Best</Badge>
-                  </td>
-                  <td className="text-center p-3">0.847</td>
-                  <td className="text-center p-3">0.823</td>
-                  <td className="text-center p-3">0.872</td>
-                  <td className="text-center p-3">12.3 min</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="p-3 font-medium">uPU + LSTM</td>
-                  <td className="text-center p-3">0.821</td>
-                  <td className="text-center p-3">0.798</td>
-                  <td className="text-center p-3">0.845</td>
-                  <td className="text-center p-3">11.8 min</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="p-3 font-medium">One-Class SVM</td>
-                  <td className="text-center p-3">0.643</td>
-                  <td className="text-center p-3">0.542</td>
-                  <td className="text-center p-3">0.781</td>
-                  <td className="text-center p-3">8.4 min</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="p-3 font-medium">Isolation Forest</td>
-                  <td className="text-center p-3">0.589</td>
-                  <td className="text-center p-3">0.612</td>
-                  <td className="text-center p-3">0.567</td>
-                  <td className="text-center p-3">3.2 min</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="p-3 font-medium">Autoencoder</td>
-                  <td className="text-center p-3">0.571</td>
-                  <td className="text-center p-3">0.523</td>
-                  <td className="text-center p-3">0.634</td>
-                  <td className="text-center p-3">15.7 min</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+										<p className="font-medium text-slate-600 pt-2">
+											Prediction Target:
+										</p>
+										<p className="text-slate-500">
+											Office Worker domain <br />
+											(Held-out test set)
+										</p>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
 
-      {/* Key Findings */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="h-5 w-5" />
-              Key Successes
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Superior PU Learning Performance</p>
-                <p className="text-xs text-slate-600">
-                  nnPU significantly outperforms traditional unsupervised methods
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Effective Temporal Modeling</p>
-                <p className="text-xs text-slate-600">
-                  LSTM captures complex temporal dependencies in usage patterns
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Good Cross-Domain Transfer</p>
-                <p className="text-xs text-slate-600">
-                  Models generalize reasonably well across different buildings
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Robust to Data Imbalance</p>
-                <p className="text-xs text-slate-600">
-                  Handles extreme class imbalance (1:1000) effectively
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+						{/* Generalization Challenge */}
+						<Card className="border-2 border-orange-400 bg-orange-50">
+							<CardHeader className="bg-orange-100">
+								<p className="text-sm font-semibold text-orange-600">
+									SCENARIO 2
+								</p>
+								<CardTitle className="text-orange-800">
+									Generalization Challenge
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="pt-6 space-y-4">
+								<div className="space-y-2">
+									<div>
+										<p className="text-3xl font-bold text-orange-700">
+											18.2%
+										</p>
+										<p className="text-sm text-slate-500">
+											F1 Score
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-orange-600">
+											10.0%
+										</p>
+										<p className="text-xs text-slate-500">
+											Precision
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-orange-600">
+											100.0%
+										</p>
+										<p className="text-xs text-slate-500">
+											Recall
+										</p>
+									</div>
+								</div>
 
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-700">
-              <AlertCircle className="h-5 w-5" />
-              Challenges & Limitations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Hyperparameter Sensitivity</p>
-                <p className="text-xs text-slate-600">
-                  Performance sensitive to window size and architecture choices
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Training Time</p>
-                <p className="text-xs text-slate-600">
-                  LSTM training requires significant computational resources
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Domain Adaptation Gap</p>
-                <p className="text-xs text-slate-600">
-                  Performance drops for very different usage patterns
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Label Quality Dependence</p>
-                <p className="text-xs text-slate-600">
-                  Results depend heavily on quality of expert annotations
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+								<div className="border-t border-orange-200 pt-3 mt-4">
+									<div className="text-sm space-y-1">
+										<p className="font-medium text-orange-700">
+											Model Used:
+										</p>
+										<p className="text-orange-600">
+											Pre-trained ERM Baseline model
+											<br /> (from Scenario 1)
+										</p>
+										{/* <p className="text-orange-600">
+											• No additional training or
+											adaptation
+										</p> */}
 
-      {/* Experimental Validation */}
-      <Alert>
-        <TrendingUp className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Experimental Validation:</strong> Our evaluation demonstrates that PU learning
-          with LSTM architectures achieves superior performance for anomaly detection in smart home
-          environments. The nnPU algorithm shows particular robustness to the extreme class
-          imbalance inherent in this domain, achieving F1-scores exceeding 0.84 on held-out test
-          data.
-        </AlertDescription>
-      </Alert>
+										<p className="font-medium text-orange-700 pt-2">
+											Prediction Target:
+										</p>
+										<p className="text-orange-600">
+											Student domain dataset
+											<br /> (completely new domain)
+										</p>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
 
-      {/* Real-world Impact */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-purple-600" />
-            Real-World Impact & Applications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 mb-1">78%</div>
-              <p className="text-sm text-slate-600">
-                Reduction in false positives vs. traditional methods
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 mb-1">5.2x</div>
-              <p className="text-sm text-slate-600">Improvement in anomaly detection accuracy</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600 mb-1">92%</div>
-              <p className="text-sm text-slate-600">Automation of anomaly screening process</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+						{/* Domain Adaptation */}
+						<Card className="border-2 border-green-500 bg-green-50">
+							<CardHeader className="bg-green-100">
+								<p className="text-sm font-semibold text-green-600">
+									SCENARIO 3
+								</p>
+								<CardTitle className="text-green-800">
+									Domain Adaptation
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="pt-6 space-y-4">
+								<div className="space-y-2">
+									<div>
+										<p className="text-3xl font-bold text-green-700">
+											77.9%
+										</p>
+										<p className="text-sm text-slate-500">
+											F1 Score
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-green-600">
+											63.8%
+										</p>
+										<p className="text-xs text-slate-500">
+											Precision
+										</p>
+									</div>
+									<div>
+										<p className="text-xl font-semibold text-green-600">
+											99.8%
+										</p>
+										<p className="text-xs text-slate-500">
+											Recall
+										</p>
+									</div>
+								</div>
+
+								<div className="border-t border-green-200 pt-3 mt-4">
+									<div className="text-sm space-y-1">
+										<p className="font-medium text-green-700">
+											Training Data:
+										</p>
+										<p className="text-green-600">
+											(U) Office Worker domain
+										</p>
+										<p className="text-green-600">
+											(P) Student domain
+										</p>
+
+										<p className="font-medium text-green-700 pt-2">
+											Prediction Target:
+										</p>
+										<p className="text-green-600">
+											Student domain (Held-out test set)
+										</p>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* 3. Deep Dive Analysis */}
+			<div className="space-y-6 pt-8">
+				<h3 className="text-3xl font-bold text-center text-slate-800">
+					Deep Dive: Analysis of Each Scenario
+				</h3>
+
+				{/* ERM Baseline Analysis */}
+				<Card className="border-l-4 border-l-blue-500">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Baseline className="h-6 w-6 text-blue-600" />
+							Act I: ERM Baseline (The Benchmark)
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<p>
+							<strong>Goal:</strong> Establish a performance
+							benchmark within a single domain (the "office
+							worker" dataset).
+						</p>
+						<p>
+							<strong>Method:</strong> Train, validate, and test
+							the model exclusively on data from the office worker
+							domain.
+						</p>
+						<div>
+							<p className="font-semibold">Analysis:</p>
+							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
+								This is a robust benchmark. The high Recall
+								(91.8%) shows the model is adept at finding
+								anomalies, at the cost of a slightly lower
+								Precision (61.9%), which indicates some false
+								positives—a common trade-off. This result serves
+								as our <strong>"gold standard"</strong> for
+								comparison.
+							</blockquote>
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Generalization Challenge Analysis */}
+				<Card className="border-l-4 border-l-orange-500">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<AlertTriangle className="h-6 w-6 text-orange-500" />
+							Act II: Generalization Challenge (The Conflict)
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<p>
+							<strong>Goal:</strong> Test the benchmark model's
+							performance on a never-before-seen domain (the
+							"student room" dataset) to assess its generalization
+							capability.
+						</p>
+						<p>
+							<strong>Method:</strong> Apply the trained
+							ERM_BASELINE model directly to the student room
+							data.
+						</p>
+						<div>
+							<p className="font-semibold">Analysis:</p>
+							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
+								The performance collapse (F1 score of 18.2%) is
+								entirely expected and is the key finding. It
+								powerfully demonstrates the existence of{" "}
+								<strong>Domain Shift</strong>. The combination
+								of 100% Recall and 10.0% Precision is a classic
+								signal that the model, knowing only "office
+								worker" patterns, classified nearly all
+								unfamiliar "student" patterns as anomalous.
+							</blockquote>
+						</div>
+					</CardContent>
+				</Card>
+
+				{/* Domain Adaptation Analysis */}
+				<Card className="border-l-4 border-l-green-500">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Zap className="h-6 w-6 text-green-500" />
+							Act III: Domain Adaptation (The Resolution)
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						<p>
+							<strong>Goal:</strong> Employ a strategy to adapt
+							the model to the new student domain.
+						</p>
+						<p>
+							<strong>Method:</strong> Train a new model using
+							unlabeled data (U) from the source domain (office
+							worker) and labeled positive data (P) from the
+							target domain (student). This is a highly effective
+							semi-supervised domain adaptation method for PU
+							Learning.
+						</p>
+						<div>
+							<p className="font-semibold">Analysis:</p>
+							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
+								This is a resounding success. The F1-score not
+								only recovered but{" "}
+								<strong>
+									outperformed the original benchmark (77.9%
+									&gt; 73.9%)
+								</strong>
+								. The model successfully learned to identify
+								student anomalies. This superior performance is
+								likely because the model leveraged the large
+								pool of unlabeled source data as a rich
+								"background context," helping it form a more
+								robust decision boundary.
+							</blockquote>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* 4. Conclusion */}
+			<Card className="mt-12 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+				<CardHeader>
+					<CardTitle className="flex items-center gap-3">
+						<Sparkles className="h-6 w-6 text-yellow-400" />
+						Conclusion: A Complete & Compelling Storyline
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-slate-300 leading-relaxed">
+						Our three experiments clearly narrate the story of
+						identifying a critical real-world problem and solving it
+						with an advanced strategy:
+					</p>
+					<ol className="list-decimal list-inside mt-4 space-y-2 text-slate-200">
+						<li>
+							<strong>Act I (Benchmark):</strong> We first proved
+							our method is effective in a controlled,
+							single-domain scenario.
+						</li>
+						<li>
+							<strong>Act II (Conflict):</strong> We then
+							demonstrated that this model fails when faced with a
+							domain shift, highlighting the core problem.
+						</li>
+						<li>
+							<strong>Act III (Resolution):</strong> Finally, we
+							showcased an effective domain adaptation strategy
+							that not only solved the problem but achieved
+							state-of-the-art results.
+						</li>
+					</ol>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }

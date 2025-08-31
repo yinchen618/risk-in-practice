@@ -71,14 +71,18 @@ export default function HomePage() {
 									<Cpu className="h-6 w-6" />
 								</div>
 								<div>
-									<h3 className="text-xl font-bold text-slate-800 mb-1">
+									<h3 className="text-xl font-bold text-slate-800 mb-1 mt-2">
 										Core Implementation: LSTM + PU Learning
 									</h3>
-									<p className="text-slate-600 mb-4">
-										Leveraging LSTM's strength in sequential
-										data, I successfully modeled energy
-										consumption patterns, leading to robust
-										anomaly detection.
+									<p className="text-slate-600 mb-5 mt-4">
+										Leveraging the strength of{" "}
+										<strong>
+											Long Short-Term Memory (LSTM)
+										</strong>{" "}
+										networks in sequential data, I
+										successfully modeled energy consumption
+										patterns, leading to robust anomaly
+										detection.
 									</p>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
 										<div className="bg-slate-100 border border-slate-200 rounded-lg p-3">

@@ -2,7 +2,7 @@
 
 import { LaTeX } from "@/components/LaTeX";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Network } from "lucide-react";
+import { Network } from "lucide-react";
 
 const CodeBlock = ({
 	children,
@@ -245,113 +245,6 @@ COMMIT;${''}`}</CodeBlock>
 									Source positives + target unlabeled
 									fine-tuning
 								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			</section>
-
-			{/* Stage 4: Results Analysis */}
-			<section id="stage-4-implementation" className="scroll-mt-6">
-				<Card className="border-l-4 border-l-orange-400 bg-white shadow-lg">
-					<CardHeader>
-						<CardTitle className="text-3xl font-semibold text-orange-800 flex items-center gap-3">
-							<BarChart3 className="h-8 w-8" />
-							Stage 4: Results Analysis & Evaluation
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-6">
-						<p className="text-slate-700 text-sm leading-relaxed">
-							Comprehensive evaluation framework comparing model
-							performance across scenarios: supervised baseline,
-							generalization challenges, and domain adaptation.
-						</p>
-
-						<div className="grid md:grid-cols-3 gap-4">
-							<div className="bg-orange-50 p-4 rounded border border-orange-200">
-								<h4 className="font-semibold text-orange-800 mb-2 text-sm">
-									ERM Baseline Evaluation
-								</h4>
-								<ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-									<li>Temporal 60/20/20 split</li>
-									<li>Fully supervised training</li>
-									<li>Performance upper-bound</li>
-									<li>Standard F1/Precision/Recall</li>
-								</ul>
-							</div>
-
-							<div className="bg-orange-50 p-4 rounded border border-orange-200">
-								<h4 className="font-semibold text-orange-800 mb-2 text-sm">
-									Generalization Challenge
-								</h4>
-								<ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-									<li>Zero-shot transfer testing</li>
-									<li>Cross-building evaluation</li>
-									<li>Temporal domain shifts</li>
-									<li>Robustness assessment</li>
-								</ul>
-							</div>
-
-							<div className="bg-orange-50 p-4 rounded border border-orange-200">
-								<h4 className="font-semibold text-orange-800 mb-2 text-sm">
-									Domain Adaptation
-								</h4>
-								<ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-									<li>Source positive labels</li>
-									<li>Target unlabeled data</li>
-									<li>PU Learning fine-tuning</li>
-									<li>Adaptation effectiveness</li>
-								</ul>
-							</div>
-						</div>
-
-						<div className="bg-white p-4 rounded border">
-							<h4 className="font-semibold text-slate-800 mb-2 text-sm">
-								Evaluation Pipeline
-							</h4>
-							<CodeBlock lang="python">{`def evaluate_model(model, test_loader, scenario_type):
-    model.eval()
-    all_predictions = []
-    all_labels = []
-    
-    with torch.no_grad():
-        for batch_x, batch_y in test_loader:
-            predictions = model(batch_x)
-            all_predictions.extend(predictions.cpu().numpy())
-            all_labels.extend(batch_y.numpy())
-    
-    y_pred = (np.array(all_predictions) > 0.5).astype(int)
-    y_true = np.array(all_labels)
-    
-    return {
-        'f1_score': f1_score(y_true, y_pred),
-        'precision': precision_score(y_true, y_pred, zero_division=0),
-        'recall': recall_score(y_true, y_pred, zero_division=0),
-        'scenario': scenario_type
-    }${""}`}</CodeBlock>
-						</div>
-
-						<div className="bg-slate-50 p-4 rounded border">
-							<h4 className="font-semibold text-slate-800 mb-2 text-sm">
-								Results Visualization
-							</h4>
-							<div className="grid md:grid-cols-2 gap-3 text-xs">
-								<div className="bg-white p-3 rounded border">
-									<strong>Performance Charts:</strong>{" "}
-									F1/Precision/Recall comparison
-								</div>
-								<div className="bg-white p-3 rounded border">
-									<strong>Confusion Matrix:</strong>{" "}
-									True/False Positive/Negative breakdown
-								</div>
-								<div className="bg-white p-3 rounded border">
-									<strong>Training Curves:</strong> Loss and
-									metrics over epochs
-								</div>
-								<div className="bg-white p-3 rounded border">
-									<strong>Risk Analysis:</strong> PU risk
-									estimation trends
-								</div>
 							</div>
 						</div>
 					</CardContent>
