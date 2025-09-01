@@ -151,11 +151,11 @@ export function CaseStudyV2WorkbenchComponent() {
 		<div className="space-y-8">
 			<div className="text-center mb-8">
 				<h2 className="text-4xl font-bold text-slate-800 mb-4">
-					PU Learning Workbench
+					Data Workbench
 				</h2>
 				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
-					Advanced experimental workbench for PU Learning research
-					with dynamic four-stage workflow
+					Advanced experimental workbench for LTSM + PU Learning
+					research with dynamic four-stage workflow
 				</p>
 			</div>
 
@@ -332,9 +332,7 @@ export function CaseStudyV2WorkbenchComponent() {
 			) : (
 				<Card>
 					<CardHeader>
-						<CardTitle>
-							Welcome to PU Learning Workbench v2
-						</CardTitle>
+						<CardTitle>Welcome to Data Workbench</CardTitle>
 						<CardDescription>
 							Create a new experiment run or select an existing
 							one to begin your research workflow

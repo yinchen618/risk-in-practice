@@ -24,9 +24,9 @@ export default function EvaluationTab() {
 					Experimental Results: A Story of Domain Adaptation
 				</h2>
 				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
-					This section presents a three-act experiment designed to
-					demonstrate the challenge of domain shift and validate our
-					proposed adaptation strategy.
+					This section presents a three-scenario experiment designed
+					to demonstrate the challenge of domain shift and validate
+					our proposed adaptation strategy.
 				</p>
 			</div>
 
@@ -246,7 +246,7 @@ export default function EvaluationTab() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<Baseline className="h-6 w-6 text-blue-600" />
-							Act I: ERM Baseline (The Benchmark)
+							SCENARIO I: ERM Baseline (The Benchmark)
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -261,6 +261,11 @@ export default function EvaluationTab() {
 							domain.
 						</p>
 						<div>
+							<div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+								<p className="text-blue-800 font-semibold text-sm">
+									💡 Key Finding: Robust Benchmark Performance
+								</p>
+							</div>
 							<p className="font-semibold">Analysis:</p>
 							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
 								This is a robust benchmark. The high Recall
@@ -280,7 +285,7 @@ export default function EvaluationTab() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<AlertTriangle className="h-6 w-6 text-orange-500" />
-							Act II: Generalization Challenge (The Conflict)
+							SCENARIO II: Generalization Challenge (The Conflict)
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -296,6 +301,11 @@ export default function EvaluationTab() {
 							data.
 						</p>
 						<div>
+							<div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+								<p className="text-orange-800 font-semibold text-sm">
+									⚠️ Key Finding: Severe Domain Shift Impact
+								</p>
+							</div>
 							<p className="font-semibold">Analysis:</p>
 							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
 								The performance collapse (F1 score of 18.2%) is
@@ -316,7 +326,7 @@ export default function EvaluationTab() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<Zap className="h-6 w-6 text-green-500" />
-							Act III: Domain Adaptation (The Resolution)
+							SCENARIO III: Domain Adaptation (The Resolution)
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -333,6 +343,12 @@ export default function EvaluationTab() {
 							Learning.
 						</p>
 						<div>
+							<div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+								<p className="text-green-800 font-semibold text-sm">
+									🚀 Key Finding: Outstanding Adaptation
+									Success
+								</p>
+							</div>
 							<p className="font-semibold">Analysis:</p>
 							<blockquote className="border-l-2 pl-4 text-slate-600 italic">
 								This is a resounding success. The F1-score not
@@ -354,7 +370,7 @@ export default function EvaluationTab() {
 			</div>
 
 			{/* 4. Conclusion */}
-			<Card className="mt-12 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+			<Card className="mt-12 bg-gradient-to-r from-slate-700 to-slate-600 text-white">
 				<CardHeader>
 					<CardTitle className="flex items-center gap-3">
 						<Sparkles className="h-6 w-6 text-yellow-400" />
@@ -362,29 +378,102 @@ export default function EvaluationTab() {
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<p className="text-slate-300 leading-relaxed">
+					<p className="text-slate-100 leading-relaxed mb-6">
 						Our three experiments clearly narrate the story of
 						identifying a critical real-world problem and solving it
 						with an advanced strategy:
 					</p>
-					<ol className="list-decimal list-inside mt-4 space-y-2 text-slate-200">
-						<li>
-							<strong>Act I (Benchmark):</strong> We first proved
-							our method is effective in a controlled,
-							single-domain scenario.
-						</li>
-						<li>
-							<strong>Act II (Conflict):</strong> We then
-							demonstrated that this model fails when faced with a
-							domain shift, highlighting the core problem.
-						</li>
-						<li>
-							<strong>Act III (Resolution):</strong> Finally, we
-							showcased an effective domain adaptation strategy
-							that not only solved the problem but achieved
-							state-of-the-art results.
-						</li>
-					</ol>
+
+					<div className="space-y-4">
+						<div className="flex items-start gap-4 p-4 bg-slate-600/50 rounded-lg border border-slate-500">
+							<div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+								1
+							</div>
+							<div>
+								<h4 className="font-bold text-slate-50 mb-2">
+									SCENARIO I (Benchmark)
+								</h4>
+								<p className="text-slate-100 text-sm">
+									We first proved our method is effective in a
+									controlled, single-domain scenario.
+								</p>
+								<ul className="mt-2 text-slate-200 text-xs space-y-1">
+									<li>
+										• Established performance baseline: F1
+										Score 73.9%
+									</li>
+									<li>
+										• Validated model effectiveness within
+										office worker domain
+									</li>
+									<li>
+										• Created "gold standard" for comparison
+									</li>
+								</ul>
+							</div>
+						</div>
+
+						<div className="flex items-start gap-4 p-4 bg-slate-600/50 rounded-lg border border-slate-500">
+							<div className="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+								2
+							</div>
+							<div>
+								<h4 className="font-bold text-slate-50 mb-2">
+									SCENARIO II (Conflict)
+								</h4>
+								<p className="text-slate-100 text-sm">
+									We then demonstrated that this model fails
+									when faced with a domain shift, highlighting
+									the core problem.
+								</p>
+								<ul className="mt-2 text-slate-200 text-xs space-y-1">
+									<li>
+										• Performance collapse: F1 Score dropped
+										to 18.2%
+									</li>
+									<li>
+										• Demonstrated existence of Domain Shift
+										challenge
+									</li>
+									<li>
+										• Identified critical limitation of
+										single-domain models
+									</li>
+								</ul>
+							</div>
+						</div>
+
+						<div className="flex items-start gap-4 p-4 bg-slate-600/50 rounded-lg border border-slate-500">
+							<div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+								3
+							</div>
+							<div>
+								<h4 className="font-bold text-slate-50 mb-2">
+									SCENARIO III (Resolution)
+								</h4>
+								<p className="text-slate-100 text-sm">
+									Finally, we showcased an effective domain
+									adaptation strategy that not only solved the
+									problem but achieved state-of-the-art
+									results.
+								</p>
+								<ul className="mt-2 text-slate-200 text-xs space-y-1">
+									<li>
+										• Superior performance: F1 Score
+										improved to 77.9%
+									</li>
+									<li>
+										• Successful cross-domain adaptation
+										strategy
+									</li>
+									<li>
+										• Outperformed original benchmark by 4.0
+										percentage points
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
 				</CardContent>
 			</Card>
 		</div>

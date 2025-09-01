@@ -12,7 +12,7 @@ export default function AlgorithmFormalism() {
 					<h2 className="text-base font-semibold uppercase text-blue-600 tracking-wider mb-4">
 						Algorithm Formalism
 					</h2>
-					<CardTitle className="text-3xl font-bold text-gray-800 ">
+					<CardTitle className="text-3xl font-bold text-gray-800">
 						Algorithm & Mathematical Formalism
 					</CardTitle>
 					<p className="text-lg text-gray-500 pt-2">
@@ -23,11 +23,11 @@ export default function AlgorithmFormalism() {
 				<CardContent className="space-y-8">
 					{/* Section 1: Notations */}
 					<div>
-						<h4 className="text-2xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
-							<ListOrdered className="h-6 w-6" />
+						<h4 className="text-xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
+							<ListOrdered className="h-5 w-5" />
 							1. Notations & Problem Setup
 						</h4>
-						<div className="text-base text-gray-600 space-y-2">
+						<div className="text-base text-gray-600 space-y-3">
 							<p>
 								Let{" "}
 								<LaTeX>
@@ -49,10 +49,10 @@ export default function AlgorithmFormalism() {
 									{
 										"\\mathcal{P} = \\{(\\mathbf{x}_i, y_i) | y_i = +1\\}"
 									}
-								</LaTeX>{" "}
+								</LaTeX>
 								and an unlabeled set{" "}
 								<LaTeX>{"\\mathcal{U}"}</LaTeX>. Our objective
-								is to learn a classifier <LaTeX>{"f"}</LaTeX>{" "}
+								is to learn a classifier <LaTeX>{"f"}</LaTeX>
 								using only <LaTeX>{"\\mathcal{P}"}</LaTeX> and{" "}
 								<LaTeX>{"\\mathcal{U}"}</LaTeX>.
 							</p>
@@ -61,8 +61,8 @@ export default function AlgorithmFormalism() {
 
 					{/* Section 2: Model Architecture */}
 					<div>
-						<h4 className="text-2xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
-							<Network className="h-6 w-6" />
+						<h4 className="text-xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
+							<Network className="h-5 w-5" />
 							2. Model Architecture:{" "}
 							<LaTeX>
 								{"f_{\\theta} = g_{\\theta} \\circ \\Phi"}
@@ -70,11 +70,11 @@ export default function AlgorithmFormalism() {
 						</h4>
 						<div className="space-y-4">
 							<div>
-								<h5 className="text-lg font-semibold text-gray-600">
+								<h5 className="text-lg font-semibold text-gray-600 mb-2">
 									A. Temporal Feature Extraction (
 									<LaTeX>{"\\Phi"}</LaTeX>)
 								</h5>
-								<p className="text-gray-600 mt-1">
+								<p className="text-gray-600 mb-3">
 									Given a sliding window of size{" "}
 									<LaTeX>{"W"}</LaTeX>, the feature extractor{" "}
 									<LaTeX>{"\\Phi"}</LaTeX> maps a sequence of
@@ -84,7 +84,7 @@ export default function AlgorithmFormalism() {
 									</LaTeX>{" "}
 									(D ≫ d).
 								</p>
-								<div className="my-2 p-3 bg-slate-50 border rounded-md text-center">
+								<div className="my-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
 									<LaTeX
 										displayMode={true}
 									>{`\\mathbf{z}_t = \\Phi(\\mathbf{x}_{t-W+1}, \\dots, \\mathbf{x}_t) = 
@@ -97,18 +97,18 @@ export default function AlgorithmFormalism() {
 								</div>
 							</div>
 							<div>
-								<h5 className="text-lg font-semibold text-gray-600">
+								<h5 className="text-lg font-semibold text-gray-600 mb-2">
 									B. LSTM-based Classifier (
 									<LaTeX>{"g_{\\theta}"}</LaTeX>)
 								</h5>
-								<p className="text-gray-600 mt-1">
+								<p className="text-gray-600 mb-3">
 									The classifier takes the enhanced vector{" "}
 									<LaTeX>{"\\mathbf{z}_t"}</LaTeX> and
 									produces a probability score{" "}
-									<LaTeX>{"\\hat{p}_t"}</LaTeX> via an LSTM
-									and a two-layer MLP.
+									<LaTeX>{"\\hat{p}_t"}</LaTeX>
+									via an LSTM and a two-layer MLP.
 								</p>
-								<div className="my-2 p-3 bg-slate-50 border rounded-md text-center">
+								<div className="my-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
 									<LaTeX displayMode={true}>
 										{
 											"\\hat{p}_t = f_{\\theta}(\\mathbf{z}_t) = \\sigma(W_2 \\cdot \\text{ReLU}(W_1 \\cdot \\text{LSTM}(\\text{BN}(\\mathbf{z}_t)) + b_1) + b_2)"
@@ -121,20 +121,20 @@ export default function AlgorithmFormalism() {
 
 					{/* Section 3: Learning Objective */}
 					<div>
-						<h4 className="text-2xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
-							<Target className="h-6 w-6" />
+						<h4 className="text-xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
+							<Target className="h-5 w-5" />
 							3. Learning Objective: nnPU Risk Minimization
 						</h4>
-						<p className="text-gray-600">
+						<p className="text-gray-600 mb-3">
 							The model parameters <LaTeX>{"\\theta"}</LaTeX> are
 							optimized by minimizing the non-negative
-							Positive-Unlabeled (nnPU) risk estimator,{" "}
+							Positive-Unlabeled (nnPU) risk estimator,
 							<LaTeX>{"\\hat{R}_{pu}(f_\\theta)"}</LaTeX>. Given a
 							loss function <LaTeX>{"\\ell(p, y)"}</LaTeX> and a
 							class prior <LaTeX>{"\\pi_p"}</LaTeX>, the estimator
 							is defined as:
 						</p>
-						<div className="my-2 p-4 bg-slate-50 border rounded-md text-center">
+						<div className="my-3 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
 							<LaTeX displayMode={true}>
 								{
 									"\\hat{R}_{pu}(f_\\theta) = \\pi_p \\hat{R}_p^+(f_\\theta) + \\max(0, \\hat{R}_u^-(f_\\theta) - \\pi_p \\hat{R}_u^+(f_\\theta))"
@@ -152,19 +152,19 @@ export default function AlgorithmFormalism() {
 						</p>
 					</div>
 
-					{/* Section 4: Algorithm Pseudocode */}
+					{/* Section 4: Algorithm Pseudocode - 強化視覺效果 */}
 					<div>
-						<h4 className="text-2xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
-							<FileCode2 className="h-6 w-6" />
+						<h4 className="text-xl font-semibold text-gray-700 flex items-center gap-3 mb-4 border-b pb-2">
+							<FileCode2 className="h-5 w-5" />
 							4. The Complete Algorithm
 						</h4>
-						<div className="p-4 rounded-lg border bg-slate-50 font-mono text-sm text-gray-700">
-							<p>
-								<strong>Algorithm:</strong> LSTM Training with
-								Temporal Features and nnPU Learning
+						<div className="p-6 rounded-lg border-2 border-slate-300 bg-gradient-to-br from-slate-50 to-blue-50 font-mono text-sm text-gray-700 shadow-inner">
+							<p className="font-bold text-lg mb-3 text-slate-800">
+								Algorithm: LSTM Training with Temporal Features
+								and nnPU Learning
 							</p>
-							<div className="border-t my-2" />
-							<p>
+							<div className="border-t border-slate-300 my-3" />
+							<p className="mb-2">
 								<strong>Input:</strong> Positive set{" "}
 								<LaTeX>{"\\mathcal{P}"}</LaTeX>, Unlabeled set{" "}
 								<LaTeX>{"\\mathcal{U}"}</LaTeX>, window size{" "}
@@ -173,11 +173,11 @@ export default function AlgorithmFormalism() {
 								<LaTeX>{"\\eta"}</LaTeX>, batch size{" "}
 								<LaTeX>{"B"}</LaTeX>.
 							</p>
-							<p>
+							<p className="mb-3">
 								<strong>Output:</strong> Trained model
 								parameters <LaTeX>{"\\theta^*"}</LaTeX>.
 							</p>
-							<div className="border-t my-2" />
+							<div className="border-t border-slate-300 my-3" />
 							<ol className="list-decimal list-inside space-y-2">
 								<li>
 									<strong>Data Preparation:</strong> Merge{" "}
@@ -195,7 +195,7 @@ export default function AlgorithmFormalism() {
 								<li>
 									<strong>Feature Engineering:</strong> Apply
 									extractor <LaTeX>{"\\Phi"}</LaTeX> to
-									generate feature sets{" "}
+									generate feature sets
 									<LaTeX>
 										{
 											"\\mathcal{Z}_{train}, \\mathcal{Z}_{val}"
@@ -223,7 +223,7 @@ export default function AlgorithmFormalism() {
 										<strong>to</strong> E{" "}
 										<strong>do</strong>
 									</p>
-									<div className="pl-6 border-l ml-2">
+									<div className="pl-6 border-l border-slate-300 ml-2">
 										<p>
 											<strong>for each</strong> mini-batch{" "}
 											<LaTeX>
@@ -233,7 +233,7 @@ export default function AlgorithmFormalism() {
 											</LaTeX>{" "}
 											<strong>do</strong>
 										</p>
-										<div className="pl-6 border-l ml-2 space-y-1">
+										<div className="pl-6 border-l border-slate-300 ml-2 space-y-1">
 											<p>
 												Compute empirical risks{" "}
 												<LaTeX>

@@ -1,63 +1,32 @@
 "use client";
-import {} from "@/components/ui/card";
-import {
-	Activity,
-	BarChart3,
-	Brain,
-	Filter,
-	Layers,
-	Network,
-} from "lucide-react";
+
+import { BrainCircuit, Cpu, Database } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import {} from "./implementation";
+import SystemNarrative from "./SystemNarrative.tsx"; // We will use the new English content component
 
-import ContinuousEvolution from "./implementation2/ContinuousEvolution";
-import DataPreprocessing from "./implementation2/DataPreprocessing";
-import ImplementationIntro from "./implementation2/ImplementationIntro";
-import ModelEvaluation from "./implementation2/ModelEvaluation";
-import ModelTraining from "./implementation2/ModelTraining";
-import TechStack from "./implementation2/TechStack";
+export default function ImplementationTabEnglish() {
+	const [activeSection, setActiveSection] = useState("data-challenge");
 
-// 假設您有一個 CodeBlock 元件用於語法高亮
-// import { CodeBlock } from "@/components/CodeBlock";
-// 為了演示，我們用一個簡單的 pre 標籤代替
-const CodeBlock = ({
-	children,
-	lang,
-}: { children: React.ReactNode; lang: string }) => (
-	<pre
-		className={`bg-gray-800 text-white p-4 rounded-lg overflow-x-auto text-xs font-mono language-${lang}`}
-	>
-		<code>{children}</code>
-	</pre>
-);
-
-export default function ImplementationTab() {
-	const [activeSection, setActiveSection] = useState("system-overview");
-
-	// Handle scroll to update active section (與 ProblemApproachTab 相同)
+	// Logic to update active section on scroll (remains the same)
 	useEffect(() => {
 		const handleScroll = () => {
 			const sections = [
-				"implementation-intro",
-				"data-preprocessing",
-				"model-training",
-				"model-evaluation",
-				"continuous-evolution",
-				"system-architecture",
+				"data-challenge",
+				"learning-challenge",
+				"architecture-challenge",
 			];
-			const scrollPosition = window.scrollY + 100;
+			const scrollPosition = window.scrollY + 200; // Offset for better accuracy
 
-			for (const section of sections) {
-				const element = document.getElementById(section);
+			for (const sectionId of sections) {
+				const element = document.getElementById(sectionId);
 				if (element) {
 					const { offsetTop, offsetHeight } = element;
 					if (
 						scrollPosition >= offsetTop &&
 						scrollPosition < offsetTop + offsetHeight
 					) {
-						setActiveSection(section);
+						setActiveSection(sectionId);
 						break;
 					}
 				}
@@ -68,11 +37,12 @@ export default function ImplementationTab() {
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
+	// Smooth scroll to section
 	const scrollToSection = (sectionId: string) => {
 		const element = document.getElementById(sectionId);
 		if (element) {
 			const elementPosition = element.offsetTop;
-			const offsetPosition = elementPosition - 100;
+			const offsetPosition = elementPosition - 100; // Account for sticky header
 
 			window.scrollTo({
 				top: offsetPosition,
@@ -81,88 +51,73 @@ export default function ImplementationTab() {
 		}
 	};
 
+	// New, simplified navigation structure in English
+	const navigationItems = [
+		{
+			id: "data-challenge",
+			label: "Act I: The Data Challenge",
+			description: "From Raw Signals to Clean Data",
+			icon: Database,
+		},
+		{
+			id: "learning-challenge",
+			label: "Act II: The Learning Challenge",
+			description: "Learning from Imperfect Labels",
+			icon: BrainCircuit,
+		},
+		{
+			id: "architecture-challenge",
+			label: "Act III: The Architectural Challenge",
+			description: "Building a Reproducible System",
+			icon: Cpu,
+		},
+	];
+
 	return (
 		<div className="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
-			<div className="flex mx-auto">
-				{/* Left Sidebar - Navigation (1/4) */}
-				<div className="w-1/4 p-6">
-					<div className="sticky top-6">
-						{/* Page Title */}
+			<div className="flex max-w-screen-xl mx-auto">
+				{/* Left Sidebar (1/4) */}
+				<aside className="w-1/4 p-6">
+					<div className="sticky top-24">
 						<div className="mb-8">
 							<h1 className="text-2xl font-bold text-slate-800 mb-2">
-								System Implementation & Architecture
+								System Implementation
 							</h1>
 							<p className="text-sm text-slate-600">
-								PU Learning Workbench for IoT Anomaly Detection
+								An End-to-End Story from Data to Model
 							</p>
 						</div>
-
-						{/* Navigation */}
-						<nav className="space-y-2">
-							{[
-								{
-									id: "implementation-intro",
-									label: "Introduction",
-									icon: Brain,
-								},
-								{
-									id: "data-preprocessing",
-									label: "Data Preprocessing",
-									icon: Filter,
-								},
-								{
-									id: "model-training",
-									label: "Model Training",
-									icon: Network,
-								},
-								{
-									id: "model-evaluation",
-									label: "Model Evaluation",
-									icon: BarChart3,
-								},
-								{
-									id: "continuous-evolution",
-									label: "Continuous Evolution",
-									icon: Activity,
-								},
-								{
-									id: "system-architecture",
-									label: "Technical Architecture",
-									icon: Layers,
-								},
-							].map((item) => (
-								<div key={item.id}>
-									<button
-										type="button"
-										onClick={() => scrollToSection(item.id)}
-										className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
-											activeSection === item.id
-												? "bg-blue-100 text-blue-800 border-l-4 border-blue-600"
-												: "text-slate-600 hover:bg-slate-100"
-										}`}
-									>
-										<item.icon className="h-4 w-4" />
-										<span className="text-sm font-medium">
+						<nav className="space-y-3">
+							{navigationItems.map((item) => (
+								<button
+									key={item.id}
+									type="button"
+									onClick={() => scrollToSection(item.id)}
+									className={`w-full text-left p-4 rounded-lg transition-all duration-200 flex items-start gap-4 border-l-4 ${
+										activeSection === item.id
+											? "bg-blue-100 text-blue-800 border-blue-600"
+											: "text-slate-600 hover:bg-slate-100 border-transparent"
+									}`}
+								>
+									<item.icon className="h-6 w-6 mt-1 flex-shrink-0" />
+									<div>
+										<span className="text-sm font-bold block">
 											{item.label}
 										</span>
-									</button>
-								</div>
+										<span className="text-xs text-slate-500">
+											{item.description}
+										</span>
+									</div>
+								</button>
 							))}
 						</nav>
 					</div>
-				</div>
+				</aside>
 
 				{/* Right Content Area (3/4) */}
-				<div className="w-3/4 p-6 space-y-12">
-					<ImplementationIntro />
-					<DataPreprocessing />
-					{/* <p>維度轉換</p> */}
-					<ModelTraining />
-					<ModelEvaluation />
-					<ContinuousEvolution />
-					{/* <p>3種情境</p> */}
-					<TechStack />
-				</div>
+				<main className="w-3/4 p-6">
+					<SystemNarrative />
+				</main>
 			</div>
 		</div>
 	);

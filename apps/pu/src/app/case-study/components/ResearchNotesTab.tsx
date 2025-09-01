@@ -73,17 +73,17 @@ export default function ResearchNotesTab() {
 							{[
 								{
 									id: "lessons-practice",
-									label: "Core Takeaways & Key Learnings",
+									label: "Core Takeaways",
 									icon: Brain,
 								},
 								{
 									id: "algorithm-formalism",
-									label: "Algorithm & Mathematical Formalism",
+									label: "Algorithm & Formalism",
 									icon: Activity,
 								},
 								{
 									id: "research-highlights",
-									label: "Key Research Insights",
+									label: "Research Insights",
 									icon: BarChart3,
 								},
 							].map((item) => (
@@ -109,7 +109,7 @@ export default function ResearchNotesTab() {
 				</div>
 
 				{/* Right Content Area (3/4) */}
-				<div className="w-3/4 p-6 space-y-12">
+				<div className="w-3/4 p-6 space-y-10">
 					<LessonsPractice />
 					<AlgorithmFormalism />
 					<ResearchHighlights />
