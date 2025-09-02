@@ -329,8 +329,8 @@ export function CaseStudyV2WorkbenchComponent() {
 						)}
 					</TabsContent>
 				</Tabs>
-			) : (
-				<Card>
+			) : (<>				
+			<Card>
 					<CardHeader>
 						<CardTitle>Welcome to Data Workbench</CardTitle>
 						<CardDescription>
@@ -364,7 +364,6 @@ export function CaseStudyV2WorkbenchComponent() {
 						</ul>
 					</CardContent>
 				</Card>
-			)}
 
 			<Card>
 				<CardHeader>
@@ -551,6 +550,10 @@ export function CaseStudyV2WorkbenchComponent() {
 					</div>
 				</CardContent>
 			</Card>
+				</>
+
+			)}
+
 		</div>
 	);
 }

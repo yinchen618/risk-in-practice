@@ -144,11 +144,14 @@ export default function HomePage() {
 				<h2 className="text-3xl font-bold text-center mb-4 text-slate-800">
 					Research Path: From Theory to Deployment
 				</h2>
-				<p className="text-lg text-slate-600 text-center mb-12 max-w-3xl mx-auto">
-					A three-stage journey: mastering the core theory,
-					understanding the real-world environment, and implementing
-					an advanced PU Learning model.
-				</p>
+				<div className="text-lg text-slate-600 text-center mb-12 max-w-3xl mx-auto">
+					<p className="mb-2">A three-stage journey:</p>
+					<ul className="list-none space-y-1">
+						<li>• Mastering the core theory</li>
+						<li>• Understanding the real-world environment</li>
+						<li>• Implementing an advanced PU Learning model</li>
+					</ul>
+				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 					{/* Card 1: PU Learning Theory (MODIFIED) */}
@@ -163,11 +166,13 @@ export default function HomePage() {
 						</CardHeader>
 						<CardContent className="text-center">
 							<CardDescription className="text-base mb-6 leading-relaxed text-slate-600">
-								Replicating Prof. Sugiyama's foundational
-								algorithms to understand the impact of
-								hyperparameters—such as class-prior and model
-								complexity—on uPU and nnPU performance in a
-								controlled environment.
+								<p className="mb-3">Replicating Prof. Sugiyama's foundational algorithms:</p>
+								<ul className="text-sm list-none space-y-1 text-left">
+									<li>• Understanding uPU vs. nnPU performance</li>
+									<li>• Exploring hyperparameter impacts</li>
+									<li>• Testing class-prior and model complexity</li>
+									<li>• Controlled environment validation</li>
+								</ul>
 							</CardDescription>
 							<div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
 								<p className="text-sm text-slate-700 font-medium">
@@ -200,11 +205,13 @@ export default function HomePage() {
 						</CardHeader>
 						<CardContent className="text-center">
 							<CardDescription className="text-base mb-6 leading-relaxed text-slate-600">
-								Introducing the 95-unit smart residential
-								testbed, a non-stationary environment comprised
-								of students and office workers. Explore the live
-								data streams and understand the challenges of
-								real-world data collection.
+								<p className="mb-3">95-unit smart residential testbed features:</p>
+								<ul className="text-sm list-none space-y-1 text-left">
+									<li>• Non-stationary environment</li>
+									<li>• Diverse users: students & office workers</li>
+									<li>• Live data streams monitoring</li>
+									<li>• Real-world data collection challenges</li>
+								</ul>
 							</CardDescription>
 							<div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
 								<p className="text-sm text-slate-700 font-medium">
@@ -237,11 +244,13 @@ export default function HomePage() {
 						</CardHeader>
 						<CardContent className="text-center">
 							<CardDescription className="text-base mb-6 leading-relaxed text-slate-600">
-								At the core of this stage is the LSTM+PU
-								Learning model. I process the collected data,
-								train the model, and conduct a rigorous
-								evaluation against ERM and Domain Adaptation
-								benchmarks to validate its effectiveness.
+								<p className="mb-3">LSTM+PU Learning implementation:</p>
+								<ul className="text-sm list-none space-y-1 text-left">
+									<li>• Process collected real-world data</li>
+									<li>• Train LSTM+PU model</li>
+									<li>• Evaluate against ERM & Domain Adaptation</li>
+									<li>• Validate effectiveness with rigorous testing</li>
+								</ul>
 							</CardDescription>
 							<div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
 								<p className="text-sm text-slate-700 font-medium">
@@ -277,10 +286,11 @@ export default function HomePage() {
 						<h3 className="font-semibold mb-2 text-slate-800">
 							Theory to Practice
 						</h3>
-						<p className="text-sm text-slate-600">
-							Successfully bridged the gap between nnPU theory and
-							a noisy, real-world application.
-						</p>
+						<ul className="text-sm text-slate-600 list-none space-y-1 text-left">
+							<li>• Bridged nnPU theory gap</li>
+							<li>• Applied to noisy real-world data</li>
+							<li>• Validated practical effectiveness</li>
+						</ul>
 					</div>
 					<div className="text-center p-6 bg-white border border-slate-200 rounded-lg">
 						<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -289,11 +299,11 @@ export default function HomePage() {
 						<h3 className="font-semibold mb-2 text-slate-800">
 							Non-Negative Risk in the Wild
 						</h3>
-						<p className="text-sm text-slate-600">
-							Demonstrated the effectiveness of a core principle
-							of <strong>nnPU</strong> in preventing overfitting
-							on non-stationary time-series data.
-						</p>
+						<ul className="text-sm text-slate-600 list-none space-y-1 text-left">
+							<li>• Demonstrated <strong>nnPU</strong> core principle</li>
+							<li>• Prevented overfitting effectively</li>
+							<li>• Handled non-stationary time-series</li>
+						</ul>
 					</div>
 					<div className="text-center p-6 bg-white border border-slate-200 rounded-lg">
 						<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -302,11 +312,11 @@ export default function HomePage() {
 						<h3 className="font-semibold mb-2 text-slate-800">
 							Deep Learning Integration
 						</h3>
-						<p className="text-sm text-slate-600">
-							Showcased a successful integration of LSTM with the
-							PU learning framework to handle complex sequential
-							data.
-						</p>
+						<ul className="text-sm text-slate-600 list-none space-y-1 text-left">
+							<li>• Successfully integrated LSTM</li>
+							<li>• Combined with PU learning framework</li>
+							<li>• Handled complex sequential data</li>
+						</ul>
 					</div>
 					<div className="text-center p-6 bg-white border border-slate-200 rounded-lg">
 						<div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -315,11 +325,11 @@ export default function HomePage() {
 						<h3 className="font-semibold mb-2 text-slate-800">
 							Open & Reproducible
 						</h3>
-						<p className="text-sm text-slate-600">
-							The interactive platform allows for transparent
-							inspection and reproduction of key experiments and
-							results.
-						</p>
+						<ul className="text-sm text-slate-600 list-none space-y-1 text-left">
+							<li>• Transparent experiment inspection</li>
+							<li>• Reproducible key results</li>
+							<li>• Interactive platform access</li>
+						</ul>
 					</div>
 				</div>
 			</div>
