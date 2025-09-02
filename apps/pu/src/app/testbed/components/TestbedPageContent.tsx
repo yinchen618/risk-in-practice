@@ -74,7 +74,7 @@ export default function TestbedPageContent() {
 						<TestbedInfrastructure />
 
 						{/* 3. Detailed Photo Gallery Section */}
-						<DetailedPhotoGallery />
+						{/* <DetailedPhotoGallery /> */}
 
 						{/* 4. Key Metrics Section */}
 						<OverviewTab />

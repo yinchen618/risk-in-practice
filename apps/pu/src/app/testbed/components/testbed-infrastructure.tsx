@@ -19,7 +19,7 @@ const infrastructureImages: InfrastructureImage[] = [
 			"The two residential buildings that comprise the 95-unit testbed.",
 		icon: Home,
 		alt: "Exterior view of the residential buildings housing the testbed units",
-		src: "https://images.unsplash.com/photo-1570129477492-45c003edd2e7",
+		src: "/images/Exterior.jpg",
 	},
 	{
 		title: "Smart Meter Array",
@@ -27,7 +27,7 @@ const infrastructureImages: InfrastructureImage[] = [
 			"A centralized smart meter array providing high-resolution, real-time data.",
 		icon: Database,
 		alt: "Smart meter installation providing real-time energy monitoring",
-		src: "https://images.unsplash.com/photo-1629907492434-a84534244927",
+		src: "/images/Meter.jpg",
 	},
 	{
 		title: "Representative Unit",
@@ -35,7 +35,7 @@ const infrastructureImages: InfrastructureImage[] = [
 			"A representative empty unit, illustrating the monitored environment.",
 		icon: Camera,
 		alt: "Empty residential unit showing the monitored environment",
-		src: "https://images.unsplash.com/photo-1540518614846-7eded433c457",
+		src: "/images/Unit.jpg",
 	},
 ];
 
@@ -84,7 +84,7 @@ export function TestbedInfrastructure() {
 											<img
 												src={image.src}
 												alt={image.alt}
-												className="w-full h-full object-cover"
+												className=" h-full object-cover"
 												loading="lazy"
 												onError={() =>
 													handleImageError(index)
