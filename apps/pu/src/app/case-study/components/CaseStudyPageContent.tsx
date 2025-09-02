@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CaseStudyV2Page as WorkbenchTab } from "../../case-study-v2/page";
+import { CaseStudyV2WorkbenchComponent as WorkbenchTab } from "../../case-study-v2/components/CaseStudyV2WorkbenchComponent";
 import EvaluationTab from "./EvaluationTab";
 import ImplementationTab from "./ImplementationTab";
 import ProblemApproachTab from "./ProblemApproachTab";
