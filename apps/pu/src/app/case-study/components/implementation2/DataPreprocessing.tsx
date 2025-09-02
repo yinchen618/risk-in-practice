@@ -13,9 +13,9 @@ export default function DataPreprocessingEnglish() {
 						Features
 					</h3>
 					<p className="text-md text-gray-500 pt-2">
-						This process details how we transform raw, discrete data
+						This process details how I transform raw, discrete data
 						points into rich, context-aware feature vectors suitable
-						for our LSTM model.
+						for my LSTM model.
 					</p>
 				</CardHeader>
 				<CardContent className="grid gap-6">
@@ -40,7 +40,7 @@ export default function DataPreprocessingEnglish() {
 							2. Dynamic Temporal Feature Engineering
 						</h4>
 						<p className="text-sm text-gray-600">
-							Utilizing a sliding window mechanism, we look back
+							Utilizing a sliding window mechanism, I look back
 							over a defined period at each time step to compute
 							statistical (mean, std) and trend features,
 							expanding single data points into high-dimensional
@@ -58,7 +58,7 @@ export default function DataPreprocessingEnglish() {
 							This is a <strong>critical step</strong> for
 							ensuring research validity. To prevent data leakage
 							and ensure a balanced distribution of P/U samples in
-							validation/test sets, we designed a "Stratified
+							validation/test sets, I designed a "Stratified
 							Time-based Split" strategy.
 						</p>
 						<div className="bg-green-50 border-l-4 border-green-500 p-3 rounded-r-lg">

@@ -1,7 +1,7 @@
 'use client'
 
-import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import React from 'react'
 
 interface KeyInsightsSectionProps {
   // Configuration setting functions
@@ -235,7 +235,7 @@ function PriorEstimationCard({
         'Model Status: 🔴 Severe Overfitting',
       ]}
       solutionConfig={solutionConfig}
-      takeaway="Median method is more robust than Mean method, prior estimation is closer to true value (28.1% vs 29.5%), confirming our findings during debugging."
+      takeaway="Median method is more robust than Mean method, prior estimation is closer to true value (28.1% vs 29.5%), confirming my findings during debugging."
       onAction={onAction}
       onTrain={onTrain}
     />
@@ -423,7 +423,6 @@ function GoldenConfigurationCard({
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Golden configuration details */}
           <div className="space-y-4">
             <h4 className="font-semibold text-yellow-800 text-lg">🏆 Golden Parameters</h4>
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
@@ -469,8 +468,6 @@ function GoldenConfigurationCard({
               achieving ideal generalization performance.
             </p>
           </div>
-
-          {/* Golden results display */}
           <div className="space-y-4">
             <h4 className="font-semibold text-green-700 text-lg">🎯 Perfect Results Achieved</h4>
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
@@ -558,7 +555,7 @@ function InteractiveInstructions() {
       </div>
       <div className="mt-4 p-3 bg-slate-100 rounded-md">
         <p className="text-xs text-slate-600">
-          <strong>Experimental Results Summary:</strong> We executed systematic experiments across 6
+          <strong>Experimental Results Summary:</strong> I executed systematic experiments across 6
           scenarios, successfully verifying three major debugging themes:
           <br />• <strong>Prior Estimation Stability:</strong> Median method more accurate than Mean
           (28.1% vs 29.5%)

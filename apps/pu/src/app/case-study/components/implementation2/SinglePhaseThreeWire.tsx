@@ -55,7 +55,7 @@ export default function SinglePhaseThreeWireRevised() {
 				<div className="p-4 rounded-lg border-2 border-teal-200 bg-teal-50/50">
 					<h4 className="font-semibold text-teal-800 mb-3 flex items-center gap-2 text-lg">
 						<GanttChartSquare className="h-5 w-5" />
-						Our Solution: A Multi-Stage ETL (Extract, Transform,
+						My Solution: A Multi-Stage ETL (Extract, Transform,
 						Load) Pipeline
 					</h4>
 					<ul className="list-disc list-inside space-y-2 text-sm text-gray-700">

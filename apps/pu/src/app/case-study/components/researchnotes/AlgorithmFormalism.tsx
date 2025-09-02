@@ -51,8 +51,8 @@ export default function AlgorithmFormalism() {
 									}
 								</LaTeX>
 								and an unlabeled set{" "}
-								<LaTeX>{"\\mathcal{U}"}</LaTeX>. Our objective
-								is to learn a classifier <LaTeX>{"f"}</LaTeX>
+								<LaTeX>{"\\mathcal{U}"}</LaTeX>. My objective is
+								to learn a classifier <LaTeX>{"f"}</LaTeX>
 								using only <LaTeX>{"\\mathcal{P}"}</LaTeX> and{" "}
 								<LaTeX>{"\\mathcal{U}"}</LaTeX>.
 							</p>

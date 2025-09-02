@@ -25,7 +25,7 @@ export default function ModelEvaluationRevised() {
 					Evaluation Metrics for PU Learning
 				</CardTitle>
 				<CardDescription className="text-md pt-1">
-					Standard metrics are often misleading in PU scenarios. We
+					Standard metrics are often misleading in PU scenarios. I
 					adopt a dual-metric approach for a more accurate and
 					meaningful assessment of model performance.
 				</CardDescription>
@@ -39,7 +39,7 @@ export default function ModelEvaluationRevised() {
 					</h4>
 					<p className="text-sm text-gray-700">
 						Metrics like F1-Score, Precision, and Recall must be
-						interpreted with caution. In our test set, '0' labels
+						interpreted with caution. In my test set, '0' labels
 						represent 'Unlabeled' data, not 'Confirmed Negative'.
 						This mixture can artificially deflate precision, as the
 						model might correctly identify hidden positives within
@@ -57,8 +57,8 @@ export default function ModelEvaluationRevised() {
 						<li>
 							<strong>True Positive Recall:</strong> Measures the
 							fraction of confirmed positive samples correctly
-							identified. This is our most reliable metric as it
-							is immune to the ambiguity of the unlabeled set.
+							identified. This is my most reliable metric as it is
+							immune to the ambiguity of the unlabeled set.
 						</li>
 						<li>
 							<strong>Estimated Positive Rate in U:</strong> The

@@ -26,8 +26,8 @@ export default function ProblemApproachTab() {
 				</h1>
 				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
 					Identifying the domain shift challenge in anomaly detection
-					and presenting our systematic approach to overcome it
-					through PU Learning and domain adaptation.
+					and presenting my systematic approach to overcome it through
+					PU Learning and domain adaptation.
 				</p>
 			</div>
 
@@ -94,7 +94,7 @@ export default function ProblemApproachTab() {
 						Three-Act Hypothesis Testing
 					</CardTitle>
 					<CardDescription>
-						Systematic approach to validate our domain adaptation
+						Systematic approach to validate my domain adaptation
 						solution
 					</CardDescription>
 				</CardHeader>
@@ -277,7 +277,7 @@ export default function ProblemApproachTab() {
 			<Card className="shadow-lg bg-gradient-to-r from-slate-50 to-slate-100 border-2 border-slate-200">
 				<CardHeader>
 					<h2 className="text-base font-semibold uppercase text-blue-600 tracking-wider text-center mb-4">
-						Our Approach
+						My Approach
 					</h2>
 					<CardTitle className="text-3xl font-bold text-center flex items-center justify-center gap-3 text-slate-800">
 						<CheckCircle className="h-8 w-8 text-green-600" />

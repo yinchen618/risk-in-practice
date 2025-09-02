@@ -1,47 +1,47 @@
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface AlgorithmSelectorProps {
-  algorithm: 'uPU' | 'nnPU'
-  onAlgorithmChange: (algorithm: 'uPU' | 'nnPU') => void
+	algorithm: "uPU" | "nnPU";
+	onAlgorithmChange: (algorithm: "uPU" | "nnPU") => void;
 }
 
 export default function AlgorithmSelector({
-  algorithm,
-  onAlgorithmChange,
+	algorithm,
+	onAlgorithmChange,
 }: AlgorithmSelectorProps) {
-  return (
-    <div className="space-y-3 mt-2">
-      {/* <Label className="text-sm font-semibold">
+	return (
+		<div className="space-y-3 mt-2">
+			{/* <Label className="text-sm font-semibold">
 				1. Algorithm Selection
 			</Label> */}
-      <RadioGroup>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem
-            value="uPU"
-            id="upu"
-            checked={algorithm === 'uPU'}
-            onChange={() => onAlgorithmChange('uPU')}
-          />
-          <Label htmlFor="upu" className="text-sm">
-            uPU (ICML 2015) <span className="text-xs text-muted-foreground">[cite: 1, 2]</span>
-          </Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem
-            value="nnPU"
-            id="nnpu"
-            checked={algorithm === 'nnPU'}
-            onChange={() => onAlgorithmChange('nnPU')}
-          />
-          <Label htmlFor="nnpu" className="text-sm">
-            nnPU (NIPS 2017) <span className="text-xs text-muted-foreground">[cite: 3]</span>
-          </Label>
-        </div>
-      </RadioGroup>
+			<RadioGroup>
+				<div className="flex items-center space-x-2">
+					<RadioGroupItem
+						value="uPU"
+						id="upu"
+						checked={algorithm === "uPU"}
+						onChange={() => onAlgorithmChange("uPU")}
+					/>
+					<Label htmlFor="upu" className="text-sm">
+						uPU
+					</Label>
+				</div>
+				<div className="flex items-center space-x-2">
+					<RadioGroupItem
+						value="nnPU"
+						id="nnpu"
+						checked={algorithm === "nnPU"}
+						onChange={() => onAlgorithmChange("nnPU")}
+					/>
+					<Label htmlFor="nnpu" className="text-sm">
+						nnPU
+					</Label>
+				</div>
+			</RadioGroup>
 
-      {/* Algorithm Comparison Indicator */}
-      {/* <div
+			{/* Algorithm Comparison Indicator */}
+			{/* <div
 				className={`p-3 border rounded text-xs ${
 					algorithm === "nnPU"
 						? "bg-green-50 border-green-200"
@@ -57,6 +57,6 @@ export default function AlgorithmSelector({
 			<div className="text-xs text-gray-600">
 				Switch algorithms above to compare uPU vs nnPU performance
 			</div> */}
-    </div>
-  )
+		</div>
+	);
 }

@@ -25,7 +25,7 @@ export default function SystemNarrativeEnglish() {
 						Act I: The Data Challenge
 					</h2>
 					<p className="text-lg text-gray-500 mt-2">
-						How can we distill clean, ML-ready features from noisy,
+						How can I distill clean, ML-ready features from noisy,
 						real-world signals?
 					</p>
 				</div>

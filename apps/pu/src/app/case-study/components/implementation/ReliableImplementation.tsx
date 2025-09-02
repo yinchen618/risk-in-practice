@@ -102,7 +102,7 @@ export default function ReliableImplementation() {
 									Methodological Innovation
 								</h5>
 								<p className="text-xs text-red-800 leading-relaxed">
-									Our{" "}
+									My{" "}
 									<strong>
 										"Split First, Process Later"
 									</strong>{" "}
@@ -148,12 +148,12 @@ export default function ReliableImplementation() {
 								Theoretical Contribution
 							</h5>
 							<p className="text-xs text-indigo-800 leading-relaxed">
-								Our stratified temporal splitting addresses the{" "}
+								My stratified temporal splitting addresses the{" "}
 								<strong>distribution shift problem</strong> in
 								PU Learning (Bekker & Davis, 2020). By
 								maintaining temporal consistency within each
 								class while preserving the original P/U ratio
-								across splits, we ensure{" "}
+								across splits, I ensure{" "}
 								<strong>statistically valid</strong>
 								evaluation under temporal drift conditions.
 							</p>
@@ -214,8 +214,8 @@ export default function ReliableImplementation() {
 									proper cross-validation methodology
 								</strong>{" "}
 								(Varma & Simon, 2006) where feature selection
-								and preprocessing are nested within CV folds.
-								Our approach ensures
+								and preprocessing are nested within CV folds. My
+								approach ensures
 								<strong>unbiased performance estimation</strong>{" "}
 								by eliminating feature selection bias and
 								scaling contamination across temporal
@@ -267,7 +267,7 @@ export default function ReliableImplementation() {
 							<p className="text-xs text-yellow-800 leading-relaxed">
 								Addresses the{" "}
 								<strong>reproducibility crisis</strong> in ML
-								research (Gundersen & Kjensmo, 2018). Our shared
+								research (Gundersen & Kjensmo, 2018). My shared
 								model definition pattern ensures{" "}
 								<strong>identical computational graphs</strong>
 								between training and evaluation, eliminating
@@ -311,8 +311,8 @@ from shared_models import LSTMPULearningModel  # Consistency guaranteed${""}`}</
 								Implements{" "}
 								<strong>model artifact versioning</strong>{" "}
 								following MLOps principles (Sculley et al.,
-								2015; Paleyes et al., 2022). Our atomic
-								packaging approach ensures
+								2015; Paleyes et al., 2022). My atomic packaging
+								approach ensures
 								<strong>deployment consistency</strong> and
 								enables reliable model reproduction across
 								different environments and time periods.

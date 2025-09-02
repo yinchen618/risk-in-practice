@@ -56,7 +56,7 @@ export default function ResearchHighlights() {
 								Inspired Future Question:
 							</h5>
 							<p className="text-slate-600 leading-relaxed">
-								Can we design an <strong>"Online nnPU"</strong>{" "}
+								Can I design an <strong>"Online nnPU"</strong>{" "}
 								algorithm that dynamically adapts to changing
 								class prior π(t)?
 							</p>
@@ -95,7 +95,7 @@ export default function ResearchHighlights() {
 								Inspired Future Question:
 							</h5>
 							<p className="text-slate-600 leading-relaxed">
-								How can we develop a{" "}
+								How can I develop a{" "}
 								<strong>unified framework</strong> to handle
 								compound shifts within PU learning context?
 							</p>
@@ -134,7 +134,7 @@ export default function ResearchHighlights() {
 								Inspired Future Question:
 							</h5>
 							<p className="text-slate-600 leading-relaxed">
-								Can we leverage{" "}
+								Can I leverage{" "}
 								<strong>structured "noise"</strong> as valuable
 								signal about context-dependence of anomaly
 								detection?

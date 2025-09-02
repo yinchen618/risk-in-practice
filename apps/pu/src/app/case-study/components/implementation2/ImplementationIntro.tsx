@@ -80,7 +80,7 @@ export default function ImplementationIntroRevised() {
 						<p className="text-gray-700">
 							By combining LSTM's ability to model complex
 							temporal dynamics with nnPU's ability to learn from
-							sparse labels, we create a powerful and practical
+							sparse labels, I create a powerful and practical
 							framework for real-world anomaly detection.
 						</p>
 					</div>

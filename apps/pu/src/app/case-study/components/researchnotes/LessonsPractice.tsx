@@ -52,7 +52,7 @@ export default function LessonsPractice() {
 						Core Takeaways & Key Learnings
 					</CardTitle>
 					<p className="text-lg text-gray-500 pt-2 text-left">
-						Critical insights distilled from our development
+						Critical insights distilled from my development
 						lifecycle and research journey.
 					</p>
 				</CardHeader>

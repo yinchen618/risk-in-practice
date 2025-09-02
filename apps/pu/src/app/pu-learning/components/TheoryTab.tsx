@@ -135,7 +135,7 @@ export default function TheoryTab() {
 			<div className="p-6 bg-slate-50 rounded-lg">
 				<h4 className="font-semibold text-slate-900 mb-2">In System</h4>
 				<p className="text-sm text-slate-700 mb-3">
-					Risk estimators here are implemented exactly in our training
+					Risk estimators here are implemented exactly in my training
 					pipeline. nnPU’s non-negative constraint is applied before
 					gradient updates.
 				</p>

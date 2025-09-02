@@ -25,8 +25,8 @@ export default function EvaluationTab() {
 				</h2>
 				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
 					This section presents a three-scenario experiment designed
-					to demonstrate the challenge of domain shift and validate
-					our proposed adaptation strategy.
+					to demonstrate the challenge of domain shift and validate my
+					proposed adaptation strategy.
 				</p>
 			</div>
 
@@ -273,7 +273,7 @@ export default function EvaluationTab() {
 								anomalies, at the cost of a slightly lower
 								Precision (61.9%), which indicates some false
 								positives—a common trade-off. This result serves
-								as our <strong>"gold standard"</strong> for
+								as my <strong>"gold standard"</strong> for
 								comparison.
 							</blockquote>
 						</div>
@@ -379,7 +379,7 @@ export default function EvaluationTab() {
 				</CardHeader>
 				<CardContent>
 					<p className="text-slate-100 leading-relaxed mb-6">
-						Our three experiments clearly narrate the story of
+						My three experiments clearly narrate the story of
 						identifying a critical real-world problem and solving it
 						with an advanced strategy:
 					</p>
@@ -394,7 +394,7 @@ export default function EvaluationTab() {
 									SCENARIO I (Benchmark)
 								</h4>
 								<p className="text-slate-100 text-sm">
-									We first proved our method is effective in a
+									I first proved my method is effective in a
 									controlled, single-domain scenario.
 								</p>
 								<ul className="mt-2 text-slate-200 text-xs space-y-1">
@@ -422,7 +422,7 @@ export default function EvaluationTab() {
 									SCENARIO II (Conflict)
 								</h4>
 								<p className="text-slate-100 text-sm">
-									We then demonstrated that this model fails
+									I then demonstrated that this model fails
 									when faced with a domain shift, highlighting
 									the core problem.
 								</p>
@@ -452,7 +452,7 @@ export default function EvaluationTab() {
 									SCENARIO III (Resolution)
 								</h4>
 								<p className="text-slate-100 text-sm">
-									Finally, we showcased an effective domain
+									Finally, I showcased an effective domain
 									adaptation strategy that not only solved the
 									problem but achieved state-of-the-art
 									results.

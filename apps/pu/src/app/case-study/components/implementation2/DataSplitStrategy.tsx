@@ -67,7 +67,7 @@ export default function DataSplitStrategyRevised() {
 							The Stratified Solution
 						</h4>
 						<p className="text-sm text-gray-700 mb-3">
-							We first separate samples into Positive (P) and
+							I first separate samples into Positive (P) and
 							Unlabeled (U) groups. A time-based split is applied
 							to each group independently, and then the
 							corresponding splits are merged back together.

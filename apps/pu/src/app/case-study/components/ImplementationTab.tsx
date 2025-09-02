@@ -3,7 +3,7 @@
 import { BrainCircuit, Cpu, Database } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import SystemNarrative from "./SystemNarrative.tsx"; // We will use the new English content component
+import SystemNarrative from "./SystemNarrative"; // I will use the new English content component
 
 export default function ImplementationTabEnglish() {
 	const [activeSection, setActiveSection] = useState("data-challenge");

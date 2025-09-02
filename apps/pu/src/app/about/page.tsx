@@ -19,6 +19,71 @@ import {
 import Link from "next/link";
 import React from "react";
 
+const papers = {
+	publications: [
+		{
+			key: "wseas_2022",
+			category: "recent",
+			authors: ["Ray-I Chang", "Yin-Chen Chen", "et al."],
+			title: "Design and Implementation of an IoT Gateway for Zigbee and WiFi",
+			venue: "WSEAS Transactions on Communications",
+			year: 2022,
+			type: "journal",
+			pdf_url: "https://wseas.com/journals/articles.php?id=7038",
+			scholar_url:
+				"https://scholar.google.com.tw/citations?view_op=view_citation&hl=en&user=YiqWyHkAAAAJ&citation_for_view=YiqWyHkAAAAJ:SPgoriM2DtkC",
+			citations: 1,
+			citations_last_verified: "2025-08-10",
+		},
+		{
+			key: "icact_2009_integrated",
+			category: "foundational",
+			authors: ["Ying-Chen Chen", "Chi-Cheng Chuang", "et al."],
+			title: "Integrated Wireless Access Point Architecture for Wireless Sensor Networks",
+			venue: "Proceedings of the 11th International Conference on Advanced Communication Technology (ICACT)",
+			year: 2009,
+			type: "conference",
+			pdf_url: "https://dl.acm.org/doi/10.5555/1701955.1702094",
+			scholar_url:
+				"https://scholar.google.com.tw/citations?view_op=view_citation&hl=en&user=YiqWyHkAAAAJ&cstart=200&pagesize=100&sortby=pubdate&citation_for_view=YiqWyHkAAAAJ:_kc_bZDykSQC",
+			citations: 15,
+			citations_last_verified: "2025-08-10",
+		},
+		{
+			key: "wasn_2009",
+			category: "foundational",
+			authors: ["Ying-Chen Chen", "Chi-Cheng Chuang", "Ray-I Chang"],
+			title: "Wireless Sensor Network within an Open-Source Agent Framework",
+			venue: "Workshop on Wireless, Ad Hoc, and Sensor Networks (WASN)",
+			year: 2009,
+			type: "conference",
+			pdf_url: null,
+			scholar_url: null,
+			citations: null,
+			citations_last_verified: null,
+		},
+		{
+			key: "icact_2009_priority",
+			category: "foundational",
+			authors: [
+				"Jia-Shian Lin",
+				"Chi-Cheng Chuang",
+				"Ray-I Chang",
+				"Ying-Chen Chen",
+				"et al.",
+			],
+			title: "A Priority-based Pattern Matching Location Algorithm for Wireless Sensor Networks",
+			venue: "Proceedings of the 11th International Conference on Advanced Communication Technology (ICACT)",
+			year: 2009,
+			type: "conference",
+			pdf_url: null,
+			scholar_url: null,
+			citations: null,
+			citations_last_verified: null,
+		},
+	],
+};
+
 export default function AboutPage() {
 	// 1. 先替換掉原本的 PublicationsList 元件
 	function PublicationsList({ items }: { items: any[] }) {
@@ -34,7 +99,6 @@ export default function AboutPage() {
 							key={p.key}
 							className="border-l-4 border-slate-600 pl-4"
 						>
-							{/* [MODIFIED] Added authors list for a formal citation format */}
 							<p className="text-slate-700 text-[0.95em]">
 								{p.authors.join(", ")}. ({p.year}).
 							</p>
@@ -45,7 +109,6 @@ export default function AboutPage() {
 								<p className="text-slate-600 italic text-sm">
 									{p.venue}.
 								</p>
-								{/* [NEW] Publication Type Badge */}
 								<span
 									className={`px-2 py-0.5 rounded-full text-xs font-medium ${
 										p.type === "journal"
@@ -98,15 +161,8 @@ export default function AboutPage() {
 			</div>
 		);
 	}
-	// 2. 在您的 AboutPage 元件內部，return 語句之前，加入這段數據處理邏輯
-	const [publications, setPublications] = React.useState<any[]>([]);
-	React.useEffect(() => {
-		fetch("/data/publications.json")
-			.then((r) => r.json())
-			.then((j) => setPublications(j.publications || []))
-			.catch(() => setPublications([]));
-	}, []);
 
+	const publications = papers.publications;
 	const recentPubs = publications.filter((p) => p.category === "recent");
 	const foundationalPubs = publications.filter(
 		(p) => p.category === "foundational",
@@ -118,7 +174,7 @@ export default function AboutPage() {
 			id="top"
 		>
 			<div className="container mx-auto px-4 py-12 md:py-16">
-				{/* --- [MODIFIED] Hero Section: Changed to a Statement of Purpose --- */}
+				{/* --- Hero Section --- */}
 				<div className="text-center mb-16">
 					<div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-r from-slate-700 to-slate-800 text-white mb-8">
 						<GraduationCap className="h-12 w-12" />
@@ -129,23 +185,20 @@ export default function AboutPage() {
 					<h2 className="mt-2 text-xl md:text-2xl font-semibold text-slate-600">
 						Prospective PhD Student – Machine Learning & IoT Systems
 					</h2>
-					{/* --- [NEW] Statement of Purpose Paragraph --- */}
+					{/* Updated Hero Statement */}
 					<p className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed mt-6">
-						With over a decade of experience architecting
-						enterprise-level IoT systems and conducting independent
-						research, I am now seeking to pursue a PhD to address
-						fundamental challenges in machine learning. My focus
-						lies in applying weakly-supervised methods, like PU
-						learning, to noisy, non-stationary real-world data. My
-						long-term goal is to bridge the gap between robust
-						theoretical models and their practical, large-scale
-						implementation—a vision I believe aligns strongly with
-						the work of{" "}
+						I run a 95-unit smart-residential testbed that generates
+						high-frequency, real-world IoT time series at scale. My
+						research focuses on advancing weakly supervised learning
+						(PU/nnPU) to address covariate shift and label noise,
+						directly aligned with
 						<strong>
-							Prof. Masashi Sugiyama's lab at the University of
-							Tokyo
+							{" "}
+							Prof. Masashi Sugiyama's lab at UTokyo GSFS
 						</strong>
-						.
+						. My goal is to bridge theory and deployment, creating
+						reliable ML systems for dynamic, human-centered
+						environments.
 					</p>
 					<div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-slate-500 mb-8">
 						<div className="flex items-center gap-2">
@@ -154,16 +207,11 @@ export default function AboutPage() {
 						</div>
 						<div className="flex items-center gap-2">
 							<Building className="h-4 w-4" />
-							<span>
-								Target: Dept. of Complexity Science and
-								Engineering, GSFS, UTokyo
-							</span>
+							<span>Target: UTokyo GSFS, Schedule B 2026</span>
 						</div>
 						<div className="flex items-center gap-2">
 							<Calendar className="h-4 w-4" />
-							<span>
-								Seeking PhD Admission for 2026 Schedule B
-							</span>
+							<span>TOEFL iBT planned (Sep/Oct 2025)</span>
 						</div>
 					</div>
 					<div className="flex justify-center gap-4">
@@ -179,6 +227,27 @@ export default function AboutPage() {
 								Download Full CV (PDF)
 							</Link>
 						</Button>
+					</div>
+				</div>
+
+				{/* --- [NEW] Motivation & About Section --- */}
+				<div className="mb-16">
+					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
+						Motivation & About
+					</h2>
+					<div className="max-w-4xl mx-auto">
+						<Card className="border-slate-200">
+							<CardContent className="">
+								<p className="text-lg text-slate-700 leading-relaxed text-center">
+									With 10+ years architecting enterprise IoT
+									systems and independent research, I am
+									seeking a PhD to tackle core problems in
+									robust ML. I aim to bridge theory and
+									deployment at scale by applying PU/nnPU to
+									noisy, non-stationary data with UTokyo GSFS.
+								</p>
+							</CardContent>
+						</Card>
 					</div>
 				</div>
 
@@ -223,7 +292,7 @@ export default function AboutPage() {
 											• <strong>Developed</strong> a full
 											data pipeline for collecting,
 											processing, and analyzing multimodal
-											time-series data (power,
+											time series data (power,
 											environment, etc.).
 										</li>
 										<li>
@@ -262,28 +331,56 @@ export default function AboutPage() {
 											• As founder, I{" "}
 											<strong>directed</strong> all
 											technical and business operations,
-											leading the design of bespoke
-											enterprise systems for clients in
-											finance, education, religious
-											organizations, and real estate,
-											including a portfolio platform for a
-											Singapore-based investment firm.
+											developing customized internal
+											systems for domestic and
+											international clients, including a
+											portfolio platform for a
+											Singapore-based investment firm. My
+											primary business sectors include:
+											<ul className="ml-4 mt-2 space-y-1">
+												<li>
+													• <strong>Finance:</strong>{" "}
+													Investment platforms and
+													financial management systems
+												</li>
+												<li>
+													•{" "}
+													<strong>Education:</strong>{" "}
+													Campus and dormitory
+													management platforms
+												</li>
+												<li>
+													•{" "}
+													<strong>
+														Religious organizations:
+													</strong>{" "}
+													Sacrificial activities and
+													accounting management
+													systems
+												</li>
+												<li>
+													•{" "}
+													<strong>
+														Real estate:
+													</strong>{" "}
+													Property management and
+													smart home (IoT) platforms
+												</li>
+											</ul>
 										</li>
 										<li>
 											• <strong>Spearheaded</strong> the
 											Aichi International Academy smart
 											campus project in Nagoya, from
 											initial architecture to final
-											deployment. This required a
-											significant on-site presence in
-											Japan from{" "}
-											<strong>2017-2019</strong> to manage
-											implementation, client
-											collaboration, and the digital
-											transformation of campus operations
-											using IoT sensors. Key achievements
+											deployment. Key achievements
 											included:
 											<ul className="ml-4 mt-2 space-y-1">
+												<li>
+													• On-site presence in Japan
+													from{" "}
+													<strong>2017-2019</strong>
+												</li>
 												<li>
 													• Built comprehensive
 													internal management systems
@@ -299,8 +396,9 @@ export default function AboutPage() {
 												<li>
 													• Integrated IoT sensor
 													networks throughout the
-													dormitory infrastructure
+													infrastructure
 												</li>
+												<li>• Official website</li>
 											</ul>
 										</li>
 									</ul>
@@ -361,21 +459,28 @@ export default function AboutPage() {
 											non-STEM students.
 										</li>
 										<li>
-											• Achieved consistent student
-											evaluation scores averaging 4.66/5.0
-											across 12 courses since 2022, and
-											was consecutively selected for the
-											University-Level Excellent Course
-											Design Award in 2024 and 2025.
+											• <strong>2024/7–2025/6,</strong>
+											<div className="bg-green-50 border border-green-200 rounded-lg p-3 ml-4 mb-2">
+												<p className="text-sm text-green-800">
+													<strong>
+														Evaluations:
+													</strong>{" "}
+													mean <strong>4.70</strong>,
+													median <strong>4.70</strong>
+													, IQR{" "}
+													<strong>4.653–4.804</strong>
+													, <strong>5</strong>{" "}
+													sections,{" "}
+													<strong>215</strong>{" "}
+													students
+												</p>
+											</div>
 										</li>
 										<li>
-											• Transformed the course into a live
-											demonstration of applied AI by
-											developing and deploying custom
-											systems, including a facial
-											recognition attendance tracker and a
-											conversational bot for grade
-											management.
+											• Since 2022: evaluations weighted
+											mean <strong>4.66</strong>;{" "}
+											<strong>12</strong> sections,{" "}
+											<strong>545</strong> students.
 										</li>
 										{/* --- [NEW] Syllabi Links --- */}
 										{/* --- [FINAL] Syllabi Links with Nested List & Badges --- */}
@@ -444,6 +549,11 @@ export default function AboutPage() {
 													</ul>
 												</div>
 											</div>
+										</li>
+										<li>
+											• <strong>Awards:</strong>
+											University-Level Excellent Course
+											Design (2024, 2025).
 										</li>
 									</ul>
 								</div>
@@ -635,45 +745,45 @@ export default function AboutPage() {
 					</div>
 				</div>
 
-				{/* --- [MODIFIED] Awards & Honors, reverse chronological --- */}
+				{/* --- Languages & Availability Section --- */}
 				<div className="mb-16">
 					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
-						Awards & Honors
+						Languages & Availability
 					</h2>
 					<div className="max-w-4xl mx-auto">
 						<Card className="border-slate-200">
 							<CardContent className="pt-6">
-								<ul className="space-y-2">
-									<li className="flex items-start gap-3">
-										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p>
-											University-Level Excellent Course
-											Design Award (2024, 2025)
-										</p>
-									</li>
-									<li className="flex items-start gap-3">
-										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p>
-											Third Prize, 4th ARM Code-O-Rama
-											Embedded Programming Contest (2008)
-										</p>
-									</li>
-									<li className="flex items-start gap-3">
-										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p>
-											Champion, 3rd ARM Code-O-Rama
-											Embedded Programming Contest (2007)
-										</p>
-									</li>
-									<li className="flex items-start gap-3">
-										<span className="w-2 h-2 bg-slate-600 rounded-full mt-2 flex-shrink-0" />
-										<p>
-											Champion, 7th National Taiwan
-											University Innovation Competition
-											(2007)
-										</p>
-									</li>
-								</ul>
+								<div className="text-center space-y-4">
+									<p className="text-slate-700">
+										<strong>Languages:</strong> Mandarin
+										(native), English (fluent), Japanese
+										(JLPT N2)
+									</p>
+									<p className="text-slate-700">
+										Applying UTokyo GSFS PhD (Schedule B,
+										2026). TOEFL iBT planned (Sep/Oct 2025).
+									</p>
+									<p className="text-slate-700">
+										Open to remote/on-site meetings.
+									</p>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
+				</div>
+
+				{/* --- Japanese Summary Section --- */}
+				<div className="mb-16">
+					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
+						志望動機・研究概要（要約）
+					</h2>
+					<div className="max-w-4xl mx-auto">
+						<Card className="border-slate-200">
+							<CardContent className="pt-6">
+								<p className="text-slate-700 leading-relaxed">
+									弱教師あり学習（PU/nnPU）を用いて、ノイズや分布変動（covariate
+									shift）が存在する実環境IoTデータに対する堅牢なリスク最小化に取り組みます。95戸のスマート住宅テストベッド（高頻度マルチモーダル時系列）を運用し、重要度重み付け（密度比推定）やシフト認識型の評価指標を実装しています。実データの制約を踏まえ、理論的仮定を損なわないデータガバナンスと再現性のある評価系を整備し、実装と理論の架橋に貢献します。東京大学GSFS（杉山研究室）の研究テーマと強く整合しており、共同研究の形で価値を提供できます。
+								</p>
 							</CardContent>
 						</Card>
 					</div>
@@ -691,19 +801,9 @@ export default function AboutPage() {
 								Email
 							</Link>
 						</Button>
-						{/* <Button variant="outline" asChild>
-							<Link
-								href="https://linkedin.com/in/your-profile" // Remember to fill this in
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								<Linkedin className="h-4 w-4 mr-2" />
-								LinkedIn
-							</Link>
-						</Button> */}
 						<Button variant="outline" asChild>
 							<Link
-								href="https://github.com/yinchen618/pu-in-practice" // Remember to fill this in
+								href="https://github.com/yinchen618"
 								target="_blank"
 								rel="noopener noreferrer"
 							>
@@ -711,10 +811,16 @@ export default function AboutPage() {
 								GitHub
 							</Link>
 						</Button>
-					</div>
-					<div className="mt-6 text-sm text-slate-500">
-						Languages: Mandarin Chinese (Native), English (Fluent),
-						Japanese (Intermediate, JLPT N2)
+						<Button variant="outline" asChild>
+							<Link
+								href="https://yinchen.tw"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<Globe className="h-4 w-4 mr-2" />
+								Website
+							</Link>
+						</Button>
 					</div>
 				</div>
 			</div>
