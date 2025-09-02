@@ -113,13 +113,13 @@ export function TestbedInfrastructure() {
 			</div>
 
 			{/* Footnote */}
-			<div className="text-center mt-6">
+			{/* <div className="text-center mt-6">
 				<p className="text-xs text-slate-500 italic">
 					* Images are representative of the testbed infrastructure.
 					Actual implementation may vary based on specific building
 					requirements.
 				</p>
-			</div>
+			</div> */}
 		</section>
 	);
 }

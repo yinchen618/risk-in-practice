@@ -90,12 +90,9 @@ export default function TestbedPageContent() {
 								Live Data Explorer
 							</h2>
 							<p className="text-slate-600 max-w-3xl mx-auto">
-								Visualize live and historical power data,
-								overlay detected candidate anomalies and
-								confirmed events, and link directly to their
-								labeling or prediction results.
+								Explore real-time power consumption patterns.
 							</p>
-							<div className="mt-4 text-sm text-slate-700">
+							{/* <div className="mt-4 text-sm text-slate-700">
 								<p className="mb-1 font-medium">
 									Overlay Legend:
 								</p>
@@ -108,7 +105,7 @@ export default function TestbedPageContent() {
 										Red stars: Stage-2 confirmed anomalies
 									</li>
 								</ul>
-							</div>
+							</div> */}
 						</div>
 						<ExplorerTab />
 					</div>

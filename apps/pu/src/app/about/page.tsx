@@ -220,7 +220,7 @@ export default function AboutPage() {
 							className="bg-slate-800 hover:bg-slate-700"
 						>
 							<Link
-								href="/CV_YinChen_Chen_U-Tokyo_PhD_2026.pdf"
+								href="/CV_YinChen_Chen_U-Tokyo_PhD_2025-09-02.pdf"
 								target="_blank"
 							>
 								<Download className="h-4 w-4 mr-2" />
