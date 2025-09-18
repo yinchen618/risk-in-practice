@@ -2465,7 +2465,7 @@ export function Stage3TrainingWorkbench({
 	const loadTrainedModels = async () => {
 		try {
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/trained-models?experiment_run_id=${experimentRun.id}`,
+				`https://weakrisk.yinchen.tw/api/v2/trained-models?experiment_run_id=${experimentRun.id}`,
 			);
 			if (response.ok) {
 				const models = await response.json();
@@ -2509,7 +2509,7 @@ export function Stage3TrainingWorkbench({
 	const loadEvaluationRuns = async () => {
 		try {
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/evaluation-runs?experiment_run_id=${experimentRun.id}`,
+				`https://weakrisk.yinchen.tw/api/v2/evaluation-runs?experiment_run_id=${experimentRun.id}`,
 			);
 			if (response.ok) {
 				const runs = await response.json();
@@ -2523,7 +2523,7 @@ export function Stage3TrainingWorkbench({
 	const loadAvailableDatasets = async () => {
 		try {
 			const response = await fetch(
-				"https://python.yinchen.tw/api/v2/analysis-datasets",
+				"https://weakrisk.yinchen.tw/api/v2/analysis-datasets",
 			);
 			if (response.ok) {
 				const datasets = await response.json();
@@ -2609,7 +2609,7 @@ export function Stage3TrainingWorkbench({
 			console.log("🗑️ Delete model request:", modelId);
 
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/trained-models/${modelId}`,
+				`https://weakrisk.yinchen.tw/api/v2/trained-models/${modelId}`,
 				{
 					method: "DELETE",
 				},
@@ -2673,7 +2673,7 @@ export function Stage3TrainingWorkbench({
 			);
 
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/trained-models/${modelId}/rename`,
+				`https://weakrisk.yinchen.tw/api/v2/trained-models/${modelId}/rename`,
 				{
 					method: "PATCH",
 					headers: {
@@ -2728,7 +2728,7 @@ export function Stage3TrainingWorkbench({
 
 		try {
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/evaluation-runs/${evaluationId}`,
+				`https://weakrisk.yinchen.tw/api/v2/evaluation-runs/${evaluationId}`,
 				{
 					method: "DELETE",
 				},
@@ -2793,7 +2793,7 @@ export function Stage3TrainingWorkbench({
 			);
 
 			const response = await fetch(
-				`https://python.yinchen.tw/api/v2/evaluation-runs/${evaluationId}/rename`,
+				`https://weakrisk.yinchen.tw/api/v2/evaluation-runs/${evaluationId}/rename`,
 				{
 					method: "PATCH",
 					headers: {
@@ -2904,7 +2904,7 @@ export function Stage3TrainingWorkbench({
 				.replace(/:/g, "-");
 
 			const response = await fetch(
-				"https://python.yinchen.tw/api/v2/trained-models",
+				"https://weakrisk.yinchen.tw/api/v2/trained-models",
 				{
 					method: "POST",
 					headers: {
@@ -3026,7 +3026,7 @@ export function Stage3TrainingWorkbench({
 				.replace(/:/g, "-");
 
 			const response = await fetch(
-				"https://python.yinchen.tw/api/v2/evaluation-runs",
+				"https://weakrisk.yinchen.tw/api/v2/evaluation-runs",
 				{
 					method: "POST",
 					headers: {
