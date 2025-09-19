@@ -26,7 +26,7 @@ export default function ProblemApproachTab() {
 				</h1>
 				<p className="text-lg text-slate-600 max-w-3xl mx-auto">
 					Identifying the domain shift challenge in anomaly detection
-					and presenting a systematic
+					and presenting a systematic{" "}
 					<strong>risk estimation–driven</strong> approach to overcome
 					it through
 					<strong> PU learning</strong> and{" "}
