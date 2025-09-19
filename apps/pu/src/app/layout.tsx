@@ -4,9 +4,9 @@ import "./globals.css";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Providers } from "./providers";
-
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -48,6 +48,7 @@ export default function RootLayout({
 						<Toaster />
 					</NuqsAdapter>
 				</Providers>
+				<Analytics />
 			</body>
 		</html>
 	);
