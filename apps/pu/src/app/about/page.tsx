@@ -512,11 +512,11 @@ export default function AboutPage() {
 													students
 												</p>
 											</div>
-											<p className="text-sm text-slate-700 mt-1">
+											{/* <p className="text-sm text-slate-700 mt-1">
 												<strong>Awarded:</strong>{" "}
 												University-Level Excellent
 												Course Design (2024, 2025).
-											</p>
+											</p> */}
 										</li>
 										<li>
 											• Since 2022: evaluations weighted
