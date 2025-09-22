@@ -15,6 +15,7 @@ import {
 	Mail,
 	MapPin,
 	Server,
+	Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -689,6 +690,46 @@ export default function AboutPage() {
 										/>
 									</div>
 								)}
+							</CardContent>
+						</Card>
+					</div>
+				</div>
+
+				{/* --- Honors & Awards Section --- */}
+				<div className="mb-16">
+					<h2 className="text-3xl font-bold text-center mb-8 text-slate-800">
+						Honors &amp; Awards
+					</h2>
+					<div className="max-w-4xl mx-auto">
+						<Card className="border-slate-200">
+							<CardContent className="pt-6 space-y-4">
+								<div className="border-l-4 border-slate-600 pl-4">
+									<p className="text-slate-800 font-semibold flex items-center gap-2">
+										<Trophy className="h-4 w-4 text-amber-600" />
+										Third Prize — 4th ARM Code-O-Rama
+										Embedded Programming Contest, 2008
+									</p>
+								</div>
+
+								<div className="border-l-4 border-slate-600 pl-4">
+									<p className="text-slate-800 font-semibold flex items-center gap-2">
+										<Trophy className="h-4 w-4 text-amber-600" />
+										Champion — 3rd ARM Code-O-Rama Embedded
+										Programming Contest, 2007
+									</p>
+								</div>
+
+								<div className="border-l-4 border-slate-600 pl-4">
+									<p className="text-slate-800 font-semibold flex items-center gap-2">
+										<Trophy className="h-4 w-4 text-amber-600" />
+										Champion — 7th NTU(National Taiwan
+										University) Innovation Competition, 2007
+									</p>
+									<p className="text-slate-600 text-sm mt-1 italic">
+										(No champion awarded in the 5th &amp;
+										6th competitions)
+									</p>
+								</div>
 							</CardContent>
 						</Card>
 					</div>
